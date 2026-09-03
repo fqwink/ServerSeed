@@ -1,7 +1,7 @@
 # ServerSeed マスター仕様
 
 - 文書種別: マスター仕様
-- 仕様リビジョン: 0.15
+- 仕様リビジョン: 0.16
 - 確定日: 2026-09-03
 - ステータス: 確定
 - 対象リポジトリ: `fqwink/ServerSeed`
@@ -612,6 +612,9 @@ serverseed verify
 serverseed report
 serverseed status
 serverseed version
+serverseed doctor
+serverseed plan
+serverseed support-bundle
 ```
 
 | コマンド | 役割 |
@@ -624,6 +627,9 @@ serverseed version
 | `report` | 実行結果と履歴を表示 |
 | `status` | 現在の総合状態を表示 |
 | `version` | ServerSeed、OSおよび構成バージョンを表示 |
+| `doctor` | ServerSeed自身の導入状態、設定、権限、依存コマンドを診断 |
+| `plan` | `setup`、`update`、`recover`の実行計画だけを作成 |
+| `support-bundle` | 調査用情報を秘密情報を除外して収集 |
 
 ServerSeed USBでは、起動時に`serverseed`を自動実行し、状態判定に応じて処理を分岐する。Cloud版でも導入後の操作入口は`serverseed`とする。破壊的処理には明示的確認を必要とする。
 
@@ -636,6 +642,9 @@ ServerSeed USBでは、起動時に`serverseed`を自動実行し、状態判定
 | `version` | 読み取り専用 | なし |
 | `report` | 読み取り専用 | なし |
 | `verify` | 読み取り専用 | なし |
+| `doctor` | 読み取り専用 | なし |
+| `plan` | 読み取り専用 | なし |
+| `support-bundle` | 読み取り専用 | なし |
 | `setup` | 計画表示後に確認 | あり |
 | `update` | 計画表示後に確認 | あり |
 | `recover` | 復旧計画表示後に確認 | あり |
@@ -684,6 +693,78 @@ Cloud版の`ADOPTABLE`セットアップでは、既存SSH接続を保護し、�
 `report`は直近の操作、検査結果、検証結果、失敗理由、再起動要否、次に必要な手動操作を表示する。
 
 人間向け出力では要約を優先し、`--json`では監視や外部ツールが処理しやすい構造化データを出力する。
+
+### 13.7 `doctor`
+
+`doctor`はServerSeed自身の導入状態を診断する。
+
+診断対象は次を基本とする。
+
+- `serverseed`バイナリの存在と実行権限
+- Debian 13判定
+- 対応アーキテクチャ判定
+- 必須外部コマンドの存在
+- `/etc/serverseed/`、`/var/lib/serverseed/`、`/var/log/serverseed/`の存在と権限
+- 設定ファイルの構文と型
+- 管理マーカーの整合性
+- ロックファイルと実行中操作の状態
+- 信頼鍵リングの存在
+- ログ書き込み可否
+
+`doctor`は修正を実行しない。修正候補がある場合は、必要な操作と影響範囲を表示する。
+
+### 13.8 `plan`
+
+`plan`は`setup`、`update`、`recover`の実行計画だけを作成する。
+
+```bash
+serverseed plan setup
+serverseed plan update
+serverseed plan recover
+```
+
+`plan`は`--dry-run`と同様に変更操作を行わない。計画作成に必要な検査だけを行い、`blocked_by`がある場合は実行不能理由を表示する。
+
+### 13.9 `support-bundle`
+
+`support-bundle`は障害調査に必要な情報を収集する。
+
+収集対象は次を基本とする。
+
+- `serverseed version --json`
+- `serverseed status --json`
+- `serverseed inspect --json`
+- `serverseed doctor --json`
+- 直近の`operation.json`
+- 直近の`history.jsonl`
+- ServerSeedログ
+- 設定ファイルの秘密情報マスク済み内容
+
+`support-bundle`は秘密情報を含めてはならない。秘密情報を除外またはマスクできない項目は収集しない。
+
+出力形式はtar.gzとし、ファイル名は次を基本とする。
+
+```text
+serverseed-support_MACHINEID_TIMESTAMP.tar.gz
+```
+
+### 13.10 ツール強化方針
+
+ServerSeed CLIは、危険操作を実行するだけの道具ではなく、管理者が判断できる情報を提供する運用ツールとして強化する。
+
+強化対象は次とする。
+
+- 事実収集
+- 状態判定
+- 実行計画作成
+- ブロック理由の説明
+- 修正候補の提示
+- 検証結果の機械処理出力
+- 調査用情報の安全な収集
+- リリース成果物の検証
+- 自己診断
+
+自動修復は初期実装の対象外とする。修復が必要な場合は、`doctor`、`verify`、`plan`、`report`で原因、影響、推奨操作を表示する。
 
 ## 14. 管理対象サーバのディレクトリ
 
@@ -1001,11 +1082,17 @@ last_successful_operation_at
 --yes
 --config PATH
 --log-level LEVEL
+--no-color
+--output PATH
 ```
 
 `--yes`は通常の確認を省略できるが、ディスク消去などの破壊的操作では、対象ディスク識別情報を含む追加確認を必要とする。
 
 対話不能な環境で確認が必要になった場合は、変更を行わず終了コード`3`で停止する。
+
+`--no-color`は人間向け出力の色付けを無効化する。`--json`指定時は常に色付けしない。
+
+`--output PATH`は、`report`、`plan`、`support-bundle`などの成果物出力先を指定するために使用する。指定先に既存ファイルがある場合は、明示オプションなしに上書きしてはならない。
 
 ### 17.6.1 共通JSON出力
 
@@ -1140,6 +1227,7 @@ GitHub workflowはServerSeedリポジトリのCI/CD実行定義として扱う�
 | `build` | Linux amd64およびarm64向け`serverseed`バイナリ作成 |
 | `package-deb` | Debianパッケージの作成と内容検査 |
 | `spec-check` | `MASTER_SPEC.md`と実装上の固定値の矛盾検査 |
+| `cli-contract` | サブコマンド、共通オプション、JSON出力契約の検査 |
 
 CIで実行してはならない処理は次のとおりとする。
 
@@ -1164,6 +1252,7 @@ ci/run-integration
 ci/run-build
 ci/run-package
 ci/run-spec-check
+ci/run-cli-contract
 ci/run-all
 ```
 
@@ -1265,6 +1354,8 @@ release/publish
 - `serverseed version`が成功すること
 - `serverseed inspect --json`がJSONのみを標準出力へ出すこと
 - `serverseed --help`が成功すること
+- `serverseed doctor --json`がJSONのみを標準出力へ出すこと
+- `serverseed plan update --json`が変更なしで計画またはブロック理由を出すこと
 
 ### 17.10.7 成果物保管
 
@@ -1297,6 +1388,7 @@ serverseed/
 │   ├── images/
 │   ├── run-all
 │   ├── run-build
+│   ├── run-cli-contract
 │   ├── run-format
 │   ├── run-integration
 │   ├── run-lint
