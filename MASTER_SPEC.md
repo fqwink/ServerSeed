@@ -10,7 +10,7 @@
 
 ServerSeedは、物理サーバ、VPSおよびクラウド上のサーバを、共通の定義に基づいてセットアップ、アップデート、検証および復旧するGo製CLIのサーバライフサイクル管理ツールである。
 
-主要な利用者インターフェースは`serverseed`コマンドとする。物理サーバでは専用USBから`serverseed`を起動し、VPSおよびクラウドでは既存のDebian 13へ`serverseed`を導入して実行する。特定のクラウドプロバイダーやプロバイダーAPIには依存しない。
+主要な利用者インターフェースは`serverseed`コマンドとする。物理サーバでは専用USBから`serverseed`を起動し、VPSおよびクラウドでは既存のUbuntu 24.04 LTSへ`serverseed`を導入して実行する。特定のクラウドプロバイダーやプロバイダーAPIには依存しない。
 
 ## 2. 基本原則
 
@@ -38,34 +38,34 @@ ServerSeedは、物理サーバ、VPSおよびクラウド上のサーバを、�
 
 ## 4. 対応範囲
 
-対応OSはDebian 13に一本化する。
+対応OSはUbuntu 24.04 LTSに一本化する。
 
 開発対象は次の順序とする。
 
 1. ServerSeed CLI
 2. ServerSeed Core
-3. Debian 13検査および構成適用
+3. Ubuntu 24.04 LTS検査および構成適用
 4. ServerSeed USB
 5. ServerSeed Cloud
-6. Debian 13向けcloud-init対応
+6. Ubuntu 24.04 LTS向けcloud-init対応
 7. ServerSeed ISO
 
-Ubuntu、RHEL系、FreeBSD、その他OSは対応対象外とする。将来提案や補助文書で他OS対応を扱う場合も、本仕様が更新されない限りServerSeedの実装対象に含めない。
+Debian、RHEL系、FreeBSD、その他OSは対応対象外とする。将来提案や補助文書で他OS対応を扱う場合も、本仕様が更新されない限りServerSeedの実装対象に含めない。
 
-### 4.1 Debian 13判定
+### 4.1 Ubuntu 24.04 LTS判定
 
-Debian 13対応判定は`/etc/os-release`を主情報とする。
+Ubuntu 24.04 LTS対応判定は`/etc/os-release`を主情報とする。
 
 対応OSと判定するには、少なくとも次を満たす必要がある。
 
 ```text
-ID=debian
-VERSION_ID=13
+ID=ubuntu
+VERSION_ID=24.04
 ```
 
-`VERSION_ID`が`13`以外、`ID`が`debian`以外、または`/etc/os-release`を読み取れない場合は対応OSと判定しない。`VERSION_CODENAME`は補助情報として記録できるが、判定の唯一の根拠にしてはならない。
+`VERSION_ID`が`24.04`以外、`ID`が`ubuntu`以外、または`/etc/os-release`を読み取れない場合は対応OSと判定しない。`VERSION_CODENAME`は補助情報として記録できるが、判定の唯一の根拠にしてはならない。
 
-Debian派生OSはDebian 13として扱わない。`ID_LIKE=debian`のみを根拠に対応OSと判定してはならない。
+Ubuntu派生OSはUbuntu 24.04 LTSとして扱わない。`ID_LIKE=debian`のみを根拠に対応OSと判定してはならない。
 
 ### 4.2 対応アーキテクチャ
 
@@ -78,9 +78,9 @@ Debian派生OSはDebian 13として扱わない。`ID_LIKE=debian`のみを根�
 
 その他アーキテクチャは対応対象外とする。対応外アーキテクチャでは、読み取り専用の`inspect`のみ実行できる。変更操作は開始しない。
 
-### 4.3 Debianパッケージ管理前提
+### 4.3 Ubuntuパッケージ管理前提
 
-ServerSeedはDebian 13の標準パッケージ管理を前提とする。
+ServerSeedはUbuntu 24.04 LTSの標準パッケージ管理を前提とする。
 
 少なくとも次のコマンドまたは機能が利用可能であることを確認する。
 
@@ -134,7 +134,7 @@ ServerSeedは対象ディスクまたは対象OSを検査し、次の状態に�
 1. ルートファイルシステムまたは対象ディスクを読み取れない場合は`UNKNOWN`とする。
 2. 破損、前回処理の未完了、必須管理ファイルの欠損がある管理対象は`RECOVERABLE`とする。
 3. ServerSeed管理マーカー、マシン識別情報、構成バージョンが整合する場合は`MANAGED`とする。
-4. Debian 13であり、ServerSeed未導入で、Cloud版の前提を満たす場合は`ADOPTABLE`とする。
+4. Ubuntu 24.04 LTSであり、ServerSeed未導入で、Cloud版の前提を満たす場合は`ADOPTABLE`とする。
 5. パーティション、OS、ブートローダーが存在しないと判断できる場合のみ`EMPTY`とする。
 6. 上記に該当しない場合は`UNKNOWN`とする。
 
@@ -174,8 +174,8 @@ ServerSeedは対象ディスクまたは対象OSを検査し、次の状態に�
   "detected_at": "RFC3339",
   "machine_id": "string",
   "os": {
-    "id": "debian",
-    "version_id": "13",
+    "id": "ubuntu",
+    "version_id": "24.04",
     "kernel": "string"
   },
   "boot": {
@@ -192,7 +192,7 @@ ServerSeedは対象ディスクまたは対象OSを検査し、次の状態に�
     {
       "id": "os.supported",
       "result": "pass",
-      "message": "Debian 13 detected"
+      "message": "Ubuntu 24.04 LTS detected"
     }
   ]
 }
@@ -228,7 +228,7 @@ ServerSeedは対象ディスクまたは対象OSを検査し、次の状態に�
 
 ServerSeed USBは、物理サーバおよびベアメタル環境に対して次を提供する。
 
-- Debian 13のセットアップ
+- Ubuntu 24.04 LTSのセットアップ
 - ServerSeed初期構成
 - 管理対象OSのアップデート
 - 状態検査
@@ -271,7 +271,7 @@ ServerSeed USBは、物理サーバおよびベアメタル環境に対して次
 
 利用者が対象SSDと全データ消去を確認した後、次を自動実行する。
 
-1. Debian 13のインストール
+1. Ubuntu 24.04 LTSのインストール
 2. 管理ユーザーの作成
 3. SSH公開鍵の登録
 4. rootによるSSHログインの禁止
@@ -300,8 +300,8 @@ Tailscaleなど対話認証が必要な機能は、秘密情報をUSBへ保存�
 SERVERSEED/
 ├── boot/
 ├── installer/
-│   ├── Debian installer
-│   └── preseed.cfg
+│   ├── Ubuntu installer
+│   └── autoinstall.yml
 ├── repository/
 ├── serverseed/
 │   ├── VERSION
@@ -333,7 +333,7 @@ BIOSおよびUEFIは、検査可能な項目を自動検査し、標準化され
 
 対応するUEFI環境では次を自動化できる。
 
-- DebianのUEFI起動項目作成
+- UbuntuのUEFI起動項目作成
 - ブートローダー登録
 - 起動順序の検査および変更
 - 次回起動先の指定
@@ -365,7 +365,7 @@ ServerSeed Cloudは、VPSまたはクラウド事業者が準備した対応OS�
 
 ### 8.2 前提
 
-ServerSeed Cloudは原則としてOSインストールを担当しない。利用者または事業者がDebian 13を作成し、SSH接続できる状態にする。
+ServerSeed Cloudは原則としてOSインストールを担当しない。利用者または事業者がUbuntu 24.04 LTSを作成し、SSH接続できる状態にする。
 
 セットアップ方法は次をサポートする。
 
@@ -394,7 +394,7 @@ ServerSeedは、AWS、Google Cloud、Azure、国内VPSなど特定事業者のAP
 
 環境はプロバイダー名ではなく、次の能力に基づいて判定する。
 
-- Debian 13であること
+- Ubuntu 24.04 LTSであること
 - systemdが利用可能であること
 - SSH管理経路を維持できること
 - cloud-initの有無
@@ -425,11 +425,11 @@ ServerSeedは、AWS、Google Cloud、Azure、国内VPSなど特定事業者のAP
 
 | 対象 | 方針 |
 |---|---|
-| Debianセキュリティ更新 | 自動適用可能 |
+| Ubuntuセキュリティ更新 | 自動適用可能 |
 | 通常のOS更新 | ServerSeedによる検査後に適用 |
 | ServerSeed Coreおよび構成定義 | 署名付き更新として適用 |
 | Dockerアプリ | アプリ単位でバックアップおよび検証して適用 |
-| Debianメジャー更新 | 専用移行手順 |
+| Ubuntuメジャー更新 | 専用移行手順 |
 | BIOS更新 | 原則として自動化しない |
 
 勝手な自動再起動は行わない。再起動が必要な場合は明示する。
@@ -701,7 +701,7 @@ Cloud版の`ADOPTABLE`セットアップでは、既存SSH接続を保護し、�
 診断対象は次を基本とする。
 
 - `serverseed`バイナリの存在と実行権限
-- Debian 13判定
+- Ubuntu 24.04 LTS判定
 - 対応アーキテクチャ判定
 - 必須外部コマンドの存在
 - `/etc/serverseed/`、`/var/lib/serverseed/`、`/var/log/serverseed/`の存在と権限
@@ -787,7 +787,7 @@ ServerSeed CLIは、危険操作を実行するだけの道具ではなく、管
 /var/lib/serverseed/last-failure
 ```
 
-`/opt/serverseed/`は、手動搬入版、開発版、またはUSB内の実行コード配置に使用できる。管理対象サーバへDebianパッケージとして導入する通常版では、実行コードを`/opt/serverseed/`へ配置しない。
+`/opt/serverseed/`は、手動搬入版、開発版、またはUSB内の実行コード配置に使用できる。管理対象サーバへdebパッケージとして導入する通常版では、実行コードを`/opt/serverseed/`へ配置しない。
 
 ## 15. ServerSeed USB自体の更新
 
@@ -826,13 +826,13 @@ ServerSeedはGo製CLIとして実装する。ServerSeed CLIおよびCoreの主�
 
 Goは静的型付け、単一バイナリ配布、クロスコンパイル、標準ライブラリによるOS操作およびテストの容易さを理由に採用する。
 
-初期実装ではDebian 13で提供されるGoツールチェーンまたは公式Goツールチェーンでビルドする。外部依存は最小限とし、依存を追加する場合は理由、ライセンス、供給元、更新方針を記録する。
+初期実装ではUbuntu 24.04 LTSで提供されるGoツールチェーンまたは公式Goツールチェーンでビルドする。外部依存は最小限とし、依存を追加する場合は理由、ライセンス、供給元、更新方針を記録する。
 
 シェルスクリプトは、初期ブート、パッケージ導入、systemd連携、USB起動時の薄いラッパーに限定する。状態判定、設定解釈、検証、更新判断、レポート生成などの中核処理はGoで実装する。
 
 ### 17.1.1 Goバージョン方針
 
-Goの固定採用バージョンは、初回実装開始時にDebian 13で利用可能なGo、公式Goの安定版、CI実行環境の対応状況を確認して決定する。
+Goの固定採用バージョンは、初回実装開始時にUbuntu 24.04 LTSで利用可能なGo、公式Goの安定版、CI実行環境の対応状況を確認して決定する。
 
 固定採用バージョンを決めるまでは、`go.mod`の`go` directiveを仮固定してはならない。初回実装時に採用バージョン、確認日、採用理由を`MASTER_SPEC.md`または補助文書に記録する。
 
@@ -849,7 +849,7 @@ Go標準ライブラリで実装できる処理は標準ライブラリを優先
 
 ### 17.2 パッケージ形式
 
-ServerSeed CLIおよびCoreはDebianパッケージとして配布する。パッケージ名は`serverseed`とする。
+ServerSeed CLIおよびCoreはdebパッケージとして配布する。パッケージ名は`serverseed`とする。
 
 初期のインストール先は次のとおりとする。
 
@@ -861,11 +861,11 @@ ServerSeed CLIおよびCoreはDebianパッケージとして配布する。パ�
 /var/log/serverseed/             ログ、レポート
 ```
 
-`/opt/serverseed/`は手動搬入または開発版の配置先として使用できるが、通常配布版の標準配置はDebianパッケージ規約に従う。
+`/opt/serverseed/`は手動搬入または開発版の配置先として使用できるが、通常配布版の標準配置はdebパッケージ規約に従う。
 
-### 17.2.1 Debianパッケージ要件
+### 17.2.1 debパッケージ要件
 
-Debianパッケージは次を満たす。
+debパッケージは次を満たす。
 
 - `/usr/bin/serverseed`を配置する。
 - 初期設定テンプレートを`/usr/lib/serverseed/defaults/`に配置する。
@@ -999,7 +999,11 @@ apps:
   "serverseed_version": "0.1.0",
   "config_revision": 1,
   "migration_revision": 0,
-  "target_debian_version": "13",
+  "target_os": {
+    "id": "ubuntu",
+    "version_id": "24.04",
+    "lts": true
+  },
   "artifacts": [
     {
       "name": "serverseed",
@@ -1011,7 +1015,7 @@ apps:
 }
 ```
 
-マニフェストに未対応の`schema_version`、Debian 13以外の対象バージョン、現在状態から移行不能なリビジョンが含まれる場合は更新しない。
+マニフェストに未対応の`schema_version`、Ubuntu 24.04 LTS以外の対象バージョン、現在状態から移行不能なリビジョンが含まれる場合は更新しない。
 
 ### 17.3.5 実行履歴
 
@@ -1190,7 +1194,7 @@ ServerSeedは同時に複数の変更操作を実行してはならない。
 | 種別 | 対象 |
 |---|---|
 | unit | 状態判定、設定読み込み、マニフェスト検証、更新計画 |
-| integration | Debianコンテナ上でのCLI、パッケージ導入、読み取り専用検査 |
+| integration | Ubuntu 24.04 LTSコンテナ上でのCLI、パッケージ導入、読み取り専用検査 |
 | vm | ディスク、ブート、復旧、破壊的操作を含む検証 |
 | fixture | `/etc/os-release`、lsblk、systemctlなどの実行結果サンプル |
 
@@ -1204,7 +1208,7 @@ GitHubのリポジトリ管理機能、ブランチ保護、CI/CD workflow、リ
 
 CIは、変更ブランチ、`main`ブランチ、リリース候補で実行できるものとする。CDは、管理者が明示的にリリース操作を実行した場合にのみ実行する。
 
-GitHub workflowはServerSeedリポジトリのCI/CD実行定義として扱う。ServerSeed固有の検査、ビルド、Debianパッケージ作成、署名、GitHub Releases公開はGitHubツール上で実行する。
+GitHub workflowはServerSeedリポジトリのCI/CD実行定義として扱う。ServerSeed固有の検査、ビルド、debパッケージ作成、署名、GitHub Releases公開はGitHubツール上で実行する。
 
 初期workflowは次とする。
 
@@ -1223,9 +1227,9 @@ GitHub workflowはServerSeedリポジトリのCI/CD実行定義として扱う�
 | `format` | `gofmt`およびMarkdown整形確認 |
 | `lint` | Go静的解析、未使用コード、危険なシェル実行の検査 |
 | `test-unit` | Go unit test |
-| `test-integration` | Debian 13コンテナ上での読み取り専用CLI検査 |
+| `test-integration` | Ubuntu 24.04 LTSコンテナ上での読み取り専用CLI検査 |
 | `build` | Linux amd64およびarm64向け`serverseed`バイナリ作成 |
-| `package-deb` | Debianパッケージの作成と内容検査 |
+| `package-deb` | debパッケージの作成と内容検査 |
 | `spec-check` | `MASTER_SPEC.md`と実装上の固定値の矛盾検査 |
 | `cli-contract` | サブコマンド、共通オプション、JSON出力契約の検査 |
 
@@ -1274,9 +1278,9 @@ GitHub Actionsを使用する場合、workflowは`.github/workflows/`に配置�
 
 ### 17.10.2 CI実行環境
 
-CIの標準実行環境はDebian 13コンテナまたはDebian 13仮想マシンとする。
+CIの標準実行環境はUbuntu 24.04 LTSコンテナまたはUbuntu 24.04 LTS仮想マシンとする。
 
-CI実行環境には、必要なGoツールチェーン、Debianパッケージ作成ツール、静的解析ツール、署名検証ツールを事前に導入する。
+CI実行環境には、必要なGoツールチェーン、debパッケージ作成ツール、静的解析ツール、署名検証ツールを事前に導入する。
 
 CI実行中にホストOSを変更してはならない。依存関係の導入が必要な場合は、CI用イメージを更新し、その変更を履歴として記録する。
 
@@ -1298,8 +1302,8 @@ CI用イメージは、再現可能な定義ファイルから作成する。イ
 
 - Linux amd64用`serverseed`バイナリ
 - Linux arm64用`serverseed`バイナリ
-- Debian amd64パッケージ
-- Debian arm64パッケージ
+- deb amd64パッケージ
+- deb arm64パッケージ
 - 更新マニフェスト
 - SHA-256チェックサム
 - OpenPGP detached signature
@@ -1341,7 +1345,7 @@ release/publish
 
 ### 17.10.6 アーティファクト検査
 
-生成したDebianパッケージは、少なくとも次を検査する。
+生成したdebパッケージは、少なくとも次を検査する。
 
 - `/usr/bin/serverseed`が存在すること
 - maintainer scriptが禁止処理を含まないこと
