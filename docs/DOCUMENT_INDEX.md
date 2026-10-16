@@ -5,7 +5,7 @@
 
 ## 仕様版情報
 
-- 仕様リビジョン: 0.28
+- 仕様リビジョン: 0.29
 - 確定日: 2026-10-16
 - ステータス: 確定
 
@@ -45,7 +45,6 @@
 | [core/lifecycle.md](core/lifecycle.md) | 本体導入・再導入・削除、更新・復旧手順、計画、マニフェスト、署名、バージョン |
 | [core/backups.md](core/backups.md) | 実行側・対象側・保存先の分離、バックアップ状態、復元契約の未確定事項 |
 | [core/usb.md](core/usb.md) | ISO生成・収録版固定、媒体マニフェスト、外部媒体による導入・保守、作成・交換 |
-| [core/master-management.md](core/master-management.md) | マスターの初期構築、対象管理、必須選択からSSH自動処理までの制御と中断時照合 |
 | [core/cloud.md](core/cloud.md) | SSH実行環境と対象OSの分離、空ディスクへのOS導入、既存OSの構成・保守、再接続と復旧 |
 | [core/firmware.md](core/firmware.md) | ISO起動互換性、媒体なしの内蔵OS起動確認、機種別設定、起動項目、復電確認 |
 | [core/implementation.md](core/implementation.md) | CLI・Core・構成の責任境界、内製crateの差し替え契約、systemd、リポジトリ構成 |
@@ -62,3 +61,9 @@
 | 文書 | 定義する内容 |
 |---|---|
 | [mining/specification.md](mining/specification.md) | 採掘対応、機器・サービス構成、運転条件の参照先 |
+
+### マスター管理構成
+
+| 文書 | 定義する内容 |
+|---|---|
+| [master/specification.md](master/specification.md) | 内包機能の統合、初期構築、固有の設定・CLI、対象管理、SSH自動処理、中断照合、構成検証と同居制御の未確定契約 |
