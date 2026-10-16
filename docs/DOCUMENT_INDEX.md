@@ -5,7 +5,7 @@
 
 ## 仕様版情報
 
-- 仕様リビジョン: 0.19
+- 仕様リビジョン: 0.21
 - 確定日: 2026-10-16
 - ステータス: 確定
 
@@ -28,17 +28,19 @@
 
 | 分類 | 文書 | 定義する内容 |
 |---|---|---|
-| 製品の目的と対応範囲 | [product-scope.md](product-scope.md) | 目的、基本原則、製品構成、OS・アーキテクチャ・プロバイダーの対応範囲 |
+| 基本方針 | [PRINCIPLES.md](PRINCIPLES.md) | 製品・設計・開発・配布・自動化の判断基準 |
+| 運用ポリシー | [POLICIES.md](POLICIES.md) | 共通・構成別の実行許可、安全条件、既定値 |
+| 製品の目的と対応範囲 | [product-scope.md](product-scope.md) | 目的、製品構成、OS・アーキテクチャ・プロバイダーの対応範囲 |
 | 共通基盤 | [common-platform.md](common-platform.md) | 本体導入と構成管理の分離、状態判定、操作状態、排他制御、実行記録 |
-| サーバ構成 | [profiles/server.md](profiles/server.md) | Dockerアプリ、サーバ固有の更新・復旧方針、apps.yml |
-| マイニング構成 | [profiles/mining.md](profiles/mining.md) | 採掘対応、CPU・GPU運転、監視、自動復旧・更新 |
+| サーバ構成 | [profiles/server.md](profiles/server.md) | Dockerアプリ、apps.yml、更新・復旧の参照先 |
+| マイニング構成 | [profiles/mining.md](profiles/mining.md) | 採掘対応、機器・サービス構成、運転条件の参照先 |
 | USB導入 | [provisioning/usb.md](provisioning/usb.md) | ISO生成・収録版固定、媒体マニフェスト、USB作成・交換、OS導入 |
 | Cloud導入 | [provisioning/cloud.md](provisioning/cloud.md) | バイナリの直接導入、cloud-init、SSH保護、起動不能時の復旧経路 |
 | BIOS・UEFI | [provisioning/firmware.md](provisioning/firmware.md) | ISO起動互換性、機種別設定、起動項目、復電確認 |
 | 更新と署名検証 | [operations/updates.md](operations/updates.md) | 更新手順、計画、切り戻し、マニフェスト、署名、バージョン |
-| セキュリティ | [operations/security.md](operations/security.md) | 権限、秘密情報、通信、ファイル権限 |
-| バックアップ | [operations/backups.md](operations/backups.md) | バックアップ状態、復元確認、データ保護 |
-| CLI | [interfaces/cli.md](interfaces/cli.md) | コマンド、オプション、確認方式、JSON出力、終了コード |
-| 共通設定 | [interfaces/configuration.md](interfaces/configuration.md) | ファイル形式、管理ファイル一覧、config.yml、policy.yml、構成固有設定の振り分け |
-| 実装・配布・検証 | [development/implementation.md](development/implementation.md) | 責任境界、Rust・Cargo、配布ターゲットとリンク、バイナリ導入・削除、systemd、受入条件、リポジトリ構成 |
+| セキュリティ | [operations/security.md](operations/security.md) | 秘密情報の分類、検証・保護条件の参照先 |
+| バックアップ | [operations/backups.md](operations/backups.md) | バックアップ状態の形式、復元条件の参照先 |
+| CLI | [interfaces/cli.md](interfaces/cli.md) | コマンド、オプション、確認表示・文字列、JSON出力、終了コード |
+| 共通設定 | [interfaces/configuration.md](interfaces/configuration.md) | ファイル形式、管理ファイル一覧、設定の型・必須項目、構成固有設定の参照先 |
+| 実装・配布・検証 | [development/implementation.md](development/implementation.md) | 責任境界、配布ターゲット、導入手順、systemd、テスト体系・受入条件、リポジトリ構成 |
 | CI/CD | [development/ci-cd.md](development/ci-cd.md) | workflow、ビルド・検査、署名・リリース、デプロイ境界 |
