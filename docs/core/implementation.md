@@ -40,9 +40,9 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 
 ## 内製crateの境界と差し替え
 
-依存の制約と変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
+依存の基本境界と内製化の定義は[憲章第7条](../CHARTER.md#第7条-提供元依存権利)、宣言・管理への適用は[依存条件](../POLICIES.md#rustと内製crateの依存条件)、変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
 
-内製crateを抽出する場合、対象責務の正本に次の契約を対応付ける。共通基盤と各構成の所有境界を、crate化だけを理由に変更しない。
+内製crateを抽出する場合、[憲章第4条](../CHARTER.md#第4条-仕様による実装の拘束)の対象となる内部契約を、次の項目で対象責務の正本に対応付ける。共通基盤と各構成の所有境界を、crate化だけを理由に変更しない。
 
 | 契約項目 | 対応付ける内容 |
 |---|---|
@@ -59,7 +59,7 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 
 ## 構成別の責任境界
 
-各構成の入口は`src/profiles/master/`、`src/profiles/server/`および`src/profiles/mining/`へ分離する。マスターは[統合契約](../master/specification.md#機能の統合)に沿ってサーバ・採掘の機能を呼び出し、同じ処理をコピーしない。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、構成固有の導入・検証・復旧は担当機能へ委ねる。
+各構成の入口は`src/profiles/master/`、`src/profiles/server/`および`src/profiles/mining/`へ分離する。[憲章第4条](../CHARTER.md#第4条-仕様による実装の拘束)の再利用義務への対応として、マスターは[統合契約](../master/specification.md#機能の統合)に沿ってサーバ・採掘の機能を呼び出す。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、構成固有の導入・検証・復旧は担当機能へ委ねる。
 
 構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
@@ -129,29 +129,8 @@ serverseed/
 ├── packaging/
 │   └── iso/
 └── docs/
-    ├── DOCUMENT_INDEX.md
-    ├── ROADMAP.md
-    ├── PRINCIPLES.md
-    ├── POLICIES.md
-    ├── DEPENDENCY_EXCEPTIONS.md
-    ├── core/
-    │   ├── product-scope.md
-    │   ├── common-platform.md
-    │   ├── usb.md
-    │   ├── cloud.md
-    │   ├── firmware.md
-    │   ├── lifecycle.md
-    │   ├── backups.md
-    │   ├── cli.md
-    │   ├── configuration.md
-    │   ├── implementation.md
-    │   └── ci-cd.md
-    ├── master/
-    │   └── specification.md
-    ├── server/
-    │   └── specification.md
-    └── mining/
-        └── specification.md
 ```
+
+文書の配置と各文書の担当責務は[文書索引](../DOCUMENT_INDEX.md)を参照する。
 
 実装はこの構成を起点とし、仕様と矛盾するディレクトリや責務分離を追加しない。
