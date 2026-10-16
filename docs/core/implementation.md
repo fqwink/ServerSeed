@@ -1,6 +1,6 @@
 # 実装構成と責任境界
 
-[文書一覧](../../DOCUMENT_INDEX.md)
+[文書一覧](../DOCUMENT_INDEX.md)
 
 ## 実装構成
 
@@ -17,21 +17,32 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 - 署名およびチェックサム検証
 - バックアップ前提条件の確認
 
-USB起動用ISOとCloudに固有の起動・取得処理はCoreから分離し、CLIのサブコマンドまたは内部モジュールから呼び出す。事業者固有機能の扱いは[プロバイダー非依存](../product-scope.md#プロバイダー非依存)に従う。
+外部媒体とCloudに固有の起動・搬入処理は共通の適用ロジックから分離し、CLIの入口または内部モジュールから呼び出す。マスターの選択・計画・SSH制御は[マスター管理構成](../master/specification.md)が担当し、対象OSの構成適用には共通処理を再利用する。事業者固有機能の扱いは[プロバイダー非依存](product-scope.md#プロバイダー非依存)に従う。
+
+### 自動処理の責任境界
+
+| 責務 | 正本と実装上の境界 |
+|---|---|
+| 物理PCの開始と引き継ぎ | [外部媒体](usb.md)。Live環境と内蔵OSの処理を識別し、内蔵OSの本体管理・更新には共通ロジックを使う |
+| 対象・操作の選択と遠隔制御 | [マスター管理](../master/specification.md)。SSHの接続・転送と対象側の検査・変更を分離する |
+| 対象のOS導入と構成適用 | [Cloud](cloud.md)と[ライフサイクル](lifecycle.md)。実行環境の状態を対象OSへコピーしない |
+| データ取得と保存 | [バックアップ](backups.md)。制御側、対象データ、保存先を分離し、構成固有の整合性確認へ接続する |
+
+この境界は実装配置の方針であり、遠隔実行のインターフェースや保存形式まで確定するものではない。担当仕様の未確定契約に依存する部分は[着手条件](../POLICIES.md#実装着手と仕様充足の判定)を満たすまで実装しない。
 
 ### 実装言語
 
-採用言語とスクリプトの利用範囲は[実装言語](../../PRINCIPLES.md#実装言語)を参照する。
+採用言語とスクリプトの利用範囲は[実装言語](../PRINCIPLES.md#実装言語)を参照する。
 
 #### Rustツールチェーン設定
 
-採用版、edition、最低対応版と設定方法は[Rustツールチェーン](../../PRINCIPLES.md#rustツールチェーン)を参照する。
+採用版、edition、最低対応版と設定方法は[Rustツールチェーン](../PRINCIPLES.md#rustツールチェーン)を参照する。
 
 ## 内製crateの境界と差し替え
 
-依存の制約と変更手順は[AGENTS.md](../../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../../PRINCIPLES.md#段階的な内製化)を参照する。
+依存の制約と変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
 
-内製crateを抽出する場合、対象責務の正本に次の契約を対応付ける。共通基盤・サーバ構成・マイニング構成の所有境界を、crate化だけを理由に変更しない。
+内製crateを抽出する場合、対象責務の正本に次の契約を対応付ける。共通基盤と各構成の所有境界を、crate化だけを理由に変更しない。
 
 | 契約項目 | 対応付ける内容 |
 |---|---|
@@ -48,13 +59,13 @@ USB起動用ISOとCloudに固有の起動・取得処理はCoreから分離し�
 
 ## 構成別の責任境界
 
-サーバ構成とマイニング構成は`src/profiles/server/`および`src/profiles/mining/`へ分離する。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、各構成へ重複実装しない。構成固有の導入、検証、復旧は当該構成が担当する。
+各構成の入口は`src/profiles/master/`、`src/profiles/server/`および`src/profiles/mining/`へ分離する。マスターは[統合契約](../master/specification.md#機能の統合)に沿ってサーバ・採掘の機能を呼び出し、同じ処理をコピーしない。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、構成固有の導入・検証・復旧は担当機能へ委ねる。
 
-構成間の適用制約は[構成の分離](../../POLICIES.md#構成の分離)を参照する。
+構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
 ## systemd連携
 
-常駐方式は[systemd連携](../../PRINCIPLES.md#systemd連携)、運転サービスとの接続は[監視サービスと共通基盤の境界](../../mining/specification.md#監視サービスと共通基盤の境界)を参照する。
+常駐方式は[systemd連携](../PRINCIPLES.md#systemd連携)、運転サービスとの接続は[監視サービスと共通基盤の境界](../mining/specification.md#監視サービスと共通基盤の境界)を参照する。
 
 必要に応じて、将来次のunitを追加できる。
 
@@ -63,7 +74,7 @@ serverseed-verify.service
 serverseed-verify.timer
 ```
 
-timerの実行範囲は[共通timer](../../POLICIES.md#共通timer)を参照する。
+timerの実行範囲は[共通timer](../POLICIES.md#共通timer)を参照する。
 
 ## 初期リポジトリ構成
 
@@ -105,6 +116,7 @@ serverseed/
 │   ├── core/
 │   ├── platform/
 │   ├── profiles/
+│   │   ├── master/
 │   │   ├── server/
 │   │   └── mining/
 │   ├── usb/
@@ -125,19 +137,17 @@ serverseed/
     ├── core/
     │   ├── product-scope.md
     │   ├── common-platform.md
-    │   ├── provisioning/
-    │   │   ├── usb.md
-    │   │   ├── cloud.md
-    │   │   └── firmware.md
-    │   ├── operations/
-    │   │   ├── lifecycle.md
-    │   │   └── backups.md
-    │   ├── interfaces/
-    │   │   ├── cli.md
-    │   │   └── configuration.md
-    │   └── development/
-    │       ├── implementation.md
-    │       └── ci-cd.md
+    │   ├── usb.md
+    │   ├── cloud.md
+    │   ├── firmware.md
+    │   ├── lifecycle.md
+    │   ├── backups.md
+    │   ├── cli.md
+    │   ├── configuration.md
+    │   ├── implementation.md
+    │   └── ci-cd.md
+    ├── master/
+    │   └── specification.md
     ├── server/
     │   └── specification.md
     └── mining/

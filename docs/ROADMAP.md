@@ -4,7 +4,7 @@
 
 現在は仕様・文書の整合性整理を進めている。実装コード、自動テストおよびCI定義は未作成で、Phase 1以降の実装は未着手とする。
 
-Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョブは対応するフェーズで実装する。Phase 8で[CI/CD仕様](core/development/ci-cd.md#cicd)に定める初期CI全体を検証する。
+Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョブは対応するフェーズで実装する。Phase 8で[CI/CD仕様](core/ci-cd.md#cicd)に定める初期CI全体を検証する。
 
 ## 仕様充足の現在地
 
@@ -12,14 +12,26 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 
 | 対象 | 確認先 | 現在の未達事項 |
 |---|---|---|
-| 共通の実行・設定契約 | [外部コマンド実行](core/common-platform.md#外部コマンド実行)、[共通設定](core/interfaces/configuration.md) | タイムアウトの具体的な指定・既定値・算定根拠など、着手範囲ごとの仕様充足確認が未完了 |
-| バックアップの復元確認 | [復元確認](POLICIES.md#復元確認)、[バックアップ状態](core/operations/backups.md#バックアップ状態) | 対象別の確認方法・有効期限と、その判定根拠の確定が未完了 |
-| サーバアプリの操作 | [アプリ定義](server/specification.md#appsyml) | ヘルスチェック・バックアップの詳細な入力、成功・失敗・時間制限の契約が未確定 |
-| マイニングの監視・復旧 | [運転監視](POLICIES.md#マイニングの運転監視)、[自動更新と再起動](POLICIES.md#マイニングの自動更新と再起動)、[構成仕様](mining/specification.md) | 時間・温度・再試行条件、設定の型・範囲・省略時動作の具体化が未完了 |
+| 共通の実行・設定契約 | [外部コマンド実行](core/common-platform.md#外部コマンド実行)、[共通設定](core/configuration.md) | タイムアウトの具体的な指定・既定値・算定根拠など、着手範囲ごとの仕様充足確認が未完了 |
+| バックアップの復元確認 | [復元確認](POLICIES.md#復元確認)、[バックアップ状態](core/backups.md#バックアップ状態) | 対象別の確認方法・有効期限と、その判定根拠の確定が未完了 |
+| 外部媒体の保守・引き継ぎ | [更新・バックアップ・復旧](core/usb.md#更新バックアップ復旧)、[実行側と対象側](core/lifecycle.md#実行側と対象側) | Live環境と内蔵OS間の処理・記録・排他の引き継ぎ、安全な取り外しの具体契約が未確定 |
+| マスター管理構成とSSH自動処理 | [マスターの未確定契約](master/specification.md#未確定契約) | 固有のCLI・設定、接続・認証・権限、計画と対象操作の対応、中断・再接続と重複防止、同居制御・資源配分・機能別の途中失敗処理が未確定 |
+| 三構成の形式互換性 | [構成記録の互換性](core/configuration.md#構成記録の互換性)、[更新マニフェスト](core/lifecycle.md#更新マニフェスト) | 構成値追加に対応する形式・版、構成リビジョン、互換範囲と旧二択形式の移行・検証・切り戻しの詳細は未確定 |
+| CloudのOS導入 | [Cloudの未確定契約](core/cloud.md#未確定契約) | SSH実行環境、導入方式・資材、対象識別、ブート・再接続と復旧の具体契約が未確定 |
+| 独立バックアップと復元 | [バックアップの未確定契約](core/backups.md#未確定契約)、[マスター固有の保全と復元](master/specification.md#管理情報の保全と復元) | 共通の保存・復元契約と、マスター固有の保全範囲・喪失時復旧の確定が未完了 |
+| サーバ設定とアプリの操作 | [構成固有設定](server/specification.md#構成固有設定)、[アプリ定義](server/specification.md#appsyml) | 運用設定の形式・入力検証・互換性と、アプリのヘルスチェック・バックアップ操作の詳細契約が未確定 |
+| マイニングの設定・監視・復旧 | [採掘サービスと設定](mining/specification.md#採掘サービスと設定)、[運転監視](POLICIES.md#マイニングの運転監視)、[自動更新と再起動](POLICIES.md#マイニングの自動更新と再起動) | 設定形式・入力検証・互換性と、時間・温度・再試行条件の具体化が未完了 |
 | 外部依存の個別採用 | [例外台帳](DEPENDENCY_EXCEPTIONS.md) | 具体的な版・成果物・ライセンス・検証・承認根拠の未達は台帳を参照 |
-| 仕様充足と依存の自動検査 | [仕様充足の検査](core/development/ci-cd.md#仕様充足の検査)、[依存関係の検査](core/development/ci-cd.md#依存関係の検査) | 検査コード・自動テスト・CI定義は未作成 |
+| 仕様充足と依存の自動検査 | [仕様充足の検査](core/ci-cd.md#仕様充足の検査)、[依存関係の検査](core/ci-cd.md#依存関係の検査) | 検査コード・自動テスト・CI定義は未作成 |
 
 未達の具体値や製品動作は担当正本の変更案として別途提示し、[承認手順](../AGENTS.md#変更前の承認)を経て確定する。未達一覧の整理だけでは、該当機能の実装着手を許可しない。
+
+## 報告受付の運用準備
+
+| 対象 | 確認先 | 現在の整備状況 |
+|---|---|---|
+| 通常のIssue | [受付条件](POLICIES.md#報告の受付) | GitHubのIssue機能は有効。基盤の個別使用条件の未達は[例外台帳](DEPENDENCY_EXCEPTIONS.md#外部依存の例外一覧)を参照 |
+| 非公開の脆弱性報告 | [運用条件](POLICIES.md#受付窓口の運用条件) | Private Vulnerability Reportingは無効。個別使用条件の確定、設定変更の承認、有効化と非公開受付の検証は未完了であり、受付稼働済みではない |
 
 ## Phase 0: 仕様と文書体系
 
@@ -28,52 +40,61 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 
 ## Phase 1: CLIと開発基盤
 
-- 準備状況: [Rustの採用条件](PRINCIPLES.md#rustツールチェーン)と[CLI起動時の応答](core/interfaces/cli.md#起動時の応答)を確定。
+- 準備状況: [Rustの採用条件](PRINCIPLES.md#rustツールチェーン)と[CLI起動時の応答](core/cli.md#起動時の応答)を確定。
 - 依存: Phase 0。
-- 対象: [CLI](core/interfaces/cli.md)、[実装構成](core/development/implementation.md#実装構成)、[CI/CD](core/development/ci-cd.md)の開発基盤。
-- 完了条件: [Rustツールチェーン方針](PRINCIPLES.md#rustツールチェーン)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](core/development/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testに加え、仕様充足・依存検査をローカルおよびCIから実行できる。
+- 対象: [CLI](core/cli.md)、[実装構成](core/implementation.md#実装構成)、[CI/CD](core/ci-cd.md)の開発基盤。
+- 完了条件: [Rustツールチェーン方針](PRINCIPLES.md#rustツールチェーン)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](core/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testに加え、仕様充足・依存検査をローカルおよびCIから実行できる。
 
 ## Phase 2: 共通基盤と構成選択
 
 - 依存: Phase 1。
-- 対象: [共通基盤](core/common-platform.md)、[共通設定](core/interfaces/configuration.md)、[OS・アーキテクチャ判定](core/product-scope.md#対応範囲)。
-- 完了条件: 本体導入状態と管理状態の分離、初回構成選択、構成の保存・整合性検査、操作状態、排他制御、実行記録を検証でき、読み取り専用操作と変更計画を実行できる。
+- 対象: [共通基盤](core/common-platform.md)、[共通設定](core/configuration.md)、[OS・アーキテクチャ判定](core/product-scope.md#対応範囲)。
+- 完了条件: 本体導入状態と管理状態の分離、三構成からの必須選択、構成の保存・整合性検査、操作状態、排他制御、実行記録を検証でき、読み取り専用操作と変更計画を実行できる。
 
 ## Phase 3: バイナリ導入と共通の更新・保護・復旧
 
 - 依存: Phase 2。
-- 対象: [バイナリ導入](core/operations/lifecycle.md#バイナリ導入)、[self](core/interfaces/cli.md#self)、[更新・署名検証](core/operations/lifecycle.md)、[セキュリティ](POLICIES.md#セキュリティ)、[バックアップ](core/operations/backups.md)。
-- 完了条件: 初回の信頼確立、本体導入・再導入・更新・削除、前提条件による停止、署名不正、バックアップ未確認、中断からの復旧と切り戻しを隔離環境で検証できる。
+- 対象: [バイナリ導入](core/lifecycle.md#バイナリ導入)、[self](core/cli.md#self)、[更新・署名検証](core/lifecycle.md)、[セキュリティ](POLICIES.md#セキュリティ)、[バックアップ](core/backups.md)。
+- 完了条件: 初回の信頼確立、本体導入・再導入・更新・削除、前提条件による停止、署名不正、バックアップ未確認、中断からの復旧と切り戻しを隔離環境で検証できる。この段階は共通処理の検証とし、対象別の実行入口の完成はPhase 6・7で確認する。
 
-## Phase 4: サーバ構成とマイニング構成の導入
+## Phase 4: 三構成の導入と機能統合
 
 - 依存: Phase 3。
-- 対象: [サーバ構成](server/specification.md)、[マイニング構成](mining/specification.md)。
-- 完了条件: 選択した構成の導入・再実行・検証が成立し、未選択構成へ変更しないことを確認できる。機器固有の導入結果は対応実機で確認できる。
+- 対象: [サーバ構成](server/specification.md)、[マイニング構成](mining/specification.md)、[マスターの機能統合](master/specification.md#機能の統合)。
+- 完了条件: [機能適用の範囲](POLICIES.md#構成の分離)に対応する導入・再実行・検証と、内包機能の呼び出し境界を隔離環境で検証できる。機器固有の導入結果は対応実機で確認できる。物理マスターの構築はPhase 6、SSH管理フローの完成はPhase 7で確認する。
 
 ## Phase 5: マイニング運転と自動保守
 
 - 依存: Phase 4。
 - 対象: マイニング構成の[監視と自動復旧](POLICIES.md#マイニングの運転監視)、[自動更新と再起動](POLICIES.md#マイニングの自動更新と再起動)、[更新失敗時の復旧](POLICIES.md#マイニングの更新失敗時復旧)。
-- 完了条件: 採掘停止、通信断、温度異常、再試行上限、更新失敗を検証でき、CPU・GPU別の運転と構成ポリシーに沿った復旧・更新が成立する。
+- 完了条件: 採掘停止、通信断、温度異常、再試行上限、更新失敗を検証でき、CPU・GPU別の運転と構成ポリシーに沿った復旧・更新の共通処理が成立する。更新開始の入口との統合はPhase 6・7に分け、独立したtimer更新を完成条件にしない。
 
-## Phase 6: USB用ISOとファームウェア連携
+## Phase 6: 外部媒体と物理マスターの構築
 
 - 依存: Phase 5。
-- 対象: [USB導入](core/provisioning/usb.md)、[ISO生成](core/provisioning/usb.md#isoの作成)、[BIOS・UEFI](core/provisioning/firmware.md)。
-- 完了条件: 共通バイナリとハッシュが一致するISOを生成し、VMでUSB・仮想メディア起動から導入・更新・復旧までを検証できる。対応実機では、ファームウェア設定の確認結果と復電起動の確認結果を区別して記録できる。
+- 対象: [外部媒体の導入・保守](core/usb.md)、[ISO生成](core/usb.md#isoの作成)、[BIOS・UEFI](core/firmware.md)、[マスター初期構築](master/specification.md#初期構築)。
+- 完了条件: 共通バイナリとハッシュが一致するISOを生成し、VMで外部媒体からの導入・更新・バックアップ・復旧と、[媒体を外した起動・再起動](core/firmware.md#内蔵osの起動確認)を検証できる。物理マスターの内蔵OSと管理初期設定を構築し、起動後の確認を[構成の検証](master/specification.md#構成の検証)へ照合できる。対応実機では、ファームウェア設定の確認結果と復電起動の確認結果を区別して記録できる。
 
-## Phase 7: Cloud導入とcloud-init
+## Phase 7: マスター経由のCloud自動化
 
 - 依存: Phase 6。
-- 対象: [Cloud導入](core/provisioning/cloud.md)。SSHからの導入を先に整備し、cloud-initによる導入準備へ進む。
-- 完了条件: ISOを取得せず共通バイナリを導入でき、既存の管理経路を保護し、cloud-initによる準備後も利用者が対話操作で初回構成を選択する流れを検証できる。
+- 対象: [マスター管理](master/specification.md)、[Cloud導入・保守](core/cloud.md)、Cloudの[バックアップ](core/backups.md)。SSH実行環境と既存OSを区別する契約を先に確定し、OS導入から構成・更新・保全までを接続する。
+- 完了条件: 内蔵OSで稼働するマスターで対象・操作と必須項目を選択し、SSH経由で自動処理できる。隔離VMの空ディスクへのOS導入と、既存対応OSへの構成・更新・バックアップ、再起動・再接続・中断照合を検証できる。cloud-initや対象VPSでの追加の手動セットアップを必須にしない。
 
 ## Phase 8: 統合検証と初期リリース
 
 - 依存: Phase 7。
-- 対象: [テスト体系](core/development/ci-cd.md#テスト体系)、[リリース](core/development/ci-cd.md#リリース)、[アーティファクト検査](core/development/ci-cd.md#アーティファクト検査)。
-- 完了条件: [配布・導入の受入条件](core/development/ci-cd.md#配布導入の受入条件)と手動VM試験を満たし、共通バイナリ・USB用ISO・検証情報を同一リリースとして生成・署名・検証して公開できる。
+- 対象: [テスト体系](core/ci-cd.md#テスト体系)、[リリース](core/ci-cd.md#リリース)、[アーティファクト検査](core/ci-cd.md#アーティファクト検査)。
+- 完了条件: [配布・導入の受入条件](core/ci-cd.md#配布導入の受入条件)と手動VM試験を満たし、共通バイナリ・USB用ISO・検証情報を同一リリースとして生成・署名・検証して公開できる。
+
+## 将来の運用基盤移行
+
+- 対象: [開発・配布基盤の一本化](PRINCIPLES.md#開発配布基盤の一本化)。
+- 実施時期: 未定。
+- 進捗: 未着手。採用製品、運用構成、公式URLおよび移行手順は未確定。
+- 着手・切替の条件: [移行ポリシー](POLICIES.md#運用基盤の移行条件)を参照。
+
+本計画の存在を、Phase 1〜8で使用する[現行基盤](POLICIES.md#現行の運用基盤)の変更や、初期リリースに独自基盤を必須とする根拠にはしない。
 
 ## 内製化の段階
 

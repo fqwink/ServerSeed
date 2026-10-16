@@ -8,17 +8,25 @@
 
 構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
+本書の機能をマスターへ組み込む手順と、管理・採掘との責任境界は[機能の統合](../master/specification.md#機能の統合)を参照する。
+
 Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例外一覧](../DEPENDENCY_EXCEPTIONS.md#外部依存の例外一覧)を参照する。
 
 ## 更新と復旧
 
 実行許可、再起動および自動修復の制約は[サーバ構成](../POLICIES.md#サーバ構成)を参照する。
 
-共通の処理は[更新](../core/operations/lifecycle.md)と[バックアップ](../core/operations/backups.md)に従う。
+共通の処理は[更新](../core/lifecycle.md)と[バックアップ](../core/backups.md)に従う。
+
+## 構成固有設定
+
+サーバ機能の運用設定の配置は[管理ファイル一覧](../core/configuration.md#管理ファイル一覧)の`server.yml`を参照する。アプリ単位の定義は[apps.yml](#appsyml)へ分離し、構成別の適用範囲と実行許可は[構成の分離](../POLICIES.md#構成の分離)と[サーバ構成の運用](../POLICIES.md#サーバ構成)に従う。
+
+`server.yml`の形式・項目、型・必須性・許容範囲、省略・欠損・不正時の扱い、版と互換性は未確定とする。`apps.yml`の定義だけで運用設定まで確定した扱いにせず、依存する実装の着手可否は[仕様充足の判定](../POLICIES.md#実装着手と仕様充足の判定)に従う。
 
 ## `apps.yml`
 
-`apps.yml`はサーバ構成が管理するDockerアプリを定義する。マイニング構成では適用しない。
+`apps.yml`は本書のサーバ機能が管理するDockerアプリを定義する。読み込む構成の範囲は[構成の分離](../POLICIES.md#構成の分離)に従う。
 
 ```yaml
 apps:
