@@ -4,7 +4,7 @@
 
 ## 第1条 適用範囲
 
-ServerSeedは、AdlaireDeveloperProjectの一つである。
+ServerSeedは、AdlaireDeveloperProject（略称：ADP）の一つである。
 
 本憲章は、仕様策定、設計、実装、検証、ビルド、配布、導入、運用、保守、セキュリティおよび文書管理に適用する。所有者、開発者、運用者、AIおよび自動処理を含め、適用対象に例外を設けない。企画は対象に含めない。
 
