@@ -14,7 +14,7 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 
 実行許可、再起動および自動修復の制約は[サーバ構成](../POLICIES.md#サーバ構成)を参照する。
 
-共通の処理は[更新](../core/operations/lifecycle.md)と[バックアップ](../core/operations/backups.md)に従う。
+共通の処理は[更新](../core/lifecycle.md)と[バックアップ](../core/backups.md)に従う。
 
 ## `apps.yml`
 

@@ -40,15 +40,15 @@
 |---|---|
 | [core/product-scope.md](core/product-scope.md) | 目的、製品構成、OS・アーキテクチャ・プロバイダーの対応範囲 |
 | [core/common-platform.md](core/common-platform.md) | 本体導入と構成管理の分離、状態判定、操作状態、排他制御、実行記録 |
-| [core/interfaces/cli.md](core/interfaces/cli.md) | コマンド、オプション、確認表示・文字列、JSON出力、終了コード |
-| [core/interfaces/configuration.md](core/interfaces/configuration.md) | ファイル形式、管理ディレクトリ・ファイル配置、設定の型・必須項目、構成固有設定の参照先 |
-| [core/operations/lifecycle.md](core/operations/lifecycle.md) | 本体導入・再導入・削除、更新・復旧手順、計画、マニフェスト、署名、バージョン |
-| [core/operations/backups.md](core/operations/backups.md) | バックアップ状態の形式、復元条件の参照先 |
-| [core/provisioning/usb.md](core/provisioning/usb.md) | ISO生成・収録版固定、媒体マニフェスト、USB作成・交換、OS導入 |
-| [core/provisioning/cloud.md](core/provisioning/cloud.md) | バイナリの直接導入、cloud-init、SSH保護、起動不能時の復旧経路 |
-| [core/provisioning/firmware.md](core/provisioning/firmware.md) | ISO起動互換性、機種別設定、起動項目、復電確認 |
-| [core/development/implementation.md](core/development/implementation.md) | CLI・Core・構成の責任境界、内製crateの差し替え契約、systemd、リポジトリ構成 |
-| [core/development/ci-cd.md](core/development/ci-cd.md) | workflow、ビルドターゲット、仕様充足・依存検査、テスト体系・追跡・受入条件、署名・リリース、デプロイ境界 |
+| [core/cli.md](core/cli.md) | コマンド、オプション、確認表示・文字列、JSON出力、終了コード |
+| [core/configuration.md](core/configuration.md) | ファイル形式、管理ディレクトリ・ファイル配置、設定の型・必須項目、構成固有設定の参照先 |
+| [core/lifecycle.md](core/lifecycle.md) | 本体導入・再導入・削除、更新・復旧手順、計画、マニフェスト、署名、バージョン |
+| [core/backups.md](core/backups.md) | バックアップ状態の形式、復元条件の参照先 |
+| [core/usb.md](core/usb.md) | ISO生成・収録版固定、媒体マニフェスト、USB作成・交換、OS導入 |
+| [core/cloud.md](core/cloud.md) | バイナリの直接導入、cloud-init、SSH保護、起動不能時の復旧経路 |
+| [core/firmware.md](core/firmware.md) | ISO起動互換性、機種別設定、起動項目、復電確認 |
+| [core/implementation.md](core/implementation.md) | CLI・Core・構成の責任境界、内製crateの差し替え契約、systemd、リポジトリ構成 |
+| [core/ci-cd.md](core/ci-cd.md) | workflow、ビルドターゲット、仕様充足・依存検査、テスト体系・追跡・受入条件、署名・リリース、デプロイ境界 |
 
 ### サーバ構成
 

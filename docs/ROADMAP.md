@@ -4,7 +4,7 @@
 
 現在は仕様・文書の整合性整理を進めている。実装コード、自動テストおよびCI定義は未作成で、Phase 1以降の実装は未着手とする。
 
-Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョブは対応するフェーズで実装する。Phase 8で[CI/CD仕様](core/development/ci-cd.md#cicd)に定める初期CI全体を検証する。
+Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョブは対応するフェーズで実装する。Phase 8で[CI/CD仕様](core/ci-cd.md#cicd)に定める初期CI全体を検証する。
 
 ## 仕様充足の現在地
 
@@ -12,12 +12,12 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 
 | 対象 | 確認先 | 現在の未達事項 |
 |---|---|---|
-| 共通の実行・設定契約 | [外部コマンド実行](core/common-platform.md#外部コマンド実行)、[共通設定](core/interfaces/configuration.md) | タイムアウトの具体的な指定・既定値・算定根拠など、着手範囲ごとの仕様充足確認が未完了 |
-| バックアップの復元確認 | [復元確認](POLICIES.md#復元確認)、[バックアップ状態](core/operations/backups.md#バックアップ状態) | 対象別の確認方法・有効期限と、その判定根拠の確定が未完了 |
+| 共通の実行・設定契約 | [外部コマンド実行](core/common-platform.md#外部コマンド実行)、[共通設定](core/configuration.md) | タイムアウトの具体的な指定・既定値・算定根拠など、着手範囲ごとの仕様充足確認が未完了 |
+| バックアップの復元確認 | [復元確認](POLICIES.md#復元確認)、[バックアップ状態](core/backups.md#バックアップ状態) | 対象別の確認方法・有効期限と、その判定根拠の確定が未完了 |
 | サーバアプリの操作 | [アプリ定義](server/specification.md#appsyml) | ヘルスチェック・バックアップの詳細な入力、成功・失敗・時間制限の契約が未確定 |
 | マイニングの監視・復旧 | [運転監視](POLICIES.md#マイニングの運転監視)、[自動更新と再起動](POLICIES.md#マイニングの自動更新と再起動)、[構成仕様](mining/specification.md) | 時間・温度・再試行条件、設定の型・範囲・省略時動作の具体化が未完了 |
 | 外部依存の個別採用 | [例外台帳](DEPENDENCY_EXCEPTIONS.md) | 具体的な版・成果物・ライセンス・検証・承認根拠の未達は台帳を参照 |
-| 仕様充足と依存の自動検査 | [仕様充足の検査](core/development/ci-cd.md#仕様充足の検査)、[依存関係の検査](core/development/ci-cd.md#依存関係の検査) | 検査コード・自動テスト・CI定義は未作成 |
+| 仕様充足と依存の自動検査 | [仕様充足の検査](core/ci-cd.md#仕様充足の検査)、[依存関係の検査](core/ci-cd.md#依存関係の検査) | 検査コード・自動テスト・CI定義は未作成 |
 
 未達の具体値や製品動作は担当正本の変更案として別途提示し、[承認手順](../AGENTS.md#変更前の承認)を経て確定する。未達一覧の整理だけでは、該当機能の実装着手を許可しない。
 
@@ -28,21 +28,21 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 
 ## Phase 1: CLIと開発基盤
 
-- 準備状況: [Rustの採用条件](PRINCIPLES.md#rustツールチェーン)と[CLI起動時の応答](core/interfaces/cli.md#起動時の応答)を確定。
+- 準備状況: [Rustの採用条件](PRINCIPLES.md#rustツールチェーン)と[CLI起動時の応答](core/cli.md#起動時の応答)を確定。
 - 依存: Phase 0。
-- 対象: [CLI](core/interfaces/cli.md)、[実装構成](core/development/implementation.md#実装構成)、[CI/CD](core/development/ci-cd.md)の開発基盤。
-- 完了条件: [Rustツールチェーン方針](PRINCIPLES.md#rustツールチェーン)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](core/development/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testに加え、仕様充足・依存検査をローカルおよびCIから実行できる。
+- 対象: [CLI](core/cli.md)、[実装構成](core/implementation.md#実装構成)、[CI/CD](core/ci-cd.md)の開発基盤。
+- 完了条件: [Rustツールチェーン方針](PRINCIPLES.md#rustツールチェーン)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](core/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testに加え、仕様充足・依存検査をローカルおよびCIから実行できる。
 
 ## Phase 2: 共通基盤と構成選択
 
 - 依存: Phase 1。
-- 対象: [共通基盤](core/common-platform.md)、[共通設定](core/interfaces/configuration.md)、[OS・アーキテクチャ判定](core/product-scope.md#対応範囲)。
+- 対象: [共通基盤](core/common-platform.md)、[共通設定](core/configuration.md)、[OS・アーキテクチャ判定](core/product-scope.md#対応範囲)。
 - 完了条件: 本体導入状態と管理状態の分離、初回構成選択、構成の保存・整合性検査、操作状態、排他制御、実行記録を検証でき、読み取り専用操作と変更計画を実行できる。
 
 ## Phase 3: バイナリ導入と共通の更新・保護・復旧
 
 - 依存: Phase 2。
-- 対象: [バイナリ導入](core/operations/lifecycle.md#バイナリ導入)、[self](core/interfaces/cli.md#self)、[更新・署名検証](core/operations/lifecycle.md)、[セキュリティ](POLICIES.md#セキュリティ)、[バックアップ](core/operations/backups.md)。
+- 対象: [バイナリ導入](core/lifecycle.md#バイナリ導入)、[self](core/cli.md#self)、[更新・署名検証](core/lifecycle.md)、[セキュリティ](POLICIES.md#セキュリティ)、[バックアップ](core/backups.md)。
 - 完了条件: 初回の信頼確立、本体導入・再導入・更新・削除、前提条件による停止、署名不正、バックアップ未確認、中断からの復旧と切り戻しを隔離環境で検証できる。
 
 ## Phase 4: サーバ構成とマイニング構成の導入
@@ -60,20 +60,20 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 ## Phase 6: USB用ISOとファームウェア連携
 
 - 依存: Phase 5。
-- 対象: [USB導入](core/provisioning/usb.md)、[ISO生成](core/provisioning/usb.md#isoの作成)、[BIOS・UEFI](core/provisioning/firmware.md)。
+- 対象: [USB導入](core/usb.md)、[ISO生成](core/usb.md#isoの作成)、[BIOS・UEFI](core/firmware.md)。
 - 完了条件: 共通バイナリとハッシュが一致するISOを生成し、VMでUSB・仮想メディア起動から導入・更新・復旧までを検証できる。対応実機では、ファームウェア設定の確認結果と復電起動の確認結果を区別して記録できる。
 
 ## Phase 7: Cloud導入とcloud-init
 
 - 依存: Phase 6。
-- 対象: [Cloud導入](core/provisioning/cloud.md)。SSHからの導入を先に整備し、cloud-initによる導入準備へ進む。
+- 対象: [Cloud導入](core/cloud.md)。SSHからの導入を先に整備し、cloud-initによる導入準備へ進む。
 - 完了条件: ISOを取得せず共通バイナリを導入でき、既存の管理経路を保護し、cloud-initによる準備後も利用者が対話操作で初回構成を選択する流れを検証できる。
 
 ## Phase 8: 統合検証と初期リリース
 
 - 依存: Phase 7。
-- 対象: [テスト体系](core/development/ci-cd.md#テスト体系)、[リリース](core/development/ci-cd.md#リリース)、[アーティファクト検査](core/development/ci-cd.md#アーティファクト検査)。
-- 完了条件: [配布・導入の受入条件](core/development/ci-cd.md#配布導入の受入条件)と手動VM試験を満たし、共通バイナリ・USB用ISO・検証情報を同一リリースとして生成・署名・検証して公開できる。
+- 対象: [テスト体系](core/ci-cd.md#テスト体系)、[リリース](core/ci-cd.md#リリース)、[アーティファクト検査](core/ci-cd.md#アーティファクト検査)。
+- 完了条件: [配布・導入の受入条件](core/ci-cd.md#配布導入の受入条件)と手動VM試験を満たし、共通バイナリ・USB用ISO・検証情報を同一リリースとして生成・署名・検証して公開できる。
 
 ## 内製化の段階
 

@@ -1,6 +1,6 @@
 # 実装構成と責任境界
 
-[文書一覧](../../DOCUMENT_INDEX.md)
+[文書一覧](../DOCUMENT_INDEX.md)
 
 ## 実装構成
 
@@ -17,19 +17,19 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 - 署名およびチェックサム検証
 - バックアップ前提条件の確認
 
-USB起動用ISOとCloudに固有の起動・取得処理はCoreから分離し、CLIのサブコマンドまたは内部モジュールから呼び出す。事業者固有機能の扱いは[プロバイダー非依存](../product-scope.md#プロバイダー非依存)に従う。
+USB起動用ISOとCloudに固有の起動・取得処理はCoreから分離し、CLIのサブコマンドまたは内部モジュールから呼び出す。事業者固有機能の扱いは[プロバイダー非依存](product-scope.md#プロバイダー非依存)に従う。
 
 ### 実装言語
 
-採用言語とスクリプトの利用範囲は[実装言語](../../PRINCIPLES.md#実装言語)を参照する。
+採用言語とスクリプトの利用範囲は[実装言語](../PRINCIPLES.md#実装言語)を参照する。
 
 #### Rustツールチェーン設定
 
-採用版、edition、最低対応版と設定方法は[Rustツールチェーン](../../PRINCIPLES.md#rustツールチェーン)を参照する。
+採用版、edition、最低対応版と設定方法は[Rustツールチェーン](../PRINCIPLES.md#rustツールチェーン)を参照する。
 
 ## 内製crateの境界と差し替え
 
-依存の制約と変更手順は[AGENTS.md](../../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../../PRINCIPLES.md#段階的な内製化)を参照する。
+依存の制約と変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
 
 内製crateを抽出する場合、対象責務の正本に次の契約を対応付ける。共通基盤・サーバ構成・マイニング構成の所有境界を、crate化だけを理由に変更しない。
 
@@ -50,11 +50,11 @@ USB起動用ISOとCloudに固有の起動・取得処理はCoreから分離し�
 
 サーバ構成とマイニング構成は`src/profiles/server/`および`src/profiles/mining/`へ分離する。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、各構成へ重複実装しない。構成固有の導入、検証、復旧は当該構成が担当する。
 
-構成間の適用制約は[構成の分離](../../POLICIES.md#構成の分離)を参照する。
+構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
 ## systemd連携
 
-常駐方式は[systemd連携](../../PRINCIPLES.md#systemd連携)、運転サービスとの接続は[監視サービスと共通基盤の境界](../../mining/specification.md#監視サービスと共通基盤の境界)を参照する。
+常駐方式は[systemd連携](../PRINCIPLES.md#systemd連携)、運転サービスとの接続は[監視サービスと共通基盤の境界](../mining/specification.md#監視サービスと共通基盤の境界)を参照する。
 
 必要に応じて、将来次のunitを追加できる。
 
@@ -63,7 +63,7 @@ serverseed-verify.service
 serverseed-verify.timer
 ```
 
-timerの実行範囲は[共通timer](../../POLICIES.md#共通timer)を参照する。
+timerの実行範囲は[共通timer](../POLICIES.md#共通timer)を参照する。
 
 ## 初期リポジトリ構成
 
@@ -125,19 +125,15 @@ serverseed/
     ├── core/
     │   ├── product-scope.md
     │   ├── common-platform.md
-    │   ├── provisioning/
-    │   │   ├── usb.md
-    │   │   ├── cloud.md
-    │   │   └── firmware.md
-    │   ├── operations/
-    │   │   ├── lifecycle.md
-    │   │   └── backups.md
-    │   ├── interfaces/
-    │   │   ├── cli.md
-    │   │   └── configuration.md
-    │   └── development/
-    │       ├── implementation.md
-    │       └── ci-cd.md
+    │   ├── usb.md
+    │   ├── cloud.md
+    │   ├── firmware.md
+    │   ├── lifecycle.md
+    │   ├── backups.md
+    │   ├── cli.md
+    │   ├── configuration.md
+    │   ├── implementation.md
+    │   └── ci-cd.md
     ├── server/
     │   └── specification.md
     └── mining/

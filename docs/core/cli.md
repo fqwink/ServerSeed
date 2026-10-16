@@ -1,6 +1,6 @@
 # CLI仕様
 
-[文書一覧](../../DOCUMENT_INDEX.md)
+[文書一覧](../DOCUMENT_INDEX.md)
 
 ## コマンド
 
@@ -38,35 +38,35 @@ serverseed self uninstall
 | `support-bundle` | 調査用情報を秘密情報を除外して収集 |
 | `self` | 本体だけの導入・更新・削除 |
 
-実行環境別の起動・導入手順は[USB導入](../provisioning/usb.md)と[Cloud導入](../provisioning/cloud.md)を参照する。破壊的操作の確認は[確認方式](#確認方式)に従う。
+実行環境別の起動・導入手順は[USB導入](usb.md)と[Cloud導入](cloud.md)を参照する。破壊的操作の確認は[確認方式](#確認方式)に従う。
 
 ### コマンド別の変更可否
 
-各コマンドの変更可否と読み取り専用の意味は[コマンド別の変更可否](../../POLICIES.md#コマンド別の変更可否)を参照する。
+各コマンドの変更可否と読み取り専用の意味は[コマンド別の変更可否](../POLICIES.md#コマンド別の変更可否)を参照する。
 
 `verify`で修正の必要性を検出した場合は、必要な操作をレポートする。
 
 ### `self`
 
-`self`は実行中OSの本体を管理する。対象ディスクへのOS導入は行わず、USBセットアップでは同じ導入処理を新OS内で呼び出す。各操作の状態は[本体導入と構成管理](../common-platform.md#本体導入と構成管理)、配置手順は[バイナリ導入](../operations/lifecycle.md#バイナリ導入)に従う。
+`self`は実行中OSの本体を管理する。対象ディスクへのOS導入は行わず、USBセットアップでは同じ導入処理を新OS内で呼び出す。各操作の状態は[本体導入と構成管理](common-platform.md#本体導入と構成管理)、配置手順は[バイナリ導入](lifecycle.md#バイナリ導入)に従う。
 
 | 操作 | 入力と条件 |
 |---|---|
 | `self install` | ローカルの検証済み本体から実行する。`--source DIR`、`--release-version VERSION`、`--keyring PATH`を必須とする。本体未導入、または導入情報が一致する同一版だけを受け入れる |
 | `self update` | `--source DIR_OR_HTTPS_URL`と`--release-version VERSION`を必須とする。整合する導入情報が必要で、管理構成の有無にかかわらず本体だけを更新する |
-| `self uninstall` | 導入済み本体の配置情報から削除対象を確定する。削除条件は[本体だけの削除](../../POLICIES.md#本体だけの削除)に従う |
+| `self uninstall` | 導入済み本体の配置情報から削除対象を確定する。削除条件は[本体だけの削除](../POLICIES.md#本体だけの削除)に従う |
 
-`--source`は[成果物一式](../development/ci-cd.md#リリース)を置くローカルディレクトリまたはHTTPSの基点URLを指定する。`--release-version`はタグの先頭`v`を除いたバージョンを指定し、マニフェスト・本体との不一致を拒否する。`--keyring`は初回に外部確認した公開鍵リングであり、秘密鍵を受け取らない。導入済み本体の更新・復旧は保存済みの信頼鍵を使用する。
+`--source`は[成果物一式](ci-cd.md#リリース)を置くローカルディレクトリまたはHTTPSの基点URLを指定する。`--release-version`はタグの先頭`v`を除いたバージョンを指定し、マニフェスト・本体との不一致を拒否する。`--keyring`は初回に外部確認した公開鍵リングであり、秘密鍵を受け取らない。導入済み本体の更新・復旧は保存済みの信頼鍵を使用する。
 
-`self`の状態別の実行条件は[状態別の実行条件](../../POLICIES.md#状態別の実行条件)に従う。
+`self`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
-`self`の`--dry-run`と`plan`の検査範囲は[計画時と実行時の検証](../operations/lifecycle.md#計画時と実行時の検証)に従う。`plan self install`、`plan self update`、`plan self uninstall`も各操作と同じ入力を受け付ける。
+`self`の`--dry-run`と`plan`の検査範囲は[計画時と実行時の検証](lifecycle.md#計画時と実行時の検証)に従う。`plan self install`、`plan self update`、`plan self uninstall`も各操作と同じ入力を受け付ける。
 
 構成セットアップ前の診断では、設定・構成未作成を`setup_required`として示し、構成値を補完しない。本体・導入情報・権限の不整合は失敗として区別する。初回取得が未完了の段階はシェルからの検証手順を使用し、未導入の`serverseed`を呼び出す前提にしない。
 
 ### `inspect`
 
-`inspect`は対象環境の事実を収集し、推奨状態を判定する。検査中の通信・変更の制約は[読み取り専用検査](../../POLICIES.md#読み取り専用検査)に従う。
+`inspect`は対象環境の事実を収集し、推奨状態を判定する。検査中の通信・変更の制約は[読み取り専用検査](../POLICIES.md#読み取り専用検査)に従う。
 
 収集対象は次を基本とする。
 
@@ -81,29 +81,29 @@ serverseed self uninstall
 - Docker導入状態
 - ServerSeed管理情報
 
-到達性の報告基準も[読み取り専用検査](../../POLICIES.md#読み取り専用検査)を参照する。
+到達性の報告基準も[読み取り専用検査](../POLICIES.md#読み取り専用検査)を参照する。
 
 ### `setup`
 
-`setup`の状態別の実行条件は[状態別の実行条件](../../POLICIES.md#状態別の実行条件)に従う。
+`setup`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
-環境別の処理は[USBのセットアップ](../provisioning/usb.md#セットアップ)と[Cloudの初期セットアップ](../provisioning/cloud.md#初期セットアップ)に従う。
+環境別の処理は[USBのセットアップ](usb.md#セットアップ)と[Cloudの初期セットアップ](cloud.md#初期セットアップ)に従う。
 
 ### `update`
 
-`update`の状態別の実行条件は[状態別の実行条件](../../POLICIES.md#状態別の実行条件)に従う。
+`update`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
 更新前検査に失敗した場合は変更を開始しない。更新開始後に失敗した場合は失敗状態を記録し、後続処理を停止する。
 
-`--source`と`--release-version`を指定する場合は[self](#self)と同じ定義を使用し、両方を指定する。両方を省略した場合は[候補の固定](../../POLICIES.md#候補の固定)に従う。`plan update`も同じ入力を受け付ける。
+`--source`と`--release-version`を指定する場合は[self](#self)と同じ定義を使用し、両方を指定する。両方を省略した場合は[候補の固定](../POLICIES.md#候補の固定)に従う。`plan update`も同じ入力を受け付ける。
 
 ### `recover`
 
-`recover`の状態別の実行条件は[状態別の実行条件](../../POLICIES.md#状態別の実行条件)に従う。
+`recover`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
-復旧の許可範囲は[ロールバック](../../POLICIES.md#ロールバック)に従う。
+復旧の許可範囲は[ロールバック](../POLICIES.md#ロールバック)に従う。
 
-`recover --self`は[本体の置換と復旧](../operations/lifecycle.md#本体の置換と復旧)の退避・中断記録を対象とし、構成やOSの復旧と区別する。配置本体を実行できない場合は、別途検証した同じバージョンまたは互換性のある復旧用バイナリを絶対パスで実行する。取得元を変更する場合も署名・互換性検証を省略しない。
+`recover --self`は[本体の置換と復旧](lifecycle.md#本体の置換と復旧)の退避・中断記録を対象とし、構成やOSの復旧と区別する。配置本体を実行できない場合は、別途検証した同じバージョンまたは互換性のある復旧用バイナリを絶対パスで実行する。取得元を変更する場合も署名・互換性検証を省略しない。
 
 初回導入の中断で保存済みキーリングがまだ存在しない場合だけ、初回と同じ独立確認を済ませた`--keyring PATH`を要求する。保存済みキーリングがある場合の差し替えや、検証失敗を回避する指定には使用しない。
 
@@ -115,9 +115,9 @@ serverseed self uninstall
 
 ### `version`
 
-`version --json`の`data.binary`には、実行本体の`serverseed_version`、`architecture`、収録した`config_revision`・`migration_revision`、および`compatible_config_revision`・`compatible_migration_revision`を出力する。互換範囲は[本体マニフェスト](../operations/lifecycle.md#更新マニフェスト)と照合する。
+`version --json`の`data.binary`には、実行本体の`serverseed_version`、`architecture`、収録した`config_revision`・`migration_revision`、および`compatible_config_revision`・`compatible_migration_revision`を出力する。互換範囲は[本体マニフェスト](lifecycle.md#更新マニフェスト)と照合する。
 
-対象OSへ適用済みの情報は`data.applied`として分離し、構成未セットアップなら`null`とする。自己申告と署名検証の関係は[信頼鍵の初回導入と更新](../../POLICIES.md#信頼鍵の初回導入と更新)に従う。
+対象OSへ適用済みの情報は`data.applied`として分離し、構成未セットアップなら`null`とする。自己申告と署名検証の関係は[信頼鍵の初回導入と更新](../POLICIES.md#信頼鍵の初回導入と更新)に従う。
 
 ### `doctor`
 
@@ -137,9 +137,9 @@ serverseed self uninstall
 - 信頼鍵リングの存在
 - ログ書き込み可否
 
-`doctor`の変更可否は[コマンド別の変更可否](../../POLICIES.md#コマンド別の変更可否)に従う。修正候補がある場合は、必要な操作と影響範囲を表示する。
+`doctor`の変更可否は[コマンド別の変更可否](../POLICIES.md#コマンド別の変更可否)に従う。修正候補がある場合は、必要な操作と影響範囲を表示する。
 
-ログ書き込み可否は保存先と親ディレクトリの所有者・権限、ファイルシステムの読み取り専用属性など、読み取れるメタデータから診断する。試験用ファイルの作成・削除やログへの追記は行わない。実際の書き込み成功を保証する診断とは区別し、必要な情報を確認できない場合は理由を添えて`unknown`とする。中断検出と記録先は[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)に従う。
+ログ書き込み可否は保存先と親ディレクトリの所有者・権限、ファイルシステムの読み取り専用属性など、読み取れるメタデータから診断する。試験用ファイルの作成・削除やログへの追記は行わない。実際の書き込み成功を保証する診断とは区別し、必要な情報を確認できない場合は理由を添えて`unknown`とする。中断検出と記録先は[読み取り専用時の記録処理](common-platform.md#読み取り専用時の記録処理)に従う。
 
 構成未選択の扱いは[self](#self)に従う。診断結果の`data`に`installation_status`と`setup_required`を含める。前者は`absent`、`installed`、`removed`、`inconsistent`、`pending`、後者はbooleanとする。
 
@@ -157,7 +157,7 @@ serverseed plan recover --self
 serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 ```
 
-`plan`の検査範囲は`--dry-run`と同じとし、[変更操作](../../POLICIES.md#コマンド別の変更可否)は行わない。本体の取得・検証を含む計画は[計画時と実行時の検証](../operations/lifecycle.md#計画時と実行時の検証)、中断検出時の扱いは[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)を参照する。計画の保存は[成果物の保存](../../POLICIES.md#成果物の保存)に従う。`blocked_by`がある場合は実行不能理由を表示する。
+`plan`の検査範囲は`--dry-run`と同じとし、[変更操作](../POLICIES.md#コマンド別の変更可否)は行わない。本体の取得・検証を含む計画は[計画時と実行時の検証](lifecycle.md#計画時と実行時の検証)、中断検出時の扱いは[読み取り専用時の記録処理](common-platform.md#読み取り専用時の記録処理)を参照する。計画の保存は[成果物の保存](../POLICIES.md#成果物の保存)に従う。`blocked_by`がある場合は実行不能理由を表示する。
 
 ### `support-bundle`
 
@@ -174,7 +174,7 @@ serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 - ServerSeedログ
 - 設定ファイルの秘密情報マスク済み内容
 
-収集時の秘匿化と除外条件は[秘密情報](../../POLICIES.md#秘密情報)に従う。
+収集時の秘匿化と除外条件は[秘密情報](../POLICIES.md#秘密情報)に従う。
 
 出力形式はtar.gzとし、ファイル名は次を基本とする。
 
@@ -184,7 +184,7 @@ serverseed-support_MACHINEID_TIMESTAMP.tar.gz
 
 ### 関連する基本方針
 
-CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強化)を参照する。
+CLIの提供価値と強化対象は[CLIの強化](../PRINCIPLES.md#cliの強化)を参照する。
 
 ### 共通オプションと出力
 
@@ -204,7 +204,7 @@ CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強
 
 #### 共通オプション
 
-確認が必要となる操作は[確認方式](../../POLICIES.md#確認方式)を参照する。
+確認が必要となる操作は[確認方式](../POLICIES.md#確認方式)を参照する。
 
 初期実装で共通対応するオプションは次のとおりとする。
 
@@ -218,15 +218,15 @@ CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強
 --output PATH
 ```
 
-`--yes`の確認省略条件は[対話確認と省略](../../POLICIES.md#対話確認と省略)を参照する。
+`--yes`の確認省略条件は[対話確認と省略](../POLICIES.md#対話確認と省略)を参照する。
 
-対話不能時の停止条件も[対話確認と省略](../../POLICIES.md#対話確認と省略)を参照する。
+対話不能時の停止条件も[対話確認と省略](../POLICIES.md#対話確認と省略)を参照する。
 
 `--no-color`は人間向け出力の色付けを無効化する。`--json`指定時は常に色付けしない。
 
 #### 成果物の保存
 
-`--output PATH`と`--dry-run`の保存条件は[成果物の保存](../../POLICIES.md#成果物の保存)を参照する。
+`--output PATH`と`--dry-run`の保存条件は[成果物の保存](../POLICIES.md#成果物の保存)を参照する。
 
 #### 共通JSON出力
 
@@ -253,7 +253,7 @@ CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強
 
 #### 確認方式
 
-確認の要否と許可条件は[確認方式](../../POLICIES.md#確認方式)に従う。
+確認の要否と許可条件は[確認方式](../POLICIES.md#確認方式)に従う。
 
 ディスク消去を伴う場合、ServerSeedは次の情報を表示する。
 
@@ -268,7 +268,7 @@ CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強
 
 ### ログ
 
-ログの形式と保存先は[共通基盤のログ形式](../common-platform.md#ログ形式)、操作別の記録先は[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)を参照する。
+ログの形式と保存先は[共通基盤のログ形式](common-platform.md#ログ形式)、操作別の記録先は[読み取り専用時の記録処理](common-platform.md#読み取り専用時の記録処理)を参照する。
 
 ### 終了コード
 
