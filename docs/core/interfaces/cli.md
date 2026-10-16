@@ -60,7 +60,7 @@ serverseed self uninstall
 
 `self`の状態別の実行条件は[状態別の実行条件](../../POLICIES.md#状態別の実行条件)に従う。
 
-`--dry-run`では、マニフェストの読み取り・検証とローカルの前提検査までを行う。HTTPSのメタデータはメモリ上で処理し、バイナリの取得・配置、一時ファイルや管理ディレクトリの作成を行わない。`plan self install`、`plan self update`、`plan self uninstall`も同じ入力を受け付ける。
+`self`の`--dry-run`と`plan`の検査範囲は[計画時と実行時の検証](../operations/lifecycle.md#計画時と実行時の検証)に従う。`plan self install`、`plan self update`、`plan self uninstall`も各操作と同じ入力を受け付ける。
 
 構成セットアップ前の診断では、設定・構成未作成を`setup_required`として示し、構成値を補完しない。本体・導入情報・権限の不整合は失敗として区別する。初回取得が未完了の段階はシェルからの検証手順を使用し、未導入の`serverseed`を呼び出す前提にしない。
 
@@ -139,6 +139,8 @@ serverseed self uninstall
 
 `doctor`の変更可否は[コマンド別の変更可否](../../POLICIES.md#コマンド別の変更可否)に従う。修正候補がある場合は、必要な操作と影響範囲を表示する。
 
+ログ書き込み可否は保存先と親ディレクトリの所有者・権限、ファイルシステムの読み取り専用属性など、読み取れるメタデータから診断する。試験用ファイルの作成・削除やログへの追記は行わない。実際の書き込み成功を保証する診断とは区別し、必要な情報を確認できない場合は理由を添えて`unknown`とする。中断検出と記録先は[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)に従う。
+
 構成未選択の扱いは[self](#self)に従う。診断結果の`data`に`installation_status`と`setup_required`を含める。前者は`absent`、`installed`、`removed`、`inconsistent`、`pending`、後者はbooleanとする。
 
 `doctor --transaction OPERATION_ID --json`は、本体変更処理が呼び出す読み取り専用の診断モードとする。root権限、保持中の共通ロック、実行中操作・トランザクションのID一致、署名付き候補の検証と実配置ハッシュの一致を確認し、置換直後の導入情報が未確定でも`pending`として候補を検査する。ロック保持プロセスとその診断子プロセスの対応も確認し、条件不成立を通常診断への無条件な成功扱いにしない。このモードは状態や導入情報を確定・修正しない。
@@ -155,7 +157,7 @@ serverseed plan recover --self
 serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 ```
 
-`plan`の検査範囲は`--dry-run`と同じとし、[変更操作](../../POLICIES.md#コマンド別の変更可否)は行わない。計画の保存は[成果物の保存](../../POLICIES.md#成果物の保存)に従う。`blocked_by`がある場合は実行不能理由を表示する。
+`plan`の検査範囲は`--dry-run`と同じとし、[変更操作](../../POLICIES.md#コマンド別の変更可否)は行わない。本体の取得・検証を含む計画は[計画時と実行時の検証](../operations/lifecycle.md#計画時と実行時の検証)、中断検出時の扱いは[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)を参照する。計画の保存は[成果物の保存](../../POLICIES.md#成果物の保存)に従う。`blocked_by`がある場合は実行不能理由を表示する。
 
 ### `support-bundle`
 
@@ -266,7 +268,7 @@ CLIの提供価値と強化対象は[CLIの強化](../../PRINCIPLES.md#cliの強
 
 ### ログ
 
-ログの形式と保存先は[共通基盤のログ形式](../common-platform.md#ログ形式)を参照する。
+ログの形式と保存先は[共通基盤のログ形式](../common-platform.md#ログ形式)、操作別の記録先は[読み取り専用時の記録処理](../common-platform.md#読み取り専用時の記録処理)を参照する。
 
 ### 終了コード
 
