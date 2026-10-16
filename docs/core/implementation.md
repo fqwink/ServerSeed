@@ -129,29 +129,8 @@ serverseed/
 ├── packaging/
 │   └── iso/
 └── docs/
-    ├── DOCUMENT_INDEX.md
-    ├── ROADMAP.md
-    ├── PRINCIPLES.md
-    ├── POLICIES.md
-    ├── DEPENDENCY_EXCEPTIONS.md
-    ├── core/
-    │   ├── product-scope.md
-    │   ├── common-platform.md
-    │   ├── usb.md
-    │   ├── cloud.md
-    │   ├── firmware.md
-    │   ├── lifecycle.md
-    │   ├── backups.md
-    │   ├── cli.md
-    │   ├── configuration.md
-    │   ├── implementation.md
-    │   └── ci-cd.md
-    ├── master/
-    │   └── specification.md
-    ├── server/
-    │   └── specification.md
-    └── mining/
-        └── specification.md
 ```
+
+文書の配置と各文書の担当責務は[文書索引](../DOCUMENT_INDEX.md)を参照する。
 
 実装はこの構成を起点とし、仕様と矛盾するディレクトリや責務分離を追加しない。
