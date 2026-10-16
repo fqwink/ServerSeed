@@ -1,16 +1,16 @@
 # ServerSeedの目的と対応範囲
 
-[文書一覧](DOCUMENT_INDEX.md)
+[文書一覧](../DOCUMENT_INDEX.md)
 
 ## 目的
 
 ServerSeedは、共通基盤を主軸とし、サーバ構成とマイニング構成を同一リポジトリで管理するRust製CLIのライフサイクル管理ツールである。物理サーバ、ミニPC、CPU・GPU搭載PC、VPSおよびクラウド上の対応環境を、共通の定義に基づいてセットアップ、アップデート、検証および復旧する。
 
-主要な利用者インターフェースは`serverseed`コマンドとする。本体は[バイナリ導入](development/implementation.md#バイナリ導入)を共通方式とし、物理サーバでは[USB起動用ISO](provisioning/usb.md#isoの作成)、VPSおよびクラウドでは[既存OSへの導入](provisioning/cloud.md#本体の導入)を使用する。事業者との責任境界は[プロバイダー非依存](#プロバイダー非依存)を参照する。
+主要な利用者インターフェースは`serverseed`コマンドとする。本体は[バイナリ導入](operations/lifecycle.md#バイナリ導入)を共通方式とし、物理サーバでは[USB起動用ISO](provisioning/usb.md#isoの作成)、VPSおよびクラウドでは[既存OSへの導入](provisioning/cloud.md#本体の導入)を使用する。事業者との責任境界は[プロバイダー非依存](#プロバイダー非依存)を参照する。
 
 ## 基本原則
 
-製品全体の判断基準は[基本方針](PRINCIPLES.md#製品の基本方針)を参照する。
+製品全体の判断基準は[基本方針](../PRINCIPLES.md#製品の基本方針)を参照する。
 
 ## 製品構成
 
@@ -19,8 +19,8 @@ ServerSeedは、共通基盤を主軸とし、サーバ構成とマイニング�
 | ServerSeed | `serverseed` CLIを中心としたシステム全体 |
 | ServerSeed CLI | 利用者および自動処理が実行する主要インターフェース |
 | ServerSeed Core | 主軸となる共通基盤。CLIから呼び出される共通のセットアップ、更新、検証および復旧処理 |
-| サーバ構成（server） | [サーバ構成仕様](profiles/server.md) |
-| マイニング構成（mining） | [マイニング構成仕様](profiles/mining.md) |
+| サーバ構成（server） | [サーバ構成仕様](../server/specification.md) |
+| マイニング構成（mining） | [マイニング構成仕様](../mining/specification.md) |
 | ServerSeed USB | ServerSeed ISOを書き込んで物理PCおよびベアメタルを起動する専用USB |
 | ServerSeed Cloud | VPSおよびクラウドサーバへ`serverseed`を導入して実行する方式 |
 | ServerSeed ISO | 共通バイナリを収録したUSB用の起動・導入・復旧媒体。検証済みの仮想メディア起動にも使用する |
@@ -31,7 +31,7 @@ ISOを独立した共通基盤や構成として実装しない。配布成果�
 
 対応OSは両構成ともUbuntu Serverに統一し、初期対応バージョンはUbuntu Server 24.04 LTSに一本化する。
 
-開発フェーズと実施順序は[ロードマップ](ROADMAP.md)を参照する。
+開発フェーズと実施順序は[ロードマップ](../ROADMAP.md)を参照する。
 
 Debian、RHEL系、FreeBSD、その他OSは対応対象外とする。将来提案や補助文書で他OS対応を扱う場合も、本仕様が更新されない限りServerSeedの実装対象に含めない。
 
@@ -59,9 +59,9 @@ Ubuntu派生OSはUbuntu 24.04 LTSとして扱わない。`ID_LIKE=debian`のみ�
 | `amd64` | 物理サーバ、VPS、クラウドの標準対象 |
 | `arm64` | ARMサーバ、ARM対応VPS、将来の物理環境対象 |
 
-マイニング構成の利用条件は[マイニング構成](profiles/mining.md#対応範囲)を参照する。
+マイニング構成の利用条件は[マイニング構成](../mining/specification.md#対応範囲)を参照する。
 
-対応外アーキテクチャでの実行可否は[対応外アーキテクチャ](POLICIES.md#対応外アーキテクチャ)を参照する。
+対応外アーキテクチャでの実行可否は[対応外アーキテクチャ](../POLICIES.md#対応外アーキテクチャ)を参照する。
 
 ### Ubuntuパッケージ管理前提
 
@@ -82,7 +82,7 @@ gpgv
 
 ### プロバイダー非依存
 
-事業者APIとの関係は[プロバイダー非依存](PRINCIPLES.md#プロバイダー非依存)を参照する。
+事業者APIとの関係は[プロバイダー非依存](../PRINCIPLES.md#プロバイダー非依存)を参照する。
 
 環境はプロバイダー名ではなく、次の能力に基づいて判定する。
 

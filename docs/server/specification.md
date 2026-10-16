@@ -8,11 +8,13 @@
 
 構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
+Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例外一覧](../DEPENDENCY_EXCEPTIONS.md#外部依存の例外一覧)を参照する。
+
 ## 更新と復旧
 
 実行許可、再起動および自動修復の制約は[サーバ構成](../POLICIES.md#サーバ構成)を参照する。
 
-共通の処理は[更新](../operations/updates.md)と[バックアップ](../operations/backups.md)に従う。
+共通の処理は[更新](../core/operations/lifecycle.md)と[バックアップ](../core/operations/backups.md)に従う。
 
 ## `apps.yml`
 
