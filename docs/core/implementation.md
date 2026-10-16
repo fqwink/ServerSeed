@@ -40,7 +40,7 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 
 ## 内製crateの境界と差し替え
 
-依存の制約と変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
+依存の基本境界と内製化の定義は[憲章第7条](../CHARTER.md#第7条-提供元依存権利)、宣言・管理への適用は[依存条件](../POLICIES.md#rustと内製crateの依存条件)、変更手順は[AGENTS.md](../../AGENTS.md#rustと内製crateの依存制約)、抽出の判断は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)を参照する。
 
 内製crateを抽出する場合、対象責務の正本に次の契約を対応付ける。共通基盤と各構成の所有境界を、crate化だけを理由に変更しない。
 
