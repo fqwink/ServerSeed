@@ -59,7 +59,7 @@ ServerSeed Coreには、CLIから呼び出される環境共通の次の処理�
 
 ## 構成別の責任境界
 
-各構成の入口は`src/profiles/master/`、`src/profiles/server/`および`src/profiles/mining/`へ分離する。マスターは[統合契約](../master/specification.md#機能の統合)に沿ってサーバ・採掘の機能を呼び出し、同じ処理をコピーしない。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、構成固有の導入・検証・復旧は担当機能へ委ねる。
+各構成の入口は`src/profiles/master/`、`src/profiles/server/`および`src/profiles/mining/`へ分離する。[憲章第4条](../CHARTER.md#第4条-仕様による実装の拘束)の再利用義務への対応として、マスターは[統合契約](../master/specification.md#機能の統合)に沿ってサーバ・採掘の機能を呼び出す。共通の状態判定、機器情報、更新計画、署名検証、ロックおよび履歴はCoreを再利用し、構成固有の導入・検証・復旧は担当機能へ委ねる。
 
 構成間の適用制約は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
