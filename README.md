@@ -8,3 +8,4 @@ Ubuntu Server 24.04 LTS向けのRust製CLI。サーバ構成とマイニング�
 
 - [文書一覧](docs/DOCUMENT_INDEX.md)
 - [作業ルール](AGENTS.md)
+- [Issue・脆弱性報告の受付条件と窓口](docs/POLICIES.md#報告の受付)
