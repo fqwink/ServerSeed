@@ -2,20 +2,21 @@
 
 [文書一覧](DOCUMENT_INDEX.md)
 
-現在はPhase 0の文書整備を進めている。実装コード、自動テストおよびCI定義は未作成で、Phase 1以降は未着手とする。
+現在は仕様・文書の整合性整理を進めている。実装コード、自動テストおよびCI定義は未作成で、Phase 1以降の実装は未着手とする。
 
 Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョブは対応するフェーズで実装する。Phase 8で[CI/CD仕様](development/ci-cd.md#cicd)に定める初期CI全体を検証する。
 
 ## Phase 0: 仕様と文書体系
 
-- 対象: [文書索引](DOCUMENT_INDEX.md)、責務別・構成別仕様、作業ルールの整理。
+- 対象: [文書索引](DOCUMENT_INDEX.md)、[基本方針](PRINCIPLES.md)、[運用ポリシー](POLICIES.md)、責務別・構成別仕様、作業ルールの整理。
 - 完了条件: 各仕様の定義先が明確で、文書一覧が実ファイルを網羅し、参照リンクとコード例の検証が完了している。
 
 ## Phase 1: CLIと開発基盤
 
+- 準備状況: [Rustの採用条件](PRINCIPLES.md#rustツールチェーン)と[CLI起動時の応答](interfaces/cli.md#起動時の応答)を確定。
 - 依存: Phase 0。
-- 対象: [CLI](interfaces/cli.md)、[実装方針](development/implementation.md#実装方針)、[CI/CD](development/ci-cd.md)の開発基盤。
-- 完了条件: [Rustツールチェーン方針](development/implementation.md#rustツールチェーン方針)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](development/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testをローカルおよびCIから実行できる。
+- 対象: [CLI](interfaces/cli.md)、[実装構成](development/implementation.md#実装構成)、[CI/CD](development/ci-cd.md)の開発基盤。
+- 完了条件: [Rustツールチェーン方針](PRINCIPLES.md#rustツールチェーン)に従って採用条件が決まり、CLIの起動・ヘルプ・バージョン表示・共通出力を検証でき、[CIジョブ](development/ci-cd.md#cicd)の整形・静的解析・ビルド・unit testをローカルおよびCIから実行できる。
 
 ## Phase 2: 共通基盤と構成選択
 
@@ -38,7 +39,7 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 ## Phase 5: マイニング運転と自動保守
 
 - 依存: Phase 4。
-- 対象: マイニング構成の[監視と自動復旧](profiles/mining.md#監視と自動復旧)、[自動更新と再起動](profiles/mining.md#自動更新と再起動)、[更新失敗時の復旧](profiles/mining.md#更新失敗時の復旧)。
+- 対象: マイニング構成の[監視と自動復旧](POLICIES.md#マイニングの運転監視)、[自動更新と再起動](POLICIES.md#マイニングの自動更新と再起動)、[更新失敗時の復旧](POLICIES.md#マイニングの更新失敗時復旧)。
 - 完了条件: 採掘停止、通信断、温度異常、再試行上限、更新失敗を検証でき、CPU・GPU別の運転と構成ポリシーに沿った復旧・更新が成立する。
 
 ## Phase 6: USB用ISOとファームウェア連携
@@ -56,5 +57,5 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 ## Phase 8: 統合検証と初期リリース
 
 - 依存: Phase 7。
-- 対象: [テスト方針](development/implementation.md#テスト方針)、[リリース](development/ci-cd.md#リリース)、[アーティファクト検査](development/ci-cd.md#アーティファクト検査)。
+- 対象: [テスト体系](development/implementation.md#テスト体系)、[リリース](development/ci-cd.md#リリース)、[アーティファクト検査](development/ci-cd.md#アーティファクト検査)。
 - 完了条件: [配布・導入の受入条件](development/implementation.md#配布導入の受入条件)と手動VM試験を満たし、共通バイナリ・USB用ISO・検証情報を同一リリースとして生成・署名・検証して公開できる。

@@ -8,9 +8,9 @@
 
 機械処理を主目的とするマニフェストおよび状態スナップショットはJSON形式とし、追記型の実行履歴およびイベントログは1行1JSONのJSONL形式とする。
 
-YAMLは安全なパーサーで読み込み、任意コード実行や独自タグの評価を行わない。
+YAMLの読み込み制約は[設定入力の安全条件](../POLICIES.md#設定入力の安全条件)に従う。
 
-秘密情報の扱いは[セキュリティ仕様](../operations/security.md#秘密情報の扱い)に従う。
+秘密情報の扱いは[セキュリティ仕様](../POLICIES.md#秘密情報)に従う。
 
 ## 管理ファイル一覧
 
@@ -20,7 +20,7 @@ YAMLは安全なパーサーで読み込み、任意コード実行や独自タ�
 | `/etc/serverseed/policy.yml` | [共通ポリシー](#policyyml) |
 | `/etc/serverseed/apps.yml` | [サーバ構成のアプリ定義](../profiles/server.md#appsyml) |
 | `/etc/serverseed/profiles/server.yml` | [構成固有設定](#構成固有設定) |
-| `/etc/serverseed/profiles/mining.yml` | [マイニング構成のポリシー](../profiles/mining.md#自動更新と再起動) |
+| `/etc/serverseed/profiles/mining.yml` | [マイニング構成のポリシー](../POLICIES.md#マイニングの自動更新と再起動) |
 | `/etc/serverseed/managed` | [管理マーカー](../common-platform.md#管理マーカー) |
 | `/etc/serverseed/machine-id` | [管理マーカーとの照合](../common-platform.md#管理マーカー) |
 | `/etc/serverseed/version` | [共通の管理情報](../common-platform.md#共通状態判定) |
@@ -35,7 +35,7 @@ YAMLは安全なパーサーで読み込み、任意コード実行や独自タ�
 
 ## 構成固有設定
 
-構成固有設定は`/etc/serverseed/profiles/server.yml`と`/etc/serverseed/profiles/mining.yml`へ分離し、選択済み構成だけを適用する。未選択構成のポリシーを共通既定値として読み込まない。
+構成固有設定の配置は[管理ファイル一覧](#管理ファイル一覧)、適用範囲は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
 構成固有の定義は[サーバ構成](../profiles/server.md#appsyml)と[マイニング構成](../profiles/mining.md)を参照する。
 
@@ -43,7 +43,7 @@ YAMLは安全なパーサーで読み込み、任意コード実行や独自タ�
 
 `config.yml`はServerSeed全体の基本設定を定義する。
 
-本体だけの導入ではこのファイルを生成しない。構成セットアップで利用者の選択が確定した後に作成する。初期設定の生成と既存設定の扱いは[バイナリ導入](../development/implementation.md#バイナリ導入)に従う。
+生成時期と既存設定の扱いは[初回導入の保護条件](../POLICIES.md#初回導入の保護条件)に従う。以下は形式例であり、未指定時の値は[基本設定の既定値](../POLICIES.md#基本設定の既定値)を参照する。
 
 ```yaml
 serverseed:
@@ -59,24 +59,24 @@ serverseed:
 
 `config.yml`の必須項目は次とする。
 
-| 項目 | 型 | 必須 | 既定値 |
-|---|---|---|---|
-| `serverseed.config_revision` | integer | はい | なし |
-| `serverseed.environment` | string | はい | なし |
-| `serverseed.profile` | string | はい | なし |
-| `serverseed.log_level` | string | いいえ | `info` |
-| `serverseed.allow_reboot` | boolean | いいえ | `false` |
-| `serverseed.update_channel` | string | いいえ | `stable` |
+| 項目 | 型 | 必須 |
+|---|---|---|
+| `serverseed.config_revision` | integer | はい |
+| `serverseed.environment` | string | はい |
+| `serverseed.profile` | string | はい |
+| `serverseed.log_level` | string | いいえ |
+| `serverseed.allow_reboot` | boolean | いいえ |
+| `serverseed.update_channel` | string | いいえ |
 
 `log_level`は`debug`、`info`、`warn`、`error`のいずれかとする。`update_channel`は初期実装では`stable`のみ有効とする。
 
-`profile`の値は`server`または`mining`とする。値の確定・保存と管理マーカーとの照合は[初期構成選択と継続管理](../common-platform.md#初期構成選択と継続管理)に従う。
+`profile`の値は`server`または`mining`とする。値の確定・保存と管理マーカーとの照合は[初期構成選択と継続管理](../POLICIES.md#構成選択と継続管理)に従う。
 
 未知のトップレベルキーは設定エラーとする。未知の下位キーは警告ではなく設定エラーとし、変更操作を開始しない。
 
 ## `policy.yml`
 
-`policy.yml`は安全確認と変更許可の方針を定義する。
+`policy.yml`の項目と型は次のとおりとする。以下の値は形式例であり、既定値と許可条件は[共通ポリシーの既定値](../POLICIES.md#共通ポリシーの既定値)を参照する。
 
 ```yaml
 policy:
@@ -87,16 +87,16 @@ policy:
   allow_destructive_disk_setup: false
 ```
 
-`allow_destructive_disk_setup`が`false`の場合、USB版でもディスク消去を開始しない。`true`の場合でも対象ディスク識別情報を含む明示確認を必須とする。
+ディスク消去の許可条件は[ディスク操作](../POLICIES.md#ディスク操作)を参照する。
 
 `policy.yml`の必須項目は次とする。
 
-| 項目 | 型 | 必須 | 既定値 |
-|---|---|---|---|
-| `policy.require_backup_before_update` | boolean | いいえ | `true` |
-| `policy.require_ssh_recovery_path` | boolean | いいえ | `true` |
-| `policy.allow_password_auth_disable` | boolean | いいえ | `true` |
-| `policy.allow_unattended_security_updates` | boolean | いいえ | `true` |
-| `policy.allow_destructive_disk_setup` | boolean | いいえ | `false` |
+| 項目 | 型 | 必須 |
+|---|---|---|
+| `policy.require_backup_before_update` | boolean | いいえ |
+| `policy.require_ssh_recovery_path` | boolean | いいえ |
+| `policy.allow_password_auth_disable` | boolean | いいえ |
+| `policy.allow_unattended_security_updates` | boolean | いいえ |
+| `policy.allow_destructive_disk_setup` | boolean | いいえ |
 
-ポリシー未指定時は安全側の既定値を使用する。型が一致しない場合は設定エラーとする。
+型が一致しない場合は設定エラーとする。

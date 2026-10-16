@@ -42,22 +42,9 @@ serverseed self uninstall
 
 ### コマンド別の変更可否
 
-| コマンド | 既定動作 | 変更操作 |
-|---|---|---|
-| `inspect` | 読み取り専用 | なし |
-| `status` | 読み取り専用 | なし |
-| `version` | 読み取り専用 | なし |
-| `report` | 読み取り専用 | なし |
-| `verify` | 読み取り専用 | なし |
-| `doctor` | 読み取り専用 | なし |
-| `plan` | 読み取り専用 | なし |
-| `support-bundle` | 読み取り専用 | なし |
-| `setup` | 計画表示後に確認 | あり |
-| `update` | 計画表示後に確認 | あり |
-| `recover` | 復旧計画表示後に確認 | あり |
-| `self install`、`self update`、`self uninstall` | 本体変更計画を表示後に確認 | あり |
+各コマンドの変更可否と読み取り専用の意味は[コマンド別の変更可否](../POLICIES.md#コマンド別の変更可否)を参照する。
 
-`verify`は状態確認と検証のみを行い、設定修正、パッケージ更新、サービス再起動を行わない。修正が必要な場合は、必要な操作をレポートする。
+`verify`で修正の必要性を検出した場合は、必要な操作をレポートする。
 
 ### `self`
 
@@ -67,11 +54,11 @@ serverseed self uninstall
 |---|---|
 | `self install` | ローカルの検証済み本体から実行する。`--source DIR`、`--release-version VERSION`、`--keyring PATH`を必須とする。本体未導入、または導入情報が一致する同一版だけを受け入れる |
 | `self update` | `--source DIR_OR_HTTPS_URL`と`--release-version VERSION`を必須とする。整合する導入情報が必要で、管理構成の有無にかかわらず本体だけを更新する |
-| `self uninstall` | 導入済み本体の配置情報から削除対象を確定する。削除条件は[本体だけの削除](../development/implementation.md#本体だけの削除)に従う |
+| `self uninstall` | 導入済み本体の配置情報から削除対象を確定する。削除条件は[本体だけの削除](../POLICIES.md#本体だけの削除)に従う |
 
 `--source`は[成果物一式](../development/ci-cd.md#リリース)を置くローカルディレクトリまたはHTTPSの基点URLを指定する。`--release-version`はタグの先頭`v`を除いたバージョンを指定し、マニフェスト・本体との不一致を拒否する。`--keyring`は初回に外部確認した公開鍵リングであり、秘密鍵を受け取らない。導入済み本体の更新・復旧は保存済みの信頼鍵を使用する。
 
-通常の`self`変更操作は`UNKNOWN`、`EMPTY`、`RECOVERABLE`では実行しない。管理対象かどうかによる構成の扱いは[共通基盤](../common-platform.md#本体導入と構成管理)を参照する。
+`self`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
 `--dry-run`では、マニフェストの読み取り・検証とローカルの前提検査までを行う。HTTPSのメタデータはメモリ上で処理し、バイナリの取得・配置、一時ファイルや管理ディレクトリの作成を行わない。`plan self install`、`plan self update`、`plan self uninstall`も同じ入力を受け付ける。
 
@@ -79,7 +66,7 @@ serverseed self uninstall
 
 ### `inspect`
 
-`inspect`は対象環境の事実を収集し、推奨状態を判定する。外部通信、パッケージ更新、設定変更は行わない。
+`inspect`は対象環境の事実を収集し、推奨状態を判定する。検査中の通信・変更の制約は[読み取り専用検査](../POLICIES.md#読み取り専用検査)に従う。
 
 収集対象は次を基本とする。
 
@@ -89,30 +76,32 @@ serverseed self uninstall
 - ストレージ情報
 - ファイルシステム
 - ブート方式
-- ネットワーク到達性
+- ネットワークインターフェース、アドレスおよび経路などのローカル情報
 - SSH設定
 - Docker導入状態
 - ServerSeed管理情報
 
+到達性の報告基準も[読み取り専用検査](../POLICIES.md#読み取り専用検査)を参照する。
+
 ### `setup`
 
-`setup`は`EMPTY`または`ADOPTABLE`に対して実行する。
+`setup`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
 環境別の処理は[USBのセットアップ](../provisioning/usb.md#セットアップ)と[Cloudの初期セットアップ](../provisioning/cloud.md#初期セットアップ)に従う。
 
 ### `update`
 
-`update`は`MANAGED`に対して実行する。`UNKNOWN`、`EMPTY`、`ADOPTABLE`に対しては実行しない。`RECOVERABLE`に対しては、復旧が必要であることを表示して停止する。
+`update`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
 更新前検査に失敗した場合は変更を開始しない。更新開始後に失敗した場合は失敗状態を記録し、後続処理を停止する。
 
-`--source`と`--release-version`を指定する場合は[self](#self)と同じ定義を使用し、両方を指定する。両方を省略した場合は[候補の固定](../operations/updates.md#候補の固定)に従う。`plan update`も同じ入力を受け付ける。
+`--source`と`--release-version`を指定する場合は[self](#self)と同じ定義を使用し、両方を指定する。両方を省略した場合は[候補の固定](../POLICIES.md#候補の固定)に従う。`plan update`も同じ入力を受け付ける。
 
 ### `recover`
 
-`recover`は`RECOVERABLE`に対して実行する。復旧内容は、起動修復、設定復元、前回操作の後始末、レポート生成に限定する。
+`recover`の状態別の実行条件は[状態別の実行条件](../POLICIES.md#状態別の実行条件)に従う。
 
-データを削除する復旧、OSパッケージの無条件なダウングレード、バックアップ未確認の復元は行わない。
+復旧の許可範囲は[ロールバック](../POLICIES.md#ロールバック)に従う。
 
 `recover --self`は[本体の置換と復旧](../operations/updates.md#本体の置換と復旧)の退避・中断記録を対象とし、構成やOSの復旧と区別する。配置本体を実行できない場合は、別途検証した同じバージョンまたは互換性のある復旧用バイナリを絶対パスで実行する。取得元を変更する場合も署名・互換性検証を省略しない。
 
@@ -128,7 +117,7 @@ serverseed self uninstall
 
 `version --json`の`data.binary`には、実行本体の`serverseed_version`、`architecture`、収録した`config_revision`・`migration_revision`、および`compatible_config_revision`・`compatible_migration_revision`を出力する。互換範囲は[本体マニフェスト](../operations/updates.md#更新マニフェスト)と照合する。
 
-対象OSへ適用済みの情報は`data.applied`として分離し、構成未セットアップなら`null`とする。実行本体の自己申告を署名検証の代わりにしない。
+対象OSへ適用済みの情報は`data.applied`として分離し、構成未セットアップなら`null`とする。自己申告と署名検証の関係は[信頼鍵の初回導入と更新](../POLICIES.md#信頼鍵の初回導入と更新)に従う。
 
 ### `doctor`
 
@@ -148,7 +137,7 @@ serverseed self uninstall
 - 信頼鍵リングの存在
 - ログ書き込み可否
 
-`doctor`は修正を実行しない。修正候補がある場合は、必要な操作と影響範囲を表示する。
+`doctor`の変更可否は[コマンド別の変更可否](../POLICIES.md#コマンド別の変更可否)に従う。修正候補がある場合は、必要な操作と影響範囲を表示する。
 
 構成未選択の扱いは[self](#self)に従う。診断結果の`data`に`installation_status`と`setup_required`を含める。前者は`absent`、`installed`、`removed`、`inconsistent`、`pending`、後者はbooleanとする。
 
@@ -166,7 +155,7 @@ serverseed plan recover --self
 serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 ```
 
-`plan`は`--dry-run`と同様に変更操作を行わない。計画作成に必要な検査だけを行い、`blocked_by`がある場合は実行不能理由を表示する。
+`plan`の検査範囲は`--dry-run`と同じとし、[変更操作](../POLICIES.md#コマンド別の変更可否)は行わない。計画の保存は[成果物の保存](../POLICIES.md#成果物の保存)に従う。`blocked_by`がある場合は実行不能理由を表示する。
 
 ### `support-bundle`
 
@@ -183,7 +172,7 @@ serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 - ServerSeedログ
 - 設定ファイルの秘密情報マスク済み内容
 
-`support-bundle`は秘密情報を含めてはならない。秘密情報を除外またはマスクできない項目は収集しない。
+収集時の秘匿化と除外条件は[秘密情報](../POLICIES.md#秘密情報)に従う。
 
 出力形式はtar.gzとし、ファイル名は次を基本とする。
 
@@ -191,29 +180,29 @@ serverseed plan self update --source DIR_OR_HTTPS_URL --release-version VERSION
 serverseed-support_MACHINEID_TIMESTAMP.tar.gz
 ```
 
-### ツール強化方針
+### 関連する基本方針
 
-ServerSeed CLIは、危険操作を実行するだけの道具ではなく、管理者が判断できる情報を提供する運用ツールとして強化する。
-
-強化対象は次とする。
-
-- 事実収集
-- 状態判定
-- 実行計画作成
-- ブロック理由の説明
-- 修正候補の提示
-- 検証結果の機械処理出力
-- 調査用情報の安全な収集
-- リリース成果物の検証
-- 自己診断
-
-サーバ構成の自動修復の扱いは[サーバ構成](../profiles/server.md#更新と復旧)を参照する。マイニング構成の採掘運転に限定した自動復旧は[監視と自動復旧](../profiles/mining.md#監視と自動復旧)に従う。共通の`doctor`、`verify`は引き続き読み取り専用とする。
+CLIの提供価値と強化対象は[CLIの強化](../PRINCIPLES.md#cliの強化)を参照する。
 
 ### 共通オプションと出力
 
 すべてのコマンドは、標準出力に人が読む要約を出し、`--json`指定時は機械処理用JSONを出力する。
 
-破壊的操作または復旧不能な変更を含む操作は、原則として事前計画を表示し、明示確認を要求する。
+#### 起動時の応答
+
+起動時の入力と応答は次のとおりとする。終了区分に対応する数値は[終了コード](#終了コード)を参照する。
+
+| 入力 | 応答 | 終了区分 |
+|---|---|---|
+| `--help`またはサブコマンドの`--help` | 対応するヘルプを表示 | 成功 |
+| 引数なし、必須入力の不足、未知のコマンド・オプション、引数の不正 | 入力エラーを表示し、不足時は対応するヘルプも案内 | 引数または設定エラー |
+| 入力は妥当だが対象機能が未実装 | 未実装であることを表示し、変更を開始せず停止 | 安全確認失敗 |
+
+未実装機能を成功として扱わず、`--json`指定時は[共通JSON出力](#共通json出力)の`result`を`blocked`とし、停止理由を`errors`へ含める。
+
+#### 共通オプション
+
+確認が必要となる操作は[確認方式](../POLICIES.md#確認方式)を参照する。
 
 初期実装で共通対応するオプションは次のとおりとする。
 
@@ -227,13 +216,15 @@ ServerSeed CLIは、危険操作を実行するだけの道具ではなく、管
 --output PATH
 ```
 
-`--yes`は通常の確認を省略できる。初回構成選択の扱いは[初期構成選択と継続管理](../common-platform.md#初期構成選択と継続管理)、破壊的操作の追加確認は[確認方式](#確認方式)に従う。マイニング構成の自動更新における対話確認の省略は[自動更新と再起動](../profiles/mining.md#自動更新と再起動)の事前ポリシーに従う。
+`--yes`の確認省略条件は[対話確認と省略](../POLICIES.md#対話確認と省略)を参照する。
 
-対話不能な環境で確認が必要になった場合は、変更を行わず終了コード`3`で停止する。
+対話不能時の停止条件も[対話確認と省略](../POLICIES.md#対話確認と省略)を参照する。
 
 `--no-color`は人間向け出力の色付けを無効化する。`--json`指定時は常に色付けしない。
 
-`--output PATH`は、`report`、`plan`、`support-bundle`などの成果物出力先を指定するために使用する。指定先に既存ファイルがある場合は、明示オプションなしに上書きしてはならない。
+#### 成果物の保存
+
+`--output PATH`と`--dry-run`の保存条件は[成果物の保存](../POLICIES.md#成果物の保存)を参照する。
 
 #### 共通JSON出力
 
@@ -260,7 +251,7 @@ ServerSeed CLIは、危険操作を実行するだけの道具ではなく、管
 
 #### 確認方式
 
-破壊的操作では、単純な`yes`入力だけでは確認成立としない。
+確認の要否と許可条件は[確認方式](../POLICIES.md#確認方式)に従う。
 
 ディスク消去を伴う場合、ServerSeedは次の情報を表示する。
 
@@ -286,7 +277,7 @@ CLIの終了コードは次を基本とする。
 | 0 | 成功 |
 | 1 | 一般エラー |
 | 2 | 引数または設定エラー |
-| 3 | 安全確認失敗 |
+| 3 | 安全確認失敗、未実装機能の実行停止 |
 | 4 | 検証失敗 |
 | 5 | 本体導入・更新・削除またはセットアップ失敗 |
 | 6 | 復旧経路未確認 |
