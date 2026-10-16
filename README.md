@@ -1,8 +1,10 @@
 # ServerSeed
 
-Ubuntu Server 24.04 LTS向けのGo製CLI。サーバ構成とマイニング構成の導入・更新・検証・復旧を管理します。
+Ubuntu Server 24.04 LTS向けのRust製CLI。サーバ構成とマイニング構成の導入・更新・検証・復旧を管理します。
 
-現在は仕様策定段階です。
+共通バイナリをVPSへ直接導入し、物理サーバでは同じ本体を収録したUSB起動用ISOを使用します。
 
-- [仕様書](docs/MASTER_SPEC.md)
+開発状況は[ロードマップ](docs/ROADMAP.md)を参照してください。
+
+- [文書一覧](docs/DOCUMENT_INDEX.md)
 - [作業ルール](AGENTS.md)
