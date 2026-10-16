@@ -8,6 +8,7 @@ Ubuntu Server 24.04 LTS向けのRust製CLI。マスター管理・マイニン�
 
 | 確認したい内容 | 参照先 |
 |---|---|
+| 開発・運用全般の憲章 | [憲章](docs/CHARTER.md) |
 | 製品の概要・対応範囲 | [製品仕様](docs/core/product-scope.md) |
 | 構成別の仕様 | [マスター管理](docs/master/specification.md)・[マイニング](docs/mining/specification.md)・[サーバ](docs/server/specification.md) |
 | 導入・保守の仕様 | [外部媒体・ISO（物理PC）](docs/core/usb.md)・[SSH（VPS・クラウド）](docs/core/cloud.md) |
