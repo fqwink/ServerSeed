@@ -41,8 +41,8 @@ YAMLの読み込み制約は[設定入力の安全条件](../POLICIES.md#設定�
 | `/etc/serverseed/config.yml` | [基本設定](#configyml) |
 | `/etc/serverseed/policy.yml` | [共通ポリシー](#policyyml) |
 | `/etc/serverseed/apps.yml` | [サーバ構成のアプリ定義](../server/specification.md#appsyml) |
-| `/etc/serverseed/profiles/server.yml` | [構成固有設定](#構成固有設定) |
-| `/etc/serverseed/profiles/mining.yml` | [マイニング構成のポリシー](../POLICIES.md#マイニングの自動更新と再起動) |
+| `/etc/serverseed/profiles/server.yml` | [サーバ機能の構成固有設定](../server/specification.md#構成固有設定) |
+| `/etc/serverseed/profiles/mining.yml` | [採掘サービスと設定](../mining/specification.md#採掘サービスと設定) |
 | `/etc/serverseed/managed` | [管理マーカー](common-platform.md#管理マーカー) |
 | `/etc/serverseed/machine-id` | [管理マーカーとの照合](common-platform.md#管理マーカー) |
 | `/etc/serverseed/version` | [共通の管理情報](common-platform.md#共通状態判定) |
@@ -66,7 +66,7 @@ YAMLの読み込み制約は[設定入力の安全条件](../POLICIES.md#設定�
 
 構成固有設定の配置は[管理ファイル一覧](#管理ファイル一覧)、適用範囲は[構成の分離](../POLICIES.md#構成の分離)を参照する。
 
-構成固有の定義は[マスター管理構成](../master/specification.md#設定と管理情報)、[サーバ機能](../server/specification.md#appsyml)と[マイニング機能](../mining/specification.md)を参照する。同居しても機能別の設定を別形式へ複製しない。
+構成固有の形式・項目と未確定事項は[マスター管理構成](../master/specification.md#設定と管理情報)、[サーバ機能](../server/specification.md#構成固有設定)と[マイニング機能](../mining/specification.md#採掘サービスと設定)を参照する。許可条件・既定値は各担当仕様から[運用ポリシー](../POLICIES.md#構成別の運用)へ対応付ける。同居しても機能別の設定を別形式へ複製しない。
 
 ## `config.yml`
 

@@ -16,7 +16,7 @@ ServerSeed Cloudは、マスターからSSHで到達したVPS・クラウドの�
 
 VPSへのISO取得・接続やコンパイラー・Cargoの導入は要求しない。cloud-initの有無によって対象を除外せず、既存設定の扱いは[cloud-init](../POLICIES.md#cloud-init)に従う。
 
-構成選択は[必須選択](../POLICIES.md#構成選択と継続管理)に従い、選択した構成の[対応範囲](product-scope.md#対応範囲)を接続先にも照合する。Cloud側へマスター管理構成を指定しても、[物理PCによる構築条件](../POLICIES.md#実行入口と通常運用)を満たす代替にはならない。
+構成選択と非対応時の停止は[構成選択と継続管理](../POLICIES.md#構成選択と継続管理)に従う。接続先には[共通の対応範囲](product-scope.md#対応範囲)だけでなく、[構成ごとの担当仕様](product-scope.md#製品構成)の対応条件も照合する。マスター管理構成を選択した場合も[マスターの対応範囲](../master/specification.md#対応範囲)を適用し、Cloudからの選択を対応範囲の拡張や[構築条件](../POLICIES.md#実行入口と通常運用)の代替と扱わない。
 
 ### 実行環境と対象OS
 
