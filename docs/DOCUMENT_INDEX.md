@@ -15,7 +15,9 @@
 
 文書の定義と集約単位は[憲章第3条](CHARTER.md#第3条-文書の責務と正本)、基本仕様の記載内容は[同条の必須内容](CHARTER.md#基本仕様の必須内容)、策定と実装の関係は[第4条](CHARTER.md#第4条-仕様による実装の拘束)、策定権限は[第5条](CHARTER.md#第5条-承認と権限)を参照する。
 
-基本仕様の集約先は`docs/BASIC_SPEC.md`。フェーズ別の完全仕様の具体的なファイル名・配置と、現存する仕様からの移行先は、[策定手順](../AGENTS.md#基本仕様と完全仕様の策定手順)に従う移行案で提示する。未作成の集約先にはリンクを設けず、現在の作成・移行状況は[ロードマップ](ROADMAP.md#文書体系の移行)を参照する。
+製品全体の基本仕様は[基本仕様](BASIC_SPEC.md)へ一本化し、共通の責務は同書の章・節で区分する。構成固有の定義は各専用フォルダの個別仕様を維持する。セキュリティは[セキュリティポリシー](SECURITY_POLICY.md)を正本とし、独立したセキュリティ仕様は策定しない。
+
+フェーズ別の完全仕様は未策定であり、作成済みの文書を完全仕様と読み替えない。移行・未達の状態は[ロードマップ](ROADMAP.md#文書体系の移行)、策定・移行の手順は[作業ルール](../AGENTS.md#基本仕様と完全仕様の策定手順)を参照する。
 
 ## 憲章
 
@@ -29,56 +31,35 @@
 |---|---|
 | [README.md](../README.md) | プロジェクト概要、文書と報告窓口への入口 |
 | [AGENTS.md](../AGENTS.md) | 憲章に基づく作業・開発・文書管理の実施手順 |
+| [DOCUMENT_INDEX.md](DOCUMENT_INDEX.md) | 文書の所在と担当正本 |
 
 ## 開発計画
 
 | 文書 | 内容 |
 |---|---|
-| [ROADMAP.md](ROADMAP.md) | 開発フェーズ、内製化の段階、依存関係、完了条件、報告受付の準備状況、将来の基盤移行の時期と進捗 |
+| [ROADMAP.md](ROADMAP.md) | 開発フェーズ、内製化の段階、依存関係、完了条件、移行と未達事項、報告受付の準備状況、将来の基盤移行の時期と進捗 |
 
-## 共通の方針・ポリシー・例外管理
+## 方針・ポリシー・例外管理
 
 | 文書 | 定義する内容 |
 |---|---|
 | [PRINCIPLES.md](PRINCIPLES.md) | 製品・設計・開発・配布・運用に関する判断の方針 |
-| [POLICIES.md](POLICIES.md) | 方針を適用する条件、許可範囲、安全条件と既定値 |
+| [POLICIES.md](POLICIES.md) | セキュリティ以外の許可・禁止・適用条件と既定値 |
+| [SECURITY_POLICY.md](SECURITY_POLICY.md) | セキュリティの要求、許可・禁止・適用条件、秘密情報、認証・権限、真正性検証、報告・検証環境・公開時の保護 |
 | [DEPENDENCY_EXCEPTIONS.md](DEPENDENCY_EXCEPTIONS.md) | 外部依存の個別採用情報、用途・適用範囲、固定参照、検証・承認根拠、現在状態 |
 
 ## 製品仕様
 
-以下は現存する責務別・構成別仕様と定義箇所の一覧であり、基本仕様の一本化やフェーズ別の完全仕様が成立していることを示さない。新体系への対応と残作業は[文書体系の移行](ROADMAP.md#文書体系の移行)、対象範囲の充足判定は[開発ポリシー](POLICIES.md#実装着手と仕様充足の判定)へ照合する。
+| 文書 | 定義する内容 |
+|---|---|
+| [BASIC_SPEC.md](BASIC_SPEC.md) | 製品全体の基本仕様。目的・利用、対象範囲、実行環境、全体構成、運用方式、共通機能、情報管理、非機能、継続性、提供・保守、受入・追跡、未確定事項 |
 
-### 共通基盤
+### 構成別仕様
+
+構成固有の本文は以下の各個別仕様を正本とし、基本仕様へ複製しない。これらを構成別の基本仕様やフェーズ別完全仕様と扱わない。
 
 | 文書 | 定義する内容 |
 |---|---|
-| [core/product-scope.md](core/product-scope.md) | 目的、製品構成、OS・アーキテクチャ・プロバイダーの対応範囲 |
-| [core/common-platform.md](core/common-platform.md) | 本体導入と構成管理の分離、状態判定、操作状態、排他制御、実行記録 |
-| [core/declarative-configuration.md](core/declarative-configuration.md) | 内製IaCの責務と対象、入力・実状態・適用記録の分離、資源識別、差分・計画・適用・再検証、中断・復旧の未確定契約 |
-| [core/cli.md](core/cli.md) | コマンド、オプション、確認表示・文字列、JSON出力、終了コード |
-| [core/configuration.md](core/configuration.md) | ファイル形式と解析の未確定契約、管理ディレクトリ・ファイル配置、設定の型・必須項目、構成固有設定の参照先 |
-| [core/lifecycle.md](core/lifecycle.md) | 本体導入・再導入・削除、構成適用との接続、更新・復旧手順、計画、マニフェスト、署名、バージョン |
-| [core/backups.md](core/backups.md) | 実行側・対象側・保存先の分離、バックアップ状態、復元契約の未確定事項 |
-| [core/usb.md](core/usb.md) | ISO生成・収録版固定、媒体マニフェスト、外部媒体による導入・保守、作成・交換 |
-| [core/cloud.md](core/cloud.md) | SSH実行環境と対象OSの分離、空ディスクへのOS導入、既存OSの構成・保守、再接続と復旧 |
-| [core/firmware.md](core/firmware.md) | ISO起動互換性、媒体なしの内蔵OS起動確認、機種別設定、起動項目、復電確認 |
-| [core/implementation.md](core/implementation.md) | CLI・Core・構成と宣言型管理の責任境界、内製crateの差し替え契約、systemd、リポジトリ構成 |
-| [core/ci-cd.md](core/ci-cd.md) | workflow、ビルドターゲット、仕様充足・依存検査、テスト体系・追跡・受入条件、署名・リリース、デプロイ境界 |
-
-### サーバ構成
-
-| 文書 | 定義する内容 |
-|---|---|
-| [server/specification.md](server/specification.md) | Dockerアプリ、apps.yml、更新・復旧の参照先 |
-
-### マイニング構成
-
-| 文書 | 定義する内容 |
-|---|---|
-| [mining/specification.md](mining/specification.md) | 採掘対応、機器・サービス構成、運転条件の参照先 |
-
-### マスター管理構成
-
-| 文書 | 定義する内容 |
-|---|---|
-| [master/specification.md](master/specification.md) | 内包機能の統合、初期構築、固有の設定・CLI、対象管理、SSH自動処理、中断照合、構成検証と同居制御の未確定契約 |
+| [master/specification.md](master/specification.md) | マスター管理構成固有の統合、初期構築、設定・CLI、対象管理、SSH制御、中断照合と同居制御 |
+| [mining/specification.md](mining/specification.md) | マイニング構成固有の対応機器、採掘方式、サービス・設定と共通機能との接続 |
+| [server/specification.md](server/specification.md) | サーバ構成固有のDockerアプリ、運用設定、apps.ymlと共通機能との接続 |
