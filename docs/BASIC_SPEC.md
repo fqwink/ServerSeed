@@ -589,6 +589,10 @@ ISOの起動成功と内蔵OSの起動成功を別の検証結果として扱う
 - 次回起動先の指定
 - 不要な起動項目の検査
 
+#### 推奨起動順序
+
+推奨起動順は、ServerSeed USB、内蔵SSD、その他の順とする。USBが存在しなければ内蔵SSDから通常起動する。
+
 #### ファームウェアの手動設定
 
 次は機種依存のため、初回に手動設定が必要となる場合がある。
@@ -603,7 +607,7 @@ ISOの起動成功と内蔵OSの起動成功を別の検証結果として扱う
 - TPM
 - ストレージモード
 
-推奨起動順は[ファームウェア操作](SECURITY_POLICY.md#ファームウェア操作)を参照する。
+推奨起動順は[推奨起動順序](#推奨起動順序)を参照する。
 
 変更を禁止する項目も[ファームウェア操作](SECURITY_POLICY.md#ファームウェア操作)を参照する。
 
@@ -1045,13 +1049,16 @@ YAML・JSONの解析はCoreの共通処理とし、各設定・マニフェス�
 | 検証鍵 | `/etc/serverseed/trustedkeys.gpg` | [署名検証用キーリング](SECURITY_POLICY.md#署名およびチェックサム) |
 | 状態 | `/var/lib/serverseed/state.json` | [状態スナップショット](#状態スナップショット) |
 | 状態 | `/var/lib/serverseed/operation.json` | [操作状態](#操作状態) |
+| 排他 | `/var/lib/serverseed/lock` | 共通ロック。[ロックと同時実行](#ロックと同時実行) |
 | 状態 | `/var/lib/serverseed/last-success` | 操作結果の状態情報 |
 | 状態 | `/var/lib/serverseed/last-failure` | 操作結果の状態情報 |
 | 履歴 | `/var/lib/serverseed/history.jsonl` | [実行履歴](#実行履歴) |
 | 本体管理 | `/var/lib/serverseed/install.json` | [本体導入情報](#本体導入と構成管理) |
 | 本体管理 | `/var/lib/serverseed/release/` | [本体の置換と復旧](#本体の置換と復旧) |
 | 本体管理 | `/var/lib/serverseed/self-transaction/` | [本体の置換と復旧](#本体の置換と復旧) |
+| 本体管理 | `/var/lib/serverseed/self-transaction/state.json` | トランザクション記録。[本体の置換と復旧](#本体の置換と復旧) |
 | 本体管理 | `/var/lib/serverseed/previous/` | [本体の置換と復旧](#本体の置換と復旧) |
+| 一時ファイル | `/usr/local/bin/.serverseed.new` | 候補本体。[本体の置換と復旧](#本体の置換と復旧) |
 | ログ | `/var/log/serverseed/setup.log` | セットアップログ |
 | ログ | `/var/log/serverseed/update.log` | 更新ログ |
 | ログ | `/var/log/serverseed/serverseed.log` | 共通テキストログ。[記録形式と秘匿化](#ログ形式) |
@@ -1707,7 +1714,7 @@ workflowごとの処理は次の定義に従う。
 | `release.yml` | `v*`タグ、手動実行 | リリース成果物作成 |
 | `vm-test.yml` | 手動実行のみ | VMを使う破壊的操作の検証 |
 
-通常CIとVM試験の適用条件は[CIの隔離](SECURITY_POLICY.md#ciの隔離)を参照する。
+`vm-test.yml`は通常CIの必須条件に含めない。VM試験の隔離条件は[CIの隔離](SECURITY_POLICY.md#ciの隔離)を参照する。
 
 正式公開の検証条件は[公開前の検証](SECURITY_POLICY.md#公開前の検証)を参照する。
 
@@ -1749,7 +1756,7 @@ ci/run-all
 - CI/CD workflowの起動
 - CI結果の表示
 - リリースタグ管理
-- [配布先](PRINCIPLES.md#成果物の配布)へのリリース成果物と検証情報の公開
+- [配布先](#成果物保管)へのリリース成果物と検証情報の公開
 
 GitHub Actionsを使用する場合、workflowは`.github/workflows/`に配置する。重複を避けるため、必要に応じて`ci/`および`release/`配下の補助スクリプトを呼び出す。
 
@@ -1763,7 +1770,7 @@ CI実行環境には、[Rustツールチェーン方針](#rustツールチェー
 
 環境変更の条件は[CI環境の変更](SECURITY_POLICY.md#ci環境の変更)に従う。
 
-イメージ定義の管理は[CI実行基盤](PRINCIPLES.md#ci実行基盤)を参照する。
+CI用イメージは、再現可能な定義ファイルから作成する。イメージ定義はリポジトリ内で管理する。
 
 #### 配布バイナリのターゲットとリンク
 
@@ -1774,7 +1781,9 @@ CI実行環境には、[Rustツールチェーン方針](#rustツールチェー
 | `amd64` | `x86_64-unknown-linux-gnu` |
 | `arm64` | `aarch64-unknown-linux-gnu` |
 
-リンク方式と実行検証の判断基準は[配布バイナリの検証](PRINCIPLES.md#配布バイナリの検証)を参照する。
+リンク方式、必要な共有ライブラリおよびローダーを確認し、[成果物のビルドメタデータ](#本体ビルドメタデータ)に記録する。完全な静的リンクや実行時依存がないことを、未検証のまま保証してはならない。
+
+検証範囲の区別は[憲章第8条](CHARTER.md#第8条-検証と事実の区別)を適用し、各ターゲットのバイナリは、対応アーキテクチャのUbuntu 24.04 LTS上で実行を検証する。
 
 #### リリース
 
@@ -1860,7 +1869,9 @@ ISOは[媒体マニフェスト](#媒体マニフェスト)の収録版・ハッ
 
 #### 成果物保管
 
-成果物の保管区分と公開先は[成果物の配布](PRINCIPLES.md#成果物の配布)を参照する。
+CI成果物は一時保管とし、リリース成果物と区別する。
+
+リリース成果物の公開先はGitHub Releasesとする。成果物のチェックサム、署名、ビルドメタデータを併せて公開する。別の公開先を設ける可否と搬入経路の扱いは[現行の運用基盤](POLICIES.md#現行の運用基盤)に従う。
 
 既定の取得先と搬入経路の条件は[更新元](POLICIES.md#更新元)を参照する。
 
