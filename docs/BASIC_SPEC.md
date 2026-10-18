@@ -940,7 +940,7 @@ CLIの終了コードは次を基本とする。
 
 | 区分 | 処理で使用する情報 |
 |---|---|
-| 望ましい構成 | 選択済み構成に適用する定義と、確定した利用者入力から求める資源・属性の要求。形式と解析は[共通設定](#構成定義の解析)、収録定義は[組込み資材](PRINCIPLES.md#組込み資材)を参照 |
+| 望ましい構成 | 選択済み構成に適用する定義と、確定した利用者入力から求める資源・属性の要求。形式と解析は[共通設定](#構成定義の解析)、収録定義は[組込み資材](#組込み資材)を参照 |
 | 観測した実状態 | 識別した対象OSの資源から実際に取得した内容・属性、取得条件と確認不能事項。取得不能を資源の不在や要求との一致として扱わない |
 | 適用記録 | 計画・操作に対応する実施内容と検証結果。過去の適用結果を、現在の実状態を観測した結果の代わりにしない |
 
@@ -1019,53 +1019,44 @@ YAML・JSONの解析はCoreの共通処理とし、各設定・マニフェス�
 
 #### 管理対象のディレクトリ
 
-```text
-/usr/local/bin/serverseed  CLIエントリーポイント
-/etc/serverseed/           設定
-/var/lib/serverseed/       状態、バージョンおよび履歴
-/var/log/serverseed/       セットアップ、更新および検証ログ
-/srv/                      アプリおよび保存データ
-```
+ディレクトリ、管理ファイル、ログ・レポートおよび状態情報の配置と役割は[管理ファイル一覧](#管理ファイル一覧)へ集約する。所有者と権限は[ファイル権限](SECURITY_POLICY.md#ファイル権限)を参照する。
 
-主なレポートおよび状態情報は次に保存する。
-
-```text
-/var/log/serverseed/setup.log
-/var/log/serverseed/update.log
-/var/log/serverseed/report.txt
-/var/lib/serverseed/last-success
-/var/lib/serverseed/last-failure
-```
+作成・更新の可否は[読み取り専用時の記録処理](#読み取り専用時の記録処理)と[成果物の保存](POLICIES.md#成果物の保存)に従う。配置一覧の記載を、読み取り専用操作での自動保存や管理ディレクトリ作成の許可とは扱わない。
 
 配置先の固定と併設の禁止は[本体導入](POLICIES.md#本体導入)を参照する。
 
 #### 管理ファイル一覧
 
-| パス | 定義先 |
-|---|---|
-| `/etc/serverseed/config.yml` | [基本設定](#configyml) |
-| `/etc/serverseed/policy.yml` | [共通ポリシー](#policyyml) |
-| `/etc/serverseed/apps.yml` | [サーバ構成のアプリ定義](server/specification.md#appsyml) |
-| `/etc/serverseed/profiles/server.yml` | [サーバ機能の構成固有設定](server/specification.md#構成固有設定) |
-| `/etc/serverseed/profiles/mining.yml` | [採掘サービスと設定](mining/specification.md#採掘サービスと設定) |
-| `/etc/serverseed/managed` | [管理マーカー](#管理マーカー) |
-| `/etc/serverseed/machine-id` | [管理マーカーとの照合](#管理マーカー) |
-| `/etc/serverseed/version` | [共通の管理情報](#共通状態判定) |
-| `/etc/serverseed/trustedkeys.gpg` | [署名検証用キーリング](SECURITY_POLICY.md#署名およびチェックサム) |
-| `/var/lib/serverseed/state.json` | [状態スナップショット](#状態スナップショット) |
-| `/var/lib/serverseed/operation.json` | [操作状態](#操作状態) |
-| `/var/lib/serverseed/history.jsonl` | [実行履歴](#実行履歴) |
-| `/var/lib/serverseed/install.json` | [本体導入情報](#本体導入と構成管理) |
-| `/var/lib/serverseed/release/` | [本体の置換と復旧](#本体の置換と復旧) |
-| `/var/lib/serverseed/self-transaction/` | [本体の置換と復旧](#本体の置換と復旧) |
-| `/var/lib/serverseed/previous/` | [本体の置換と復旧](#本体の置換と復旧) |
-
-共通ログの保存先は次のとおりとする。記録形式と秘匿化の参照先は[ログ形式](#ログ形式)に従う。
-
-```text
-/var/log/serverseed/serverseed.log
-/var/log/serverseed/events.jsonl
-```
+| 区分 | パス | 役割・定義先 |
+|---|---|---|
+| ディレクトリ | `/etc/serverseed/` | 設定 |
+| ディレクトリ | `/var/lib/serverseed/` | 状態、バージョンおよび履歴 |
+| ディレクトリ | `/var/log/serverseed/` | セットアップ、更新および検証ログ |
+| ディレクトリ | `/srv/` | アプリおよび保存データ |
+| 実行本体 | `/usr/local/bin/serverseed` | CLIエントリーポイント。[配置手順](#初回の取得と配置) |
+| 設定 | `/etc/serverseed/config.yml` | [基本設定](#configyml) |
+| 設定 | `/etc/serverseed/policy.yml` | [共通ポリシー](#policyyml) |
+| 設定 | `/etc/serverseed/apps.yml` | [サーバ構成のアプリ定義](server/specification.md#appsyml) |
+| 設定 | `/etc/serverseed/profiles/server.yml` | [サーバ機能の構成固有設定](server/specification.md#構成固有設定) |
+| 設定 | `/etc/serverseed/profiles/mining.yml` | [採掘サービスと設定](mining/specification.md#採掘サービスと設定) |
+| 管理情報 | `/etc/serverseed/managed` | [管理マーカー](#管理マーカー) |
+| 管理情報 | `/etc/serverseed/machine-id` | [管理マーカーとの照合](#管理マーカー) |
+| 管理情報 | `/etc/serverseed/version` | [共通の管理情報](#共通状態判定) |
+| 検証鍵 | `/etc/serverseed/trustedkeys.gpg` | [署名検証用キーリング](SECURITY_POLICY.md#署名およびチェックサム) |
+| 状態 | `/var/lib/serverseed/state.json` | [状態スナップショット](#状態スナップショット) |
+| 状態 | `/var/lib/serverseed/operation.json` | [操作状態](#操作状態) |
+| 状態 | `/var/lib/serverseed/last-success` | 操作結果の状態情報 |
+| 状態 | `/var/lib/serverseed/last-failure` | 操作結果の状態情報 |
+| 履歴 | `/var/lib/serverseed/history.jsonl` | [実行履歴](#実行履歴) |
+| 本体管理 | `/var/lib/serverseed/install.json` | [本体導入情報](#本体導入と構成管理) |
+| 本体管理 | `/var/lib/serverseed/release/` | [本体の置換と復旧](#本体の置換と復旧) |
+| 本体管理 | `/var/lib/serverseed/self-transaction/` | [本体の置換と復旧](#本体の置換と復旧) |
+| 本体管理 | `/var/lib/serverseed/previous/` | [本体の置換と復旧](#本体の置換と復旧) |
+| ログ | `/var/log/serverseed/setup.log` | セットアップログ |
+| ログ | `/var/log/serverseed/update.log` | 更新ログ |
+| ログ | `/var/log/serverseed/serverseed.log` | 共通テキストログ。[記録形式と秘匿化](#ログ形式) |
+| ログ | `/var/log/serverseed/events.jsonl` | 共通イベントログ。[記録形式と秘匿化](#ログ形式) |
+| レポート | `/var/log/serverseed/report.txt` | レポート |
 
 #### 構成固有設定の参照
 
@@ -1430,7 +1421,13 @@ ServerSeedは対象ディスクまたは対象OSを検査し、次の状態に�
 
 配布形式とOSパッケージ管理との境界は[バイナリ配布](PRINCIPLES.md#バイナリ配布)を参照する。
 
-本体へ収録する資材とリビジョンの対応は[組込み資材](PRINCIPLES.md#組込み資材)を参照する。
+本体へ収録する資材とリビジョンの対応は[組込み資材](#組込み資材)を参照する。
+
+#### 組込み資材
+
+初期設定・systemd unitのテンプレートと本体に対応する構成定義・マイグレーション処理はバイナリへ収録し、ビルド時に構文を検証する。収録する定義のリビジョンは[更新マニフェスト](#更新マニフェスト)と一致させる。
+
+収録を禁止する対象は[本体への収録制限](SECURITY_POLICY.md#本体への収録制限)を参照する。
 
 #### 初回の取得と配置
 
@@ -1941,7 +1938,7 @@ ISOは[媒体マニフェスト](#媒体マニフェスト)の収録版・ハッ
 | `REQ-007` | [状態判定・非変更操作](#状態判定と非変更操作の受入条件)、[三構成](#三構成の受入条件) | [解析](#構成定義の解析)、[構成互換性](#構成記録の互換性)、[構成固有設定](#構成固有設定の参照) |
 | `REQ-008` | [状態判定・非変更操作](#状態判定と非変更操作の受入条件)、[配布・導入](#配布導入の受入条件) | [非機能の定量条件](#非機能要件)、[外部コマンド](#外部コマンド実行) |
 | `REQ-009` | [配布・導入](#配布導入の受入条件)、[自動化と通常運用](#自動化と通常運用の受入条件) | [構成互換性](#構成記録の互換性)、[バックアップ・復元](#バックアップの未確定契約)、[再接続](#cloudの未確定契約) |
-| `REQ-010` | [アーティファクト検査](#アーティファクト検査)、[配布・導入](#配布導入の受入条件)、[公開前の検証](SECURITY_POLICY.md#公開前の検証) | [外部依存](DEPENDENCY_EXCEPTIONS.md#個別採用情報の未達状況)、[公開・利用条件](POLICIES.md#ソースコードの公開と利用条件) |
+| `REQ-010` | [アーティファクト検査](#アーティファクト検査)、[配布・導入](#配布導入の受入条件)、[公開前の検証](SECURITY_POLICY.md#公開前の検証) | [外部依存](DEPENDENCY_EXCEPTIONS.md#個別採用情報の未達状況)、[署名鍵管理](SECURITY_POLICY.md#リリース署名鍵)、[公開・利用条件](POLICIES.md#ソースコードの公開と利用条件) |
 | `REQ-011` | [仕様充足の検査](#仕様充足の検査)、[仕様とテストの対応](#仕様とテストの対応) | [完全仕様と追跡の未達](ROADMAP.md#文書体系の移行)、[自動検査の進捗](ROADMAP.md#仕様充足の現在地) |
 | `REQ-012` | [未確定依存の検査](#仕様充足の検査)、[仕様充足の判定](POLICIES.md#実装着手と仕様充足の判定) | [担当節の所在](#未確定事項)、[現在の未達](ROADMAP.md#仕様充足の現在地) |
 
@@ -2086,6 +2083,6 @@ CLI・移行・同居制御など未確定の契約に依存するケースは�
 | 構成形式の移行 | [構成記録の互換性](#構成記録の互換性)。三構成の設定・記録・更新情報に影響 |
 | 構成固有契約 | [マスター](master/specification.md#未確定契約)、[サーバ](server/specification.md#構成固有設定)、[マイニング](mining/specification.md#採掘サービスと設定) |
 | 非機能の定量条件 | [非機能要件](#非機能要件)、[外部コマンド](#外部コマンド実行)。該当する機能の受入判定に影響 |
-| 外部依存・公開条件 | [例外台帳](DEPENDENCY_EXCEPTIONS.md)、[公開・利用条件](POLICIES.md#ソースコードの公開と利用条件) |
+| 外部依存・署名・公開条件 | [例外台帳](DEPENDENCY_EXCEPTIONS.md)、[署名鍵管理](SECURITY_POLICY.md#リリース署名鍵)、[公開・利用条件](POLICIES.md#ソースコードの公開と利用条件) |
 
 各要件を具体化する完全仕様の担当フェーズ・ファイル・契約ID・承認済み版は未策定。進捗は[ロードマップ](ROADMAP.md)を参照する。実装コード、自動テスト、CI定義は未作成であり、本書の形式例・検証設計を動作確認済みと扱わない。
