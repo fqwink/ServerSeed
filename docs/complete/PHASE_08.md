@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（Phase 2はD2、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（Phase 2はD3、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 

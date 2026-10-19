@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`D2`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。今回の詳細化は`P02-PARSE`と、その値型・参照・受入設計に限り、他の契約内容の採用や既存仕様の切替を含めない。
+案版`D3`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。今回の詳細化は`P02-CLI`と関連参照・受入設計に限る。解析の詳細案は維持し、契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -38,32 +38,229 @@
 
 ### 入力案
 
-オプション名・既存の操作別必須引数は[CLI](../BASIC_SPEC.md#cli)を参照する。採用案ではオプションをサブコマンドの前後で受理し、`--name=value`と`--name value`を同一視する。boolフラグへの値、未知の短縮形、同名重複、余分な位置引数は入力エラーとする。
+担当は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`の共通入出力。既存の[CLI](../BASIC_SPEC.md#cli)へ接続する採用候補であり、媒体・マスター・独立バックアップの新しいコマンドを追加しない。引数解析・診断集約・整形を内製し、初期配置は`src/cli/`内のモジュールとする。旧実装・再利用できる内製CLIはなく、独立crate・外部crateを追加しない。
 
-`--config`の未指定時は既存の基本設定配置を選び、指定時は絶対パスだけを受理する。欠損・非通常ファイル・読み取り不能は入力エラー。構成未セットアップの既定ファイル欠損だけは、既存の`setup_required`を使用する。設定スキーマは拡張せず、共通設定の候補を独自キーとして追加しない。
+2026-10-20に採用Rust版の[OsStr::to_str](https://doc.rust-lang.org/std/ffi/struct.OsStr.html#method.to_str)と[Write](https://doc.rust-lang.org/std/io/trait.Write.html)を照合した。前者の変換不能と後者の部分書込み・失敗を考慮するが、下記の入力制限・出力方式はServerSeedの候補であり、標準ライブラリが要求する製品仕様ではない。実行試験は未実施。
 
-`--log-level`指定時はその値、未指定時は基本設定、基本設定も未作成なら[既定値](../POLICIES.md#基本設定の既定値)を使う案。無効な設定をCLI指定で隠さず、必要な設定検証は継続する。非UTF-8パスの入出力表現は`D02-02`に残す。
+#### 字句と検証順序案
+
+1. `args_os`から実行ファイル名を除いた列を受ける。上限は128引数、1引数4,096バイト、合計32,768バイト。計数はUbuntu上の引数の原バイト数、区切り・終端NULを除く。上限超過を先に検出する。
+2. 全引数をUTF-8として検証する。非UTF-8はパスを含め`CLI_ENCODING`で拒否し、損失変換・置換文字で同一視しない。空文字は`CLI_VALUE`。この段階は対象OSの情報取得前の入力列の解析だけを行う。
+3. 左から字句を分類する。長いオプションだけを受け、大小文字を区別する。値付きは`--name=value`と`--name value`を同一視し、`=`は最初の一つだけが区切り。後者の直後が欠損・`--`・`--`始まりなら値不足。boolへの値、短縮形、連結短縮形、未知オプションは拒否する。
+4. オプションはコマンドの前・間・後で受理し、全体で同名を一回だけ許可する。同じ値・bool・`--help`も重複は拒否。単独の`--`はオプション終端で、以降はコマンド語だけとして照合する。既存操作に自由位置引数はなく、余分な語を拒否する。引用符・glob・環境変数・`~`を再解釈しない。
+5. コマンド語列と下表の許可オプション・値域を照合する。引数順で最初の字句エラーを一件返し、続いてコマンド不正、操作に不許可のオプション、値域不正をこの順で判定する。同段階では元の引数位置順とする。
+6. 構文と値域が妥当な`--help`は、必須オプションの欠損・組合せ検査より先に対応ヘルプを返す。設定・OS・実装有無を検査しない。`self --help`・`plan --help`・引数が`--help`だけの場合も許可するが、未知語・不許可オプション・値不足・値不正・重複をhelpで隠さない。
+7. help以外は必須入力・相互条件を下表の順に検査する。その後だけ担当機能へ渡し、明示設定の検査、必要権限、対象・状態・前提、必須選択・確認の順で照合する。前段の停止後に変更・採取・保存へ進まない。未実装の担当機能は`CLI_UNIMPLEMENTED`で停止し、架空の観測・計画・成功を返さない。
+
+構文検査はファイル・環境を読まない。後段の設定や権限を必要としないhelp・組込みversion情報を、その検査の失敗で隠さない。複数の後段失敗は[結果集約](#結果と終了区分案)で扱い、引数段階の失敗と混在させない。
+
+#### 操作別の入力案
+
+字句としては全操作で既存の[共通オプション](../BASIC_SPEC.md#共通オプション)と`--help`を認識し、操作ごとの許可・用途は下表と値域表へ照合する。下表は追加の操作別入力を列挙する。共通フラグを認識しただけで変更や保存を許可しない。
+
+| 操作 | 操作別オプション | 必須性・関係の候補 |
+|---|---|---|
+| `inspect` | なし | 追加の対象・通信先を受けない |
+| `setup` | なし | 構成・対象の選択を新規CLI引数へ独断で置換しない |
+| `update` | `--source`・`--release-version` | 両方あり、または両方なし。片方だけは入力エラー |
+| `recover` | `--self`・`--keyring` | keyringはselfと併用時だけ。初回中断・保存済み鍵なしで必要となる条件は既存recoverへ照合 |
+| `verify` | なし | 検査範囲の新しい指定は追加しない |
+| `report` | なし | 直近操作だけ。ID指定・検索オプションを追加しない |
+| `status` | なし | 読み取りのみ |
+| `version` | なし | 収録情報と適用済み情報を分離 |
+| `doctor` | `--transaction` | 指定時は`--json`必須。操作ID・親ロック・権限の実検査は既存doctorの契約 |
+| `plan` | 対象操作と同じ | 対象語が必須。下記の7通りだけ |
+| `support-bundle` | なし | `--output`必須。dry-runでも入力を省略しない |
+| `self install` | `--source`・`--release-version`・`--keyring` | 3項目すべて必須。sourceはローカルディレクトリ |
+| `self update` | `--source`・`--release-version` | 2項目とも必須。鍵差し替えの入力は受けない |
+| `self uninstall` | なし | 新しい取得元・鍵を指定しない |
+
+`plan`の対象語列は`setup`、`update`、`recover`、`recover --self`、`self install`、`self update`、`self uninstall`。ここで`--self`は語ではなくrecover専用フラグ。`plan plan`や読み取りコマンドの計画は拒否する。`--dry-run`はplanと併記しても再帰的な計画を作らず、保存禁止を維持する。
+
+| 値・共通フラグ | 解釈・候補の値域 |
+|---|---|
+| `--config` | UTF-8の絶対パス。未指定は既存の基本設定配置。明示先の欠損・非通常ファイル・読取り不能は入力エラー |
+| `--log-level` | 既存4値のみ。CLI指定、基本設定、基本設定も未作成の場合の[既定値](../POLICIES.md#基本設定の既定値)の順。必要な設定検査をCLIで隠さない |
+| `--output` | UTF-8の絶対パス。report・plan・support-bundleだけで保存先として解釈し、他操作の指定は`CLI_OPTION_SCOPE`。保存形式は下記 |
+| `--source` | ローカルはUTF-8の絶対パス。HTTPSを許す操作では`https://`の基点URLも候補とし、通信先・URL全構文・取得制限の検証はP04-SELFの未達へ接続。http等へfallbackしない |
+| `--release-version` | 先頭`v`なしのSemantic Versioning。正確な版の照合は[既存本体入力](../BASIC_SPEC.md#self)。文法は[SemVer 2.0.0](https://semver.org/spec/v2.0.0.html)の第2・9〜11項へ対応し、trim・大小文字変換をしない |
+| `--keyring` | UTF-8の絶対パス。読取り・信頼の確認は担当処理。鍵の値をCLIへ受けない |
+| `--transaction` | P02-MODELのOperationId表記だけ。文字列の一致を実行主体・排他の証明にしない |
+| `--json`・`--no-color` | 出力表示だけを選ぶ。JSONは常に無色 |
+| `--yes` | 読取りコマンドでは効果なし。変更時は既存の通常確認だけを省略し、選択・破壊的確認・入口・権限を省略しない |
+| `--dry-run` | 読取りコマンドは同じ観測、support-bundleは採取計画だけ、変更操作はplan相当。ファイル・一時領域・ログの作成なし |
+
+パスはNUL、U+0001〜U+001F、U+007Fを拒否し、相対パスの補完、symlink解決、存在検査を引数解析で行わない。後段の安全な解決・交換検出は`P03-FS`等の担当契約へ接続する。明示設定がなく構成未作成の既定ファイル欠損だけは`setup_required`として扱う。設定スキーマ・構成選択の入力を拡張しない。
 
 ### 出力案
 
-共通JSONのトップレベルは[既存の枠](../BASIC_SPEC.md#共通json出力)を変更しない。`warnings`・`errors`の要素を`{code, message, field}`とし、`field`は該当しない場合`null`とする案。表示順は検証順、同じコードとフィールドの重複は一件にまとめる。JSONは一オブジェクトと末尾LFのみをstdoutへ出す。
+共通JSONのトップレベル10項目は[既存の枠](../BASIC_SPEC.md#共通json出力)を維持する。以下の全集合はCLI側の形の候補であり、ネストする担当契約の未確定スキーマを確定済みとはしない。記載のないキー・型、省略・独自補完を許可しない。
 
-| コマンド | `data`の追加具体化案 | 結果と終了区分の案 |
+#### 共通の型と必須項目案
+
+| 型 | 全フィールド・必須性の候補 |
+|---|---|
+| Envelope | 10キーすべて必須。schema_versionはintegerの1、command・summaryはstring、result・stateは既存列挙、started_at・finished_atはP02-MODELの時刻string、dataはobject、warnings・errorsはDiagnosticのarray |
+| Diagnostic | code・messageは必須string、fieldは必須のstringまたはnull。入力値・秘密値・外部出力をmessageへ連結しない。fieldは引数名またはJSON Pointer、全体エラーはnull |
+| Check | idは必須の契約IDとローカル検査名の`契約ID/検査名`、requiredはboolean、statusはpass・fail・unknown・not_applicable、code・fieldはstringまたはnull、messageは秘匿化済みstring。全6キー必須。passはcodeがnull、それ以外の理由はcodeとmessageへ明示 |
+| Observation | idはstring、statusはobserved・unknown・not_applicable、valueはstringまたはnull、reasonはstringまたはnull。全4キー必須。observedはvalueあり・reasonなし、他はvalueなし・reasonあり。値の空文字と未取得を区別 |
+| OperationRef | operation_idはP02-MODELのstring、statusは既存の操作状態、commandは既存操作名string。全3キー必須。完全な操作記録の代わりではなく、読取った記録への参照 |
+| RevisionRange | min・maxとも必須integer、0以上i64::MAX以下、min <= max。マニフェストが要求する各範囲をさらに照合 |
+| Artifact | pathは絶対パスstring、formatはtext・json・tar.gz、statusはplanned・saved。全3キー必須。保存失敗・部分成果物をsavedにしない |
+
+配列は要素0件と確認した場合もキーを省略せず空配列。取得不能・集合未確定を0件へ変換しない。任意とする値もキーは存在させnullを使う。Checkの集合・必須性・各Observationのidと取得元は担当検査の仕様へ対応付け、集合未確定を空配列の成功で埋めない。requiredかつnot_applicableは担当正本に明示した適用外の根拠がある場合だけ許可し、確認不能ならunknownとする。CheckはidのASCII順、同一idの重複は禁止。Observationもid順・重複禁止。診断は検証段階順、同段階はfieldのUTF-8順（nullが先）、次にcode順。同じcodeとfieldは最初の一件へ集約し、異なる失敗を消さない。
+
+総合状態を判定できないときは既存`UNKNOWN`を用い、nullや新しい状態名に置換しない。構成・経路のフィールドへUNKNOWNを入れず、検証できないAppliedInfoは下記のnullと理由で扱う。未観測の非UTF-8パスはObservationをunknown、valueをnull、reasonを`CLI_PATH_ENCODING`とし、別パスへ損失変換しない。状態への影響は当該情報の必須性から判定する。
+
+#### コマンド別data案
+
+| コマンド・応答 | 必須キーと型の全集合 |
+|---|---|
+| `status` | checks: Check[]、pending_operation: OperationRefまたはnull、profile: 既存構成stringまたはnull、setup_required: boolean |
+| `verify` | scope: stringのarray、checks: Check[]。scopeは担当契約IDを重複なしASCII順で示す |
+| `inspect` | execution_environment: Observation[]、target: Observation[]、checks: Check[]。ローカルで観測した事実だけ。外部到達性の未確認も理由を持つ |
+| `doctor` | installation_status: 既存5値、setup_required: boolean、checks: Check[]、transaction_id: OperationIdまたはnull。指定した診断のIDを他操作へ置換しない |
+| `report` | operation: OperationRefまたはnull、record: 操作記録objectまたはnull、checks: Check[]、missing_records: string[]、artifact: Artifactまたはnull。recordの全形式はP02-STOREの未達。履歴・検査・復旧案の対応も同契約へ接続 |
+| `version` | binary: 下記BinaryInfo、applied: 下記AppliedInfoまたはnull、observations: Observation[]、checks: Check[] |
+| `plan` | requested_command: 対象操作名string、plan: 計画objectまたはnull、checks: Check[]、artifact: Artifactまたはnull。計画はP03-PLANと各操作の担当正本。nullを実行可能計画にしない |
+| `setup`・`update`・`recover`・`self install`・`self update`・`self uninstall` | mode: planまたはexecute、plan: 計画objectまたはnull、operation: OperationRefまたはnull、checks: Check[]、requires_reboot: boolean。dry-runはmode=plan、operation=null。未確定の変更記録はP02-STOREとPhase 4へ接続 |
+| `support-bundle` | collection_status: planned・complete・failed、items: 下記BundleItem[]、excluded: Diagnostic[]、artifact: Artifactまたはnull。収集・形式未成立をcompleteにしない |
+| 妥当な`--help` | help_for: 正規化したコマンド名string、usage: string、commands: string[]、options: string[]。選択範囲に有効な候補だけをASCII順で表示。通常コマンドのdataとは排他的 |
+| 担当dataを確定できない開始前エラー、未実装停止、整形エラーの代替応答 | error_stage: arguments・configuration・prerequisites・unimplemented・render、help_for: stringまたはnull。実行していない担当機能のdataを捏造しない。開始後の失敗は通常のdataで適用済み範囲を保持 |
+
+`command`は通常は正規化した操作名、planは対象を含む`plan self update`等とする。helpは要求範囲名（rootは`serverseed`）。入力が不正なら認識できた最長の有効な範囲名を用い、全く認識不能なら`serverseed`。生の不正語を出力名にしない。recoverのself分岐はcommand=`recover`、planの対象名も`recover`で、分岐の事実は担当計画の契約で識別する。versionは構文が妥当なら後段の設定エラーでも通常dataに読めたbinaryを保持し、errorsと終了区分で失敗を示す。
+
+BinaryInfoの全6キーは既存の`serverseed_version: string`、`architecture: string`、`config_revision: integer`、`migration_revision: integer`、`compatible_config_revision: RevisionRange`、`compatible_migration_revision: RevisionRange`。revisionは0以上i64::MAX以下、architectureは既存の本体CPU値。AppliedInfoは`serverseed_version: string`、`config_revision: integer`、`migration_revision: integer`、`environment: string`、`profile: string`の全5キーを候補とし、構成値・経路は基本設定へ照合する。構成未作成または適用情報が検証不能ならapplied=nullと理由を分け、欠損revisionを0で埋めない。OS・kernelの読める版はobservationsへ置く。自己申告を署名検証済みの証拠にしない。
+
+BundleItemの全4キーは`name: string`、`status: planned|collected|excluded|failed`、`bytes: integerまたはnull`、`reason: stringまたはnull`。bytesは0以上i64::MAX以下、collectedだけ実採取バイト数を持つ。plannedは未実施、excluded・failedは理由必須。nameは採取項目の固定識別子で、外部パスや秘密値を格納しない。
+
+担当計画・操作記録・検査ID一覧・観測項目一覧の全集合は未確定で、上表はその本文を再定義しない。未知キーを通す汎用payloadを実装者に決めさせず、`D02-02`と各担当の成立判定に残す。上記dataの形だけで全CLIの完全仕様成立としない。
+
+#### 結果と終了区分案
+
+既存の[数値と意味](../BASIC_SPEC.md#終了コード)を変更せず、結果分類を次の候補へ対応付ける。下表は上から優先し、最初に該当する区分を選ぶ。収集できた別の失敗はerrors・checksから消さない。
+
+| 条件 | result・終了コード | 扱い |
 |---|---|---|
-| `status` | `checks`と`pending_operation`。checksはid・結果・理由を持つ | 判定に必要な情報不足は`blocked`、既存区分の安全確認失敗 |
-| `verify` | `checks`と対象範囲。各検査をpass・fail・unknownで区別 | failは検証失敗、unknownが必須項目にあれば安全確認失敗 |
-| `inspect` | 実行環境と対象の観測情報、取得できない項目の理由 | 項目不足を成功した観測と混同しない。総合結果の優先順はD02-02 |
-| `doctor` | 既存の導入状態とsetup_required、個別診断 | 不整合は検証失敗。構成未作成だけは失敗に置換しない |
-| `report` | 対象操作IDと読めた結果、欠損した記録 | 未確認を未実行として返さない |
-| `version` | [既存binary・applied](../BASIC_SPEC.md#version) | 読めない適用情報は理由を付ける。本体版と取り違えない |
+| 引数・必要な設定・要求操作に必須のroot権限の不正 | failed・2 | 対象変更の開始なし。transaction診断も含む |
+| 担当機能未実装 | blocked・3 | `CLI_UNIMPLEMENTED`。空の成功を返さない |
+| 復旧が必要だが経路・保全根拠を確認不能 | blocked・6 | 単なる未観測とは区別。復旧済みとしない |
+| 開始した本体導入・更新・削除、またはsetupが失敗 | failed・5 | 実適用位置と記録の照合を必要とする。復旧の成功で元失敗を消さない |
+| 必須の検査がfail、導入状態inconsistent、記録の不整合 | failed・4 | verify・doctor等の不一致。既知のfailはunknownより優先 |
+| 必須情報unknown、許可条件不成立、選択・確認なし、実行不能計画 | blocked・3 | 理由をerrorsへ。判定に任意のunknownだけならwarnings |
+| 内部整形・保存・一般I/O等の失敗 | failed・1 | 他の区分に該当しない失敗。成功にしない |
+| 処理成功かつ実施した変更後の再起動が必要 | success・10 | errors空。planで将来の再起動を予測しただけなら10にしない |
+| 上記なし | success・0 | errors空が必須。警告だけなら成功可 |
 
-`CommandResponse`は上記共通JSON相当の値と終了区分を所有する型とする。`render(response: &CommandResponse, json: bool) -> Result<Vec<u8>, ContractError>`は出力バイト列を返し、保存は行わない。必須情報が欠けるときのコマンド別の厳密な集約順序・フィールド全集合は`D02-02`の未達とする。
+`status`は対象状態そのものがADOPTABLE等であるだけではfailにしない。必要な根拠不足は3、矛盾・破損の確証は4。`verify`は必須failがあれば4、必須unknownだけなら3。任意fail・unknownはwarningsとして、必須集合を勝手に縮小しない。`inspect`は取得できない任意情報と外部到達性をwarningsへ置き、状態判定に必要な情報のunknownは3。不対応対象を対応済みとして返さない。
+
+`doctor`の構成未作成・正常なremoved・absentだけでは失敗にしない。setup_requiredを表示し、必要な診断のunknownは3、不整合は4。installation_status自体を判定不能なら新しい値を追加せず、prerequisitesのエラー応答で3とする。transaction診断の権限不足は2、親・ロック等の証拠不足は3、配置との確定不一致は4。`report`は操作未実施を確認できた場合のoperation=nullは許可するが、必須記録を読めない場合は3、破損は4。`version`は実行本体を必ず表示し、未構成はapplied=nullでも0、構成済みだが適用情報不明なら3、不整合なら4とする案。
+
+エラー時は少なくとも一つerrorsを持つ。引数エラーの固定コードは`CLI_LIMIT`・`CLI_ENCODING`・`CLI_VALUE`・`CLI_OPTION`・`CLI_DUPLICATE`・`CLI_COMMAND`・`CLI_OPTION_SCOPE`・`CLI_REQUIRED`・`CLI_COMBINATION`、設定は`CLI_CONFIG`、root不足は`CLI_PRIVILEGE`。前段の検証順に従い、他契約のエラーはその固定コードを参照する。診断文は固定の日本語、summaryは`command: result`のASCII表記とし、原入力を転記しない。
+
+CLI_VALUEは空値・値不足・boolへの値・値域不正、CLI_OPTIONは未知または短縮オプション、CLI_COMMANDは未知・不足のコマンド語または余分な位置引数へ割り当てる。その他は同名重複、操作への不許可、必須オプション欠損、組合せ不正へそれぞれ割り当てる。固定messageは順にLIMIT「引数上限を超えています」、ENCODING「UTF-8以外の引数は使用できません」、VALUE「引数の値が不正です」、OPTION「未対応のオプションです」、DUPLICATE「オプションが重複しています」、COMMAND「コマンドの指定が不正です」、OPTION_SCOPE「この操作では指定できません」、REQUIRED「必須オプションが不足しています」、COMBINATION「オプションの組合せが不正です」、CONFIG「設定を検証できません」、PRIVILEGE「必要な権限がありません」、UNIMPLEMENTED「対象機能は未実装です」、RENDER「応答を整形できません」、OUTPUT「出力を完了できません」、PATH_ENCODING「パスをUTF-8で表現できません」。接頭辞はすべて`CLI_`。固定stderrは`serverseed: CLI_OUTPUT\n`、代替応答自体を生成不能な場合は`serverseed: CLI_RENDER\n`とし、外部エラー文を付加しない。
+
+helpのresultはsuccess・0、stateは未観測のUNKNOWN、warnings・errorsは空。`--json`とhelpは上記help専用dataを用い、必須入力の不足だけならエラーにしない。引数解析失敗時も、値として消費されていない独立した`--json`がオプション終端より前にある場合はJSON、それ以外は人間向け表示。上限超過時は入力上限内の範囲だけで表示モードを判定し、超過部分を追加走査しない。エラー後の表示モード判定だけの走査はI/O・追加実行を伴わず、`--config=--json`や`-- --json`をJSON要求にしない。
+
+#### JSONと標準出力案
+
+出力文法は[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259)へ照合する。[Value](#解析の型とapi案)からUTF-8の一オブジェクトと末尾LFだけを返し、BOM・余分な空白・ANSI色・進捗・二つ目のJSON文書をstdoutへ混ぜない。全objectキーはUTF-8バイト辞書順、arrayは上記の契約順で、現在時刻等を除く同じ値は同じバイト列とする。署名対象の正規化形式としては採用しない。
+
+文字列では引用符・逆斜線を`\"`・`\\`、U+0000〜U+001Fを小文字16進の`\u00xx`でescapeし、他のUnicode scalarはUTF-8のまま出す。`/`はescapeしない。stringを再解釈・Unicode正規化しない。integerは十進・先頭0なし、0は`0`。NumberはP02-PARSEの検証済み字句を保持し、手作りのValueでも同じ数値文法を再検証する。floatへの変換・丸め、NaN・Infinity、不正な数値字句の素通しをしない。
+
+整形後上限は末尾LF込み1,048,576バイト、Valueの深さ・ノード・文字列上限は[P02-PARSE](#解析の入力と上限)と同じ候補を使用し、整形前に全体を検証する。超過・不正な応答は`CLI_RENDER`の固定診断へ置換し、stdoutに元データを一部だけ出して成功にしない。この小さな代替応答の生成も不能ならstdoutなし、固定stderr、終了1。応答全体の実割当・実使用量の保証は`D02-02`・`D02-03`の実証待ち。
+
+人間向け表示は同じCommandResponseから、1行目summary、2行目`state: STATE`、以後dataを同じキー順のJSON表記で示し、続いてwarning・errorの順に`LEVEL CODE FIELD: MESSAGE`の一件一行とする。field=nullは`-`、改行等は上記escapeを用いる。errorsに入力不足がある場合は対応する`serverseed ... --help`の案内を末尾へ付ける。helpだけはusageとcommands・optionsの順で一項目一行。色は任意で意味を持たせず、`--no-color`時と非TTY時は付けない。
+
+整形はI/Oなしで完了後、stdoutの単一writerで`write_all`、`flush`を行う。write_all内の短いwrite・Interruptedの処理と、文書全体の再送は区別する。両方の完了前に出力送達成功と報告しない。書込みが完了不能・BrokenPipe・flush失敗なら`CLI_OUTPUT`、プロセス終了1と固定stderr。既に送ったstdoutを取り消せるとせず、文書全体の再送・二つ目のエラーJSONの追記をしない。表示失敗の終了1は応答内の終了分類より優先するが、対象側の適用済み位置・確定済み操作記録を巻き戻さず、変更操作も再実行しない。stderrも失敗した場合は追加の出力を試みず終了1とする。標準の同期I/Oだけで停止しない出力先へ硬い期限を保証する方式は未確定で、実行上限の成立を主張しない。
+
+#### CLIの型とAPI案
+
+以下は実装予定の宣言であって、実装コードではない。P01-CLIの関数を具体化する。型の値域は上記表を唯一の定義とし、生成時に検証して内部フィールドを呼出元から変更させない。
+
+```rust
+pub enum Action { Inspect, Setup, Update, Recover, Verify, Report,
+    Status, Version, Doctor, SupportBundle, SelfInstall, SelfUpdate, SelfUninstall }
+pub enum OutputMode { Human, Json }
+pub struct CommonOptions {
+    json: bool, dry_run: bool, yes: bool, no_color: bool,
+    config: Option<std::path::PathBuf>, log_level: Option<String>,
+    output: Option<std::path::PathBuf>,
+}
+pub struct OperationOptions {
+    source: Option<String>, release_version: Option<String>,
+    keyring: Option<std::path::PathBuf>, transaction: Option<String>, self_only: bool,
+}
+pub enum Request {
+    Run { action: Action, plan: bool },
+    Help { scope: String },
+}
+pub struct Invocation { request: Request, common: CommonOptions, operation: OperationOptions }
+pub struct CliInputError {
+    diagnostic: ContractError, argument_index: Option<usize>,
+    scope: String, output_mode: OutputMode,
+}
+pub enum ExitClass { Success, General, Input, Blocked, Verification, Installation, Recovery, Reboot }
+pub struct CommandResponse { envelope: Value, exit: ExitClass }
+pub fn parse_args(args: &[std::ffi::OsString]) -> Result<Invocation, CliInputError>;
+pub fn dispatch(input: &Invocation) -> Result<CommandResponse, ContractError>;
+pub fn validate_response(response: &CommandResponse) -> Result<(), ContractError>;
+pub fn render(response: &CommandResponse, json: bool) -> Result<Vec<u8>, ContractError>;
+pub fn emit(bytes: &[u8], writer: &mut dyn std::io::Write) -> Result<(), ContractError>;
+```
+
+Invocationは入力を所有し、source等の不要なOptionはNone、self_onlyはrecover以外でfalse。indexは実行名を除いた0始まり。Runのplanは`plan`要求でtrue、dry-runの実効modeもplanとする。helpでは指定値を保持しても使わない。パーサー・render・validate_responseはファイル・通信・ログ・時計に触れず、emitだけが指定writerへ書く。dispatchは時刻・観測を取得し担当契約へ委譲、helpでは管理対象を読まない。時刻取得の実現方式はP02-MODELの未達に接続する。
+
+CommandResponseの生成・検証は、上表のdata形と担当契約の承認済みスキーマを両方照合してから許可する。Valueのobject以外、矛盾するresult・ExitClass、非空errorsの成功、未定義payloadを拒否する。ExitClassは[結果表](#結果と終了区分案)の対応で数値化し、型名を製品状態に転用しない。dispatchの内部エラーも固定診断の応答に変換してrenderへ渡し、生の内部エラーを表示しない。開始後の実適用情報を失う変換は許可せず、保持方式未確定はP02-STORE・Phase 4へ残す。
+
+内製の難易度候補は字句・診断整形が低、型検証・出力保全が中。stdにはServerSeed固有の文法・スキーマ・集約器がないため、この責務だけを内製する。将来のcrate抽出・差し替えでは同じ入力バイト列・応答・失敗writerを新旧へ与え、stdout・stderr・終了値・副作用を比較する。CLI・設定・保存形式の変更と旧コード除去は別の提示・承認が必要。今回は新設案だけで、新旧比較対象・切替・除去はない。
 
 ### 調査成果物案
 
-`support-bundle`は`--output`必須、指定先は新規ディレクトリを作らず既存の保存先ディレクトリとする候補。採取上限は100ファイル、合計16 MiB、1ファイル1 MiB、全工程30秒。直近履歴は最大100行とし、不完全な末尾行を黙って成功扱いにしない。ファイル名の識別子はP02-MODEL、時刻はUTCの`YYYYMMDDTHHMMSSmmmZ`とする案。
+`support-bundle`の`--output`は既存の保存先ディレクトリを指定する候補を維持し、その直下の[既存ファイル名形式](../BASIC_SPEC.md#support-bundle)へ一つのtar.gzを保存する。保存先ディレクトリ自体を新規成果物と取り違えず、生成するアーカイブのパスが既存なら停止する。ファイル名の識別子はP02-MODELのMachineId、時刻はUTCの`YYYYMMDDTHHMMSSmmmZ`。MachineId・時刻が確認不能なら代用値を作らず停止する。
 
-保存前に全採取項目を検査し、秘匿化の成立性を確認できない項目は[秘密情報](../SECURITY_POLICY.md#秘密情報)へ照合して除外する。保存先が既存なら停止し、dry-run時は採取計画の表示だけとする。tar.gzの内製形式・検証と部分失敗時の出力仕様は`D02-06`へ残し、外部のtar実行物を採用済みとしない。
+採取上限は100ファイル、合計16 MiB、1ファイル1 MiB、全工程30秒を候補とする。直近履歴は最大100行とし、不完全な末尾行を黙って成功扱いにしない。秘匿化の成立性を確認できない項目は[秘密情報](../SECURITY_POLICY.md#秘密情報)へ照合して除外し、excludedへ理由を出す。上限超過・必須採取の失敗はcollection_status=failed、errorsあり、正式成果物をsavedにしない。除外だけを理由に非公開内容を診断へ転記しない。
+
+dry-runはcollection_status=planned、itemsもplannedまたはexcluded、artifactは予定値だけ。保存・一時ファイル・子コマンドの再帰呼出しをせず、同じ読取り用データ取得処理から計画を作る。通常の採取も各コマンドのstdoutを連結せず、担当処理の構造化結果を収録する。tar.gzの形式・検証・必須項目集合・部分成果物の安全な後始末は`D02-06`の未達で、外部tarを使用可能とせず、完成したbundleを生成できるとも扱わない。
+
+report・planのoutputは新規の単一ファイルパスを指定する候補とし、通常のstdoutと同じ表現を保存する。JSONは同じ応答から作り、保存物自身のartifactはplanned、保存後のstdoutだけsavedとする。保存物が自分の保存成功を証明する循環を作らない。report・planも既存ファイルの上書き・親ディレクトリ作成なし。dry-run時はArtifactをplannedとして表示するだけ。排他的な新規作成、同期、部分保存と中断時の扱いはP02-STORE・P03-FSの未達へ接続し、CLI案だけで成立済みとしない。
+
+### CLIの受入ケース案
+
+いずれも設計であり、製品テストは未実施。時刻・対象観測・担当payloadは承認済みfixtureを必要とし、未確定の集合をテスト内で独自に確定しない。純粋な解析・整形、失敗writer、隔離FSでのI/O、実対象での担当試験を区別する。
+
+| ケースID | 区分・入力 | 期待結果・確認方法 |
+|---|---|---|
+| `A02-41` | 正常。14操作とplanの7分岐 | 表の各構文を解析し、正規化名・action・planと必須入力を照合。未実装は3で変更なし |
+| `A02-42` | 正常。共通オプションを前・間・後、値を空白/等号形式 | 同じInvocation。値内の2個目の等号は保持 |
+| `A02-43` | 異常。短縮形、未知語・オプション、boolへの値、余分な位置引数 | 最初の該当段階で入力2。設定・OS読取り0回 |
+| `A02-44` | 異常。同値の同名オプション・helpの重複 | CLI_DUPLICATE。先勝ち・後勝ちなし |
+| `A02-45` | 正常・異常。self install --help、未知オプション併記、値不足 | 必須欠損だけならhelp成功。未知・値不足は2、設定を読まない |
+| `A02-46` | 境界。128/129引数、4,096/4,097バイト、合計32,768/32,769 | 各上限内を次段階へ、超過はCLI_LIMIT。Unicodeは原バイトで計数 |
+| `A02-47` | 異常。非UTF-8パス、空引数、制御文字を含むパス | CLI_ENCODINGまたはCLI_VALUE。置換文字・shell展開・I/Oなし |
+| `A02-48` | 正常・異常。単独--、その後の--json、値中の--json | オプション終端・値を誤認しない。`-- --json`は入力2で人間向け |
+| `A02-49` | 異常。updateの片側指定、selfの必須欠損、keyring誤用 | CLI_COMBINATIONまたはCLI_REQUIRED。取得・変更なし |
+| `A02-50` | 異常。plan plan、plan status、不許可output、transactionのみ | 入力2。doctor transactionはjsonが必須 |
+| `A02-51` | 正常・異常。明示config欠損と未構成の既定config欠損 | 前者2、後者setup_required。勝手な設定生成なし |
+| `A02-52` | 正常・異常。CLI/config/既定ログ値、不正configとCLI併記 | 優先順を照合し、不正設定をCLI指定で隠さない |
+| `A02-53` | 正常。helpとjson、構文エラーと独立json | 各専用data・正規化command。1JSON+LF、未知語の生値なし |
+| `A02-54` | 正常・異常。各操作のdata、欠損・未知キー・不正型 | 表と担当スキーマを照合。不明payloadを空objectで通さない |
+| `A02-55` | 正常・異常。未構成versionと読取り不能applied | binaryを保持。未構成だけは0、不明3、不整合4 |
+| `A02-56` | 正常・異常。doctor absent/removed/pending/inconsistent | 未構成と破損を分離。transactionの証拠・権限を別検査 |
+| `A02-57` | 異常。必須failとunknown、任意unknown、記録破損 | 集約表どおり、既知failをunknownで隠さない。errorsありで0なし |
+| `A02-58` | 正常・異常。planの再起動予測、変更成功の再起動、元操作失敗 | 予測だけは0、成功後必要なら10、元失敗を10へ上書きしない |
+| `A02-59` | 正常。診断の順序入替・同じcode/fieldの重複 | 検証段階・field・code順、重複だけを一件化 |
+| `A02-60` | 正常・異常。引用符・逆斜線・制御文字・日本語・非UTF-8観測パス | 指定escapeとUTF-8。観測不能はnullと理由、別パスへ変換なし |
+| `A02-61` | 正常・異常。1.0・1e400・不正Number・integer端 | 数値字句保持、丸め・NaNなし。不正応答はCLI_RENDER |
+| `A02-62` | 境界。整形後1,048,576/1,048,577バイト、深さ・ノード上限 | LF込み上限判定。超過をstdoutへ部分表示しない |
+| `A02-63` | 正常。同じ応答を人間向け/JSON・無色で整形 | 同じ事実・診断と所定の順序。時計・FS・通信へ触れない |
+| `A02-64` | 異常。短いwrite、Interrupted、BrokenPipe、flush失敗 | write_all/flushの結果を照合。失敗は1、全体再送・二つ目のJSONなし |
+| `A02-65` | 異常。変更記録確定後にstdout失敗、stderrも失敗 | 適用済み記録を保持。再適用・無承認巻戻し・無限出力なし |
+| `A02-66` | 正常・異常。bundle保存先ディレクトリと既存アーカイブ | directoryを既存成果物と誤認せず、同名archiveは上書きせず停止 |
+| `A02-67` | 境界。bundleの件数・個別量・総量・30秒、秘密項目 | 各上限と除外理由を照合。必須失敗をcompleteにしない |
+| `A02-68` | 正常・異常。全操作のdry-run・yesと、許可/不許可操作へのoutput | 許可範囲だけ計画し、変更・成果物・ログの保存0。不許可outputは2。必須選択をyesで代行しない |
+| `A02-69` | 異常。report/plan保存失敗・親欠損・競合・部分保存 | savedを偽装せず、管理状態を変更しない。担当保存契約未成立なら保留 |
+| `A02-70` | 異常。未定義検査集合・時刻取得失敗・出力先の無期限停止 | 成功・実行上限を保証しない。未達を担当判断へ追跡し、実証なしで閉じない |
 
 ## P02-PARSE
 
@@ -313,7 +510,7 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 | 判断ID | 採用前に必要な判断・調査 | 影響 |
 |---|---|---|
 | `D02-01` | 識別子・時刻の正確な型、OS乱数・起動情報の取得と復元時の同一性 | 全変更の対象照合 |
-| `D02-02` | CLIの全受理文法、コマンド別data全集合・集約順、非UTF-8の表現 | 全CLIと骨格 |
+| `D02-02` | [CLI詳細案](#p02-cli)の採用審査、担当検査・観測IDと必須集合、ネストする計画・記録の全スキーマ、時刻・実割当・出力停止時の上限と保存失敗の実証 | 全CLIと骨格。候補の記載を成立・採用済みとしない |
 | `D02-03` | [解析の詳細案](#p02-parse)の採用審査、実ヒープ・stackの計測・割当失敗の保全と対象環境での上限実証、担当スキーマ全集合・版・検証順序と三構成の移行契約 | 全設定・状態・マニフェスト |
 | `D02-04` | 子孫を含む停止・排他引継ぎ・親停止の実現可能性とOS外部契約 | 全実行・中断復旧 |
 | `D02-05` | 複数記録と追記履歴の確定方式、保存形式全集合、保持容量・失敗時照合 | 全変更の成功判定 |

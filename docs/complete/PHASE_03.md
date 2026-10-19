@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（Phase 2はD2）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（Phase 2はD3）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 

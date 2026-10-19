@@ -86,7 +86,7 @@
 | 本文案 | 担当する具体化 | 契約の確認先 |
 |---|---|---|
 | [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
-| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[解析詳細案D2](complete/PHASE_02.md#p02-parse) |
+| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案D3](complete/PHASE_02.md#p02-cli)、[解析詳細案D3](complete/PHASE_02.md#p02-parse) |
 | [PHASE_03.md](complete/PHASE_03.md) | IaCの資源・観測・差分・計画 | [契約一覧](complete/PHASE_03.md#契約と共通参照) |
 | [PHASE_04.md](complete/PHASE_04.md) | 本体管理・更新・保全・復旧・IaC適用 | [契約一覧](complete/PHASE_04.md#契約と依存) |
 | [PHASE_05.md](complete/PHASE_05.md) | ISO・外部媒体・引継ぎ・ファームウェア | [契約一覧](complete/PHASE_05.md#契約と参照) |

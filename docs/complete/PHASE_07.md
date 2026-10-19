@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（Phase 2はD2、他はD1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（Phase 2はD3、他はD1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 

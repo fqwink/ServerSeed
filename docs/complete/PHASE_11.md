@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（Phase 2はD2、他はD1）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（Phase 2はD3、他はD1）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 

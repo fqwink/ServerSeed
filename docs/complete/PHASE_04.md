@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（Phase 2はD2、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（Phase 2はD3、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 

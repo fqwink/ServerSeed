@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（Phase 2はD2、他はD1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（Phase 2はD3、他はD1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
