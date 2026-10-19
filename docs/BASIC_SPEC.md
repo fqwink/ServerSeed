@@ -2020,18 +2020,20 @@ CI成果物は一時保管とし、リリース成果物と区別する。
 
 | 要件ID | 要求本文の正本 | 適用範囲 | 受入条件 | 完全仕様との対応 |
 |---|---|---|---|---|
-| `REQ-001` | [目的](#目的)、[利用者・利用場面](#目的と利用)、[製品構成](#製品構成) | 全体・管理者。前提条件・制約は正本節を参照 | 製品構成と実行対象を識別できること | 未策定 |
-| `REQ-002` | [対応範囲](#対応範囲)、[対応CPU](#対応アーキテクチャ)、[事業者資源との境界](#プロバイダー非依存) | 全体。前提条件・制約は正本節を参照 | 対応外OS・CPU・事業者資源を対応済みと判定しないこと | 未策定 |
-| `REQ-003` | [OS判定](#ubuntu-2404-lts判定)、[必要コマンド](#ubuntuパッケージ管理前提)、[Rustツールチェーン](#rustツールチェーン)、[CI実行環境](#ci実行環境) | 対象OS・ビルド環境。前提条件・制約は正本節を参照 | OS・CPU・必須機能・固定ツールチェーンを照合できること | 未策定 |
-| `REQ-004` | [実装境界](#実装構成と責任境界)、[内製crate](#内製crateの境界と差し替え)、[構成別の境界](#構成別の責任境界) | Core・各構成。前提条件・制約は正本節を参照 | 共通責務を再利用し、構成固有の境界を維持できること | 未策定 |
-| `REQ-005` | [外部媒体の操作](#外部媒体の使用方法)、[Cloudの導入](#cloudへのosインストール)、[媒体なしの起動](#内蔵osの起動確認) | 外部媒体・Cloud。前提条件・制約は正本節を参照 | 必須選択と計画を経て実行し、媒体なしの起動を確認できること | 未策定 |
-| `REQ-006` | [CLI](#cli)、[宣言型構成管理の処理](#宣言型構成管理の処理フロー) | CLI・内製IaC。前提条件・制約は正本節を参照 | コマンド出力と変更可否、差分・再適用・中断を担当節へ照合できること | 未策定 |
-| `REQ-007` | [設定](#共通設定とデータ形式)、[対象状態](#共通状態判定)、[操作記録](#操作状態)、[実行履歴](#実行履歴) | 設定・対象状態・記録。前提条件・制約は正本節を参照 | 形式・対象・構成を照合し、不整合と読み取り専用時の非変更を確認できること | 未策定 |
-| `REQ-008` | [非機能要件](#非機能要件) | 各機能・実行環境。前提条件・制約は正本節を参照 | 定義済み条件を検証し、未確定の定量条件を充足と扱わないこと | 未策定 |
-| `REQ-009` | [導入・更新・復旧](#本体の導入更新復旧)、[構成の互換性](#構成記録の互換性)、[バックアップ](#バックアップとデータ保護) | 本体・設定・データ。前提条件・制約は正本節を参照 | 更新前後の互換性・保全・中断位置と復旧可能範囲を照合できること | 未策定 |
-| `REQ-010` | [CI/CD](#cicd)、[リリース工程](#リリース工程)、[ビルド情報](#本体ビルドメタデータ) | ビルド・配布。前提条件・制約は正本節を参照 | 本体・媒体・メタデータの同一性と公開条件を確認できること | 未策定 |
-| `REQ-011` | [仕様充足の検査](#仕様充足の検査)、[仕様とテストの対応](#仕様とテストの対応) | 各要件と検証。前提条件・制約は正本節を参照 | 正本・受入ケース・実装・結果の対応と未達を区別できること | 未策定 |
-| `REQ-012` | [未確定事項の所在](#未確定事項) | 未確定契約の依存先。前提条件・制約は正本節を参照 | 未確定に依存する実装を着手可能と判定しないこと | 未策定 |
+| `REQ-001` | [目的](#目的)、[利用者・利用場面](#目的と利用)、[製品構成](#製品構成) | 全体・管理者。前提条件・制約は正本節を参照 | 製品構成と実行対象を識別できること | 案: [P02-STATE](complete/PHASE_02.md#p02-state)、[P06-APP](complete/PHASE_06.md#p06-app)、[P07-DEVICE](complete/PHASE_07.md#p07-device)、[P08-MASTER](complete/PHASE_08.md#p08-master)、[P09-REMOTE](complete/PHASE_09.md#p09-remote)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-002` | [対応範囲](#対応範囲)、[対応CPU](#対応アーキテクチャ)、[事業者資源との境界](#プロバイダー非依存) | 全体。前提条件・制約は正本節を参照 | 対応外OS・CPU・事業者資源を対応済みと判定しないこと | 案: [P02-STATE](complete/PHASE_02.md#p02-state)、[P05-MEDIA](complete/PHASE_05.md#p05-media)、[P06-CONFIG](complete/PHASE_06.md#p06-config)、[P07-DEVICE](complete/PHASE_07.md#p07-device)、[P09-SSH](complete/PHASE_09.md#p09-ssh)、[P10-BOOTSTRAP](complete/PHASE_10.md#p10-bootstrap)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-003` | [OS判定](#ubuntu-2404-lts判定)、[必要コマンド](#ubuntuパッケージ管理前提)、[Rustツールチェーン](#rustツールチェーン)、[CI実行環境](#ci実行環境) | 対象OS・ビルド環境。前提条件・制約は正本節を参照 | OS・CPU・必須機能・固定ツールチェーンを照合できること | 案: [P01-ENV](complete/PHASE_01.md#p01-env)、[P02-STATE](complete/PHASE_02.md#p02-state)、[P05-ISO](complete/PHASE_05.md#p05-iso)、[P09-SSH](complete/PHASE_09.md#p09-ssh)、[P10-BOOTSTRAP](complete/PHASE_10.md#p10-bootstrap)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-004` | [実装境界](#実装構成と責任境界)、[内製crate](#内製crateの境界と差し替え)、[構成別の境界](#構成別の責任境界) | Core・各構成。前提条件・制約は正本節を参照 | 共通責務を再利用し、構成固有の境界を維持できること | 案: [P01-CLI](complete/PHASE_01.md#p01-cli)、[P02-MODEL](complete/PHASE_02.md#p02-model)、[P03-RESOURCE](complete/PHASE_03.md#p03-resource)、[P04-APPLY](complete/PHASE_04.md#p04-apply)、[P06-APP](complete/PHASE_06.md#p06-app)、[P07-RUN](complete/PHASE_07.md#p07-run)、[P08-COHOST](complete/PHASE_08.md#p08-cohost)、[P09-REMOTE](complete/PHASE_09.md#p09-remote)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-005` | [外部媒体の操作](#外部媒体の使用方法)、[Cloudの導入](#cloudへのosインストール)、[媒体なしの起動](#内蔵osの起動確認) | 外部媒体・Cloud。前提条件・制約は正本節を参照 | 必須選択と計画を経て実行し、媒体なしの起動を確認できること | 案: [P05-HANDOFF](complete/PHASE_05.md#p05-handoff)、[P08-MASTER](complete/PHASE_08.md#p08-master)、[P09-REMOTE](complete/PHASE_09.md#p09-remote)、[P10-OS](complete/PHASE_10.md#p10-os)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-006` | [CLI](#cli)、[宣言型構成管理の処理](#宣言型構成管理の処理フロー) | CLI・内製IaC。前提条件・制約は正本節を参照 | コマンド出力と変更可否、差分・再適用・中断を担当節へ照合できること | 案: [P01-CLI](complete/PHASE_01.md#p01-cli)、[P02-CLI](complete/PHASE_02.md#p02-cli)、[P03-PLAN](complete/PHASE_03.md#p03-plan)、[P04-SELF](complete/PHASE_04.md#p04-self)、[P05-MEDIA](complete/PHASE_05.md#p05-media)、[P09-REMOTE](complete/PHASE_09.md#p09-remote)、[P10-OS](complete/PHASE_10.md#p10-os)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-007` | [設定](#共通設定とデータ形式)、[対象状態](#共通状態判定)、[操作記録](#操作状態)、[実行履歴](#実行履歴) | 設定・対象状態・記録。前提条件・制約は正本節を参照 | 形式・対象・構成を照合し、不整合と読み取り専用時の非変更を確認できること | 案: [P02-PARSE](complete/PHASE_02.md#p02-parse)、[P02-STORE](complete/PHASE_02.md#p02-store)、[P03-RESOURCE](complete/PHASE_03.md#p03-resource)、[P04-BACKUP](complete/PHASE_04.md#p04-backup)、[P05-HANDOFF](complete/PHASE_05.md#p05-handoff)、[P06-CONFIG](complete/PHASE_06.md#p06-config)、[P07-CONFIG](complete/PHASE_07.md#p07-config)、[P08-MASTER](complete/PHASE_08.md#p08-master)、[P09-REMOTE](complete/PHASE_09.md#p09-remote)、[P10-OS](complete/PHASE_10.md#p10-os)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-008` | [非機能要件](#非機能要件) | 各機能・実行環境。前提条件・制約は正本節を参照 | 定義済み条件を検証し、未確定の定量条件を充足と扱わないこと | 案: [P02-EXEC](complete/PHASE_02.md#p02-exec)、[P03-FS](complete/PHASE_03.md#p03-fs)、[P04-APPLY](complete/PHASE_04.md#p04-apply)、[P05-FIRMWARE](complete/PHASE_05.md#p05-firmware)、[P06-APP](complete/PHASE_06.md#p06-app)、[P07-RUN](complete/PHASE_07.md#p07-run)、[P08-COHOST](complete/PHASE_08.md#p08-cohost)、[P09-RECONNECT](complete/PHASE_09.md#p09-reconnect)、[P10-RECOVER](complete/PHASE_10.md#p10-recover)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-009` | [導入・更新・復旧](#本体の導入更新復旧)、[構成の互換性](#構成記録の互換性)、[バックアップ](#バックアップとデータ保護) | 本体・設定・データ。前提条件・制約は正本節を参照 | 更新前後の互換性・保全・中断位置と復旧可能範囲を照合できること | 案: [P02-STORE](complete/PHASE_02.md#p02-store)、[P04-UPDATE](complete/PHASE_04.md#p04-update)、[P04-BACKUP](complete/PHASE_04.md#p04-backup)、[P05-HANDOFF](complete/PHASE_05.md#p05-handoff)、[P06-DATA](complete/PHASE_06.md#p06-data)、[P07-UPDATE](complete/PHASE_07.md#p07-update)、[P08-BACKUP](complete/PHASE_08.md#p08-backup)、[P09-RECONNECT](complete/PHASE_09.md#p09-reconnect)、[P10-RECOVER](complete/PHASE_10.md#p10-recover)、[P11-ACCEPT](complete/PHASE_11.md#p11-accept) |
+| `REQ-010` | [CI/CD](#cicd)、[リリース工程](#リリース工程)、[ビルド情報](#本体ビルドメタデータ) | ビルド・配布。前提条件・制約は正本節を参照 | 本体・媒体・メタデータの同一性と公開条件を確認できること | 案: [P01-ENV](complete/PHASE_01.md#p01-env)、[P04-SELF](complete/PHASE_04.md#p04-self)、[P05-ISO](complete/PHASE_05.md#p05-iso)、[P11-RELEASE](complete/PHASE_11.md#p11-release) |
+| `REQ-011` | [仕様充足の検査](#仕様充足の検査)、[仕様とテストの対応](#仕様とテストの対応) | 各要件と検証。前提条件・制約は正本節を参照 | 正本・受入ケース・実装・結果の対応と未達を区別できること | 案: [P01-CHECK](complete/PHASE_01.md#p01-check)、[全フェーズの受入対応](complete/PHASE_11.md#p11-accept) |
+| `REQ-012` | [未確定事項の所在](#未確定事項) | 未確定契約の依存先。前提条件・制約は正本節を参照 | 未確定に依存する実装を着手可能と判定しないこと | 案: [作成と採用の区分](complete/PHASE_01.md#案の適用範囲)、[全依存の照合](complete/PHASE_11.md#未決事項と成立判定) |
+
+「案」の参照は具体化候補の所在であり、要件の完全な充足や採用承認を示さない。各ファイルの契約ID・共通参照・受入ケース・未決事項まで追跡し、案版と承認済み版は[適用範囲](complete/PHASE_01.md#案の適用範囲)で区別する。
 
 ### 要件別の受入・未達参照
 
@@ -2204,4 +2206,4 @@ CLI・移行・同居制御など未確定の契約に依存するケースは�
 | 非機能の定量条件 | [非機能要件](#非機能要件)、[外部コマンド](#外部コマンド実行)。該当する機能の受入判定に影響 |
 | 外部依存・署名・公開条件 | [例外台帳](DEPENDENCY_EXCEPTIONS.md)、[署名鍵管理](SECURITY_POLICY.md#リリース署名鍵)、[公開・利用条件](POLICIES.md#ソースコードの公開と利用条件) |
 
-各要件を具体化する完全仕様の担当フェーズ・ファイル・契約ID・承認済み版は未策定。進捗は[ロードマップ](ROADMAP.md)を参照する。実装コード、自動テスト、CI定義は未作成であり、本書の形式例・検証設計を動作確認済みと扱わない。
+各要件を具体化する完全仕様の本文案・担当契約の所在は[受入と追跡](#受入と追跡)を参照する。契約内容の採用承認・承認済み版への対応と完全仕様の成立は未達。進捗は[ロードマップ](ROADMAP.md)を参照する。実装コード、自動テスト、CI定義は未作成であり、本書の形式例・検証設計を動作確認済みと扱わない。

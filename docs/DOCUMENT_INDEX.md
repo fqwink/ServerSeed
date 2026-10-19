@@ -11,6 +11,8 @@
 
 本欄の確定は承認済みの文書版を表し、製品全体の完全仕様化や実装完了を意味しない。仕様充足の判定は[開発ポリシー](POLICIES.md#実装着手と仕様充足の判定)、現在の未達事項、開発フェーズと実装の進捗は[ロードマップ](ROADMAP.md)を参照する。
 
+フェーズ別完全仕様の本文案は下記の案内から確認する。各案の作成承認と契約内容の採用承認は別であり、採用未承認案を本欄の確定済み仕様版へ含めない。
+
 ## 文書体系
 
 確認目的ごとの参照先は次のとおり。定義・条件の本文は各正本を参照し、本索引に複製しない。
@@ -80,6 +82,22 @@
 | [complete/](complete/) | [作業ルール](../AGENTS.md#完全仕様書の配置) | [文書体系の移行](ROADMAP.md#文書体系の移行) |
 
 `complete/.gitkeep`は格納先をGit管理に残す空ファイルであり、完全仕様書ではない。
+
+| 本文案 | 担当する具体化 | 契約の確認先 |
+|---|---|---|
+| [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
+| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応) |
+| [PHASE_03.md](complete/PHASE_03.md) | IaCの資源・観測・差分・計画 | [契約一覧](complete/PHASE_03.md#契約と共通参照) |
+| [PHASE_04.md](complete/PHASE_04.md) | 本体管理・更新・保全・復旧・IaC適用 | [契約一覧](complete/PHASE_04.md#契約と依存) |
+| [PHASE_05.md](complete/PHASE_05.md) | ISO・外部媒体・引継ぎ・ファームウェア | [契約一覧](complete/PHASE_05.md#契約と参照) |
+| [PHASE_06.md](complete/PHASE_06.md) | サーバ設定・アプリとデータ保全 | [契約一覧](complete/PHASE_06.md#契約と共通参照) |
+| [PHASE_07.md](complete/PHASE_07.md) | 採掘機器・設定・監視・復旧・更新 | [契約一覧](complete/PHASE_07.md#契約と共通参照) |
+| [PHASE_08.md](complete/PHASE_08.md) | 物理マスター・台帳・同居・固有保全 | [契約一覧](complete/PHASE_08.md#契約と参照) |
+| [PHASE_09.md](complete/PHASE_09.md) | SSH・要求配送・再接続・中断照合 | [契約一覧](complete/PHASE_09.md#契約と共通参照) |
+| [PHASE_10.md](complete/PHASE_10.md) | 一時環境・OS導入・起動不能時復旧 | [契約一覧](complete/PHASE_10.md#契約と共通参照) |
+| [PHASE_11.md](complete/PHASE_11.md) | 全体受入・成果物照合・リリース | [契約一覧](complete/PHASE_11.md#契約と依存範囲) |
+
+案の位置付け・照合元・案版と承認済み版の区別は[案の適用範囲](complete/PHASE_01.md#案の適用範囲)、策定・実装・受入の状態は[フェーズ別の進捗](ROADMAP.md#フェーズ別の進捗)を参照する。
 
 ### 構成別仕様
 
