@@ -7,6 +7,7 @@ Ubuntu Server 24.04 LTS向けのRust製ライフサイクル管理ツール。�
 | 確認したい内容 | 参照先 |
 |---|---|
 | 製品全体の要件・対応範囲・共通機能 | [基本仕様](docs/BASIC_SPEC.md) |
+| 機能名・概要・詳細の参照先 | [機能一覧](docs/BASIC_SPEC.md#機能一覧) |
 | 個別の構成仕様 | [マスター管理](docs/master/specification.md)・[マイニング](docs/mining/specification.md)・[サーバ](docs/server/specification.md) |
 | 開発・運用の根本義務、所属・権利・決定権 | [憲章](docs/CHARTER.md) |
 | 判断方針と一般の適用条件 | [方針](docs/PRINCIPLES.md)・[一般ポリシー](docs/POLICIES.md) |
