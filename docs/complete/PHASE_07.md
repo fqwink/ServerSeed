@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`D1`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B1`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（Phase 2はD3、他はD1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -73,6 +73,42 @@
 
 型はP02-MODEL。サンプル・状態遷移・actionの全スキーマはD07-03で審査する。旧実装はなし。将来のモジュール抽出・crate差し替えでは、fixtureの観測列を同じ順で与え、新旧の判定・待機・副作用・復旧を比較する。未確認の温度・機器契約を互換性の既定値にしない。
 
+## データ契約の具体化案
+
+`P07-RUN`の純粋評価へ渡す観測列と制御候補を具体化する。機器・minerのAPIからの単位変換と能力表は`P07-DEVICE`が担当し、値がない場合の推測・0埋めをしない。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| MiningSample | engine: cpu・gpu、device_ids: string[]、epoch: string、elapsed_ms: 0以上integer、process_alive・connected: booleanまたはnull、algorithm: stringまたはnull、hashrate_milli: 0以上integerまたはnull、temperature_milli_c: integerまたはnull |
+| MonitorState | engine: cpu・gpu、epoch: string、state: preparing・warming・running・retry_wait・thermal_stop・stopped・unknown、entered_ms: 0以上integer、last_sample_ms: integerまたはnull、attempts_used: 0以上integer |
+| ControlProposal | engine: cpu・gpu、action: none・start・stop・restart、reason: 固定コードstring、sample_epoch: string、sample_elapsed_ms: 0以上integer、state_before・state_after: 上記内部状態 |
+
+hashrate_milliは1/1,000 hash/s、temperature_milli_cは1/1,000℃の整数を候補とする。変換元の精度・丸めを機器能力表で確認できない場合はnull。機器ごとの温度・電力の上下限を共通の推測値で決めない。epochは監視開始・再起動で変わる採取世代で、異なるepochのelapsed_msを減算しない。同じepochで時刻が後退・重複した試料を連続正常時間へ算入しない。
+
+次の評価順を`D07-03`の採用候補とする。最初の行だけを主因として選び、他の異常も検査結果へ保持する。
+
+| 条件 | 内部状態・制御候補 |
+|---|---|
+| 試料の対象・型・世代・時間を確認不能 | unknown・none。変更命令を生成しない |
+| 温度が有効な停止閾値以上 | thermal_stop・stop。起動待機や接続復旧より先に評価 |
+| 温度不明 | 担当ポリシーの未確定動作へ対応付ける。正常・再開へ遷移させない |
+| thermal_stopから再開候補 | 温度が再開閾値以下で所定の連続安定期間を満たすまでstop維持。期間・値の未定義は再開不可 |
+| 起動後の待機期限内 | warming・none。明確な過熱を待機として隠さない |
+| 接続または採掘能力が不成立の状態が停止判定期間以上 | retry_wait・restart候補。許可・排他と残り回数の再確認が必須 |
+| 上記の異常なく全必須観測が成立 | running・none |
+
+再試行回数は実際に受理・開始されたrestartごとに1増やす候補で、観測再取得・拒否された制御要求は数えない。上限到達時はstopped、単にプロセスが生存しただけで回数を0へ戻さない。正常継続によるリセット期間は`D07-03`の決定事項とし、未定義の間に実装側でリセットしない。
+
+evaluateは観測・設定から候補を返すだけで、制御の許可にはならない。controlが同一試料世代、サービスの対象、許可・共通排他と機器状態を再照合する。CPU側のrestart候補をGPU停止やホスト再起動に変換しない。全状態×事象の遷移、温度不明時動作と監視用記録の確定方式はなお未達である。
+
+## 接続と責務の照合
+
+監視のSample・MonitorStateは[P02-STATE](PHASE_02.md#p02-state)の総合管理状態と別の機能内データで、runningという語をMANAGEDの証拠へ転用しない。観測評価だけでは共通operationやログを自動保存せず、許可された運転制御・稼働記録の担当契約に従って記録する。監視記録の未確定形式を共通operation.jsonへ押し込まない。
+
+service単位の復旧も[P02-STORE](PHASE_02.md#p02-store)の排他・未完了照合へ接続する。競合を検出した制御要求は保留し、通常の更新を運転復旧として実行しない。親変更中に子の監視プロセスだけがロックを別取得する構成、プロセス終了だけで未確認の変更を解除する構成を避け、具体的な実現方式は`D02-04`・`D07-03`で確認する。
+
+マスター上では[P08-COHOST](PHASE_08.md#p08-cohost)の予約資源・サーバ影響・遠隔操作を検査する。GPU不調を理由に共有driverやカーネルを運転制御から更新せず、ホスト全体の変更は別の確認済み保守計画へ戻す。採掘ソフトの正常版へ戻せても、OS/driverまで復元したとは報告しない。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待結果・検証方法 |
@@ -85,6 +121,18 @@
 | `A07-06` | 異常。温度不明、複合障害、操作中の復旧要求 | 確認不能と競合を区別し、無確認の制御なし |
 | `A07-07` | 異常。更新後検証失敗・旧設定非互換 | 許可範囲の復旧だけ。元更新の失敗を維持 |
 | `A07-08` | 異常。timerから更新開始、採掘側だけ再起動許可 | 入口・ホスト共有条件に照合して開始しない |
+
+## 追加の受入ケース案
+
+`P07-RUN`の観測列を入力にする設計。温度の数値は模擬機器の評価fixtureだけに用い、実機へ推奨・適用する温度ではない。実採掘は行わない。
+
+| ケースID | 区分・前提と入力 | 期待結果・照合方法 |
+|---|---|---|
+| `A07-09` | 境界。模擬停止値80,000、再開値70,000 milli_c。入力79,999/80,000 | 既知の正常観測が揃う前者は過熱扱いにせず、後者はthermal_stop。接続復旧より過熱を優先 |
+| `A07-10` | 異常。同じepochでelapsed_ms=1000の後に999、または別epoch | 連続正常時間を加算しない。unknownとして制御候補none |
+| `A07-11` | 異常。温度null、プロセス生存と接続はtrue | running・再開へ補完しない。担当の温度不明時動作が未確定なら保留 |
+| `A07-12` | 境界。再試行上限まで受理済み、次に復旧候補、別途ロック競合で拒否 | 上限後はstopped。拒否だけではattempts_usedを増減しない |
+| `A07-13` | 異常。CPU側restart、GPUは正常、マスターで遠隔操作中 | GPU停止・ホスト再起動・driver更新を追加せず、共有排他へ照合して競合時は保留 |
 
 ## 未決事項と成立判定
 

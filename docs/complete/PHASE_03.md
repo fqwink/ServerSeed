@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`D1`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B1`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（Phase 2はD3）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB1）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -62,6 +62,38 @@
 
 型は`P02-MODEL`。資源・観測・計画のValue全集合のスキーマは未充足であり、汎用Valueを使うことを型・必須性の確定の代わりにしない。標準の集合・パス・I/Oを再利用し、資源評価・差分・計画は新規内製候補。難易度は計画が中、パスの競合対策が高。旧実装は存在せず、抽出用crateは先行作成しない。
 
+## データ契約の具体化案
+
+`P03-RESOURCE`のattributes・adoptionと`P03-PLAN`の差分を具体化する候補。共通のキー・型の検証は[P02-MODEL](PHASE_02.md#共通参照型の候補)へ従い、以下は既存の実設定へ未知キーを追加する採用決定ではない。
+
+| 型・対象 | 全キー・制約の候補 |
+|---|---|
+| ResourceSet | schema_version: 1、target: TargetEvidence、resources: Resource[]。資源上限はP03-RESOURCE |
+| Resource | 同節のresource_id・owner・kind・path・attributes・depends_on・adoption。depends_onは内部値では必ずarrayとして存在 |
+| FileAttributes | content_ref: string、content_bytes: 0〜1,048,576のinteger、content_sha256: 既存ハッシュ表記string、uid・gid: 0〜4,294,967,294のinteger、mode: 同節の8進表記 |
+| DirectoryAttributes | uid・gid・mode。file内容は指定不可 |
+| Adoption | kind: new・recorded・confirmed、evidence_id: stringまたはnull。newだけnull、既存資源は対象へ結合した証拠IDが必須 |
+| ResourceObservation | resource_id: string、presence: present・absent・unknown、attributes: 対応属性objectまたはnull、identity: stringまたはnull、reason: stringまたはnull |
+| ResourceChange | resource_id: string、action: unchanged・create・modify・blocked、before: ResourceObservation、after: 対応属性object、changed_attributes: string[]、blocked_by: Diagnostic[] |
+
+ownerはcore・server・mining・masterのうち一つ。これは資源の担当機能であり、選択構成値ではない。masterが呼ぶserver機能の資源はserver所有のままとする。共有する同一パスは生成前に単一所有者へ解決し、同値の重複でも二資源として受理しない。resource_idが同じでpathが違う場合も拒否する。
+
+ResourceObservationでpresentはattributes・identityあり、reasonなし。absentは両者nullで不在理由あり、unknownは既知部分を混ぜた属性objectを返さずnullと理由を持つ。identityはOS側の同一性証拠への参照で、パスの文字列一致やmtimeだけを根拠に生成しない。fileの長さ・内容byte列、uid・gid・modeをそれぞれ比較し、変更属性名はASCII順。directoryの配下のファイル一覧は管理属性へ含めない。
+
+計画側の候補データは`target: TargetEvidence`、`definition_revision: integer`、`changes: ResourceChange[]`、`order: string[]`、`contract_refs: ContractRef[]`。既存計画へ結合する位置・形式版は`D03-03`の採用事項とする。orderにはblockedでない実変更資源だけを各1回含め、unchangedの依存先も観測前提として保持する。blockedが1件でもあれば計画全体は実行不能で、一部資源だけの暗黙適用をしない。
+
+差分の固定対象は、対象証拠・定義版・属性・所有範囲・依存・取り込み根拠。時刻・生成IDを除いた構造比較と、配布物の原バイトに対するSHA-256を混同しない。計画digestの実現方式が未確定なら構造比較だけで配送の真正性が成立したとは扱わない。`D03-02`の安全なOS操作・`D03-03`の固定形式とdigest・属性の完全なRust型は残る採用事項とする。
+
+## 接続と責務の照合
+
+file内容は、組込み資材または検証済み保全領域にある不変byte列へのcontent_refで識別する候補。任意ファイルパスやURLをその参照として直接評価しない。取得後の長さ・ハッシュと固定資材を照合し、内容そのものは専用のbyte列として比較する。各byteをJSONのinteger配列にして1 MiBの内容を共通解析のノード制限へ押し込まない。参照の解決・保全・所有権とAPIの型は`D03-01`・`D03-02`で確定する必要がある。
+
+資源数上限と[P02-PARSE](PHASE_02.md#解析の入力と上限)の文書上限は別の制約で、1,000資源なら必ず単一文書として解析・表示できるとの保証をしない。実入力が解析上限を超えれば先に拒否し、内部集合の件数境界は構築器単体で検証する。CLIの表示上限超過もP02-CLIの整形失敗へ接続し、資源を黙って省いて全件成功と表示しない。
+
+計画の作成・確認と実行は時点を分ける。[P04-APPLY](PHASE_04.md#p04-apply)はロック取得後に同じ定義・所有範囲・対象と全観測前提を再取得し、[P09-REMOTE](PHASE_09.md#p09-remote)は固定した計画を配送する。配送IDの一致で計画前提の再照合を省略しない。実行前の期限超過は再計画、実行開始後の期限超過は中断位置の照合であり、同じ扱いにしない。
+
+2026-10-22に[OpenOptionsExt](https://doc.rust-lang.org/std/os/unix/fs/trait.OpenOptionsExt.html)と[File](https://doc.rust-lang.org/std/fs/struct.File.html)を照合した。カスタムフラグ指定やファイルハンドルの保持だけで、対象ルート内の全経路・親ディレクトリ差し替えの防止が成立したとは判断しない。専用OS契約・隔離・反証試験が未確定のため`D03-02`は未解消とする。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待する出力・副作用と検証 |
@@ -74,6 +106,18 @@
 | `A03-06` | 異常。親配下の未管理ファイル、定義からの省略 | 無確認の削除・管理解除・巻込みなし |
 | `A03-07` | 異常。計画後に対象・定義・内容を交換 | 適用前の再照合で不一致。P04-APPLYを開始しない |
 | `A03-08` | 境界。計画期限10分と期限超過、時計不明 | 有効性を個別照合。超過・不明は再計画。実適用なし |
+
+## 追加の受入ケース案
+
+`P03-RESOURCE`・`P03-FS`・`P03-PLAN`の接続に対する設計。実パスの差し替え試験は許可された隔離FSで行い、通常ホストを変更しない。
+
+| ケースID | 区分・前提と入力 | 期待結果・検証方法 |
+|---|---|---|
+| `A03-09` | 正常。同じcontent_ref・長さ・ハッシュのbyte列、属性差分がmodeだけ | changed_attributes=[mode]、内容変更なし。実byte比較と参照照合を別々に検証 |
+| `A03-10` | 異常。同じpathをcore/serverが各資源として宣言、値は同じ | 所有者未解決の競合として全計画blocked。片方の黙認なし |
+| `A03-11` | 異常。観測後に親directoryをsymlinkへ交換 | 適用前の対象固定・再照合で停止。方式未確定の間は試験保留として残す |
+| `A03-12` | 境界。構築器へ1,000/1,001資源、別途単一文書の解析上限超過 | 件数検査と文書上限検査を分離。前者の件数内を解析成功・全件表示可能と誤認しない |
+| `A03-13` | 異常。unchanged依存先だけを計画後に変更、または計画期限超過 | 実変更資源が不変でも適用停止・再計画。残り資源だけ自動適用しない |
 
 ## 未決事項と成立判定
 

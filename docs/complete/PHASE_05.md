@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`D1`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B1`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（Phase 2はD3、他はD1）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB1）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -47,8 +47,8 @@ OS導入は対応版Subiquityへ確認済み設定を渡す案とし、本書で
 | 準備 | Live側の対象識別・媒体側排他と、対象側の処理開始条件を照合 |
 | 対象OS内の処理 | 対象用のExecutionContextを作り、対象の共通ロックを使用。Live側は同じ対象への別変更を開始しない |
 | 再起動前 | 実施位置・保存先・固定計画を照合し、対象側に必要な継続情報を同期 |
-| 再起動後 | 内蔵OSの対象同一性・実配置・操作記録・サービス結果を取得。再起動要求だけでは完了にしない |
-| 取り外し | 関連書込み・同期・対象側処理の終了を確認し、媒体を使用するマウント・処理を照合して取り外し可否を表示 |
+| 取り外し前 | 関連書込み・同期・対象側処理の終了を確認し、媒体を使用するマウント・処理を照合して取り外し可否を表示 |
+| 媒体非接続での再起動後 | 内蔵OSの対象同一性・実配置・操作記録・サービス結果を取得。再起動要求だけでは完了にしない |
 
 再起動後の確認待機上限は600秒、状態照合間隔5秒を候補とする。時間超過は未確認であり、同じ変更を再投入しない。安全な取り外しの前提が不成立なら取り外し可能と表示しない。
 
@@ -72,6 +72,34 @@ Liveからサービス・パッケージ処理へ移る実行方式、次回起�
 
 型・エラーはP02-MODEL。引継ぎpayloadはD05-03で全項目を確定する必要がある。難易度は高。初期モジュールの新設案で旧実装はなし。将来の抽出では、媒体構造・handoff形式・CLI・対象記録の互換性を同じ契約テストで比較し、旧形式の除去前に媒体と対象の復旧経路を確認する。
 
+## データ契約の具体化案
+
+`P05-ISO`の生成入力と`P05-HANDOFF`の工程を具体化する審査用候補。実際のベースISO・ツールの個別採用値は[例外台帳](../DEPENDENCY_EXCEPTIONS.md)だけで管理する。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| RecipeInput | schema_version: 1、architecture: 既存CPU値、base_ref・tools_ref: ContractRef、base_sha256・binary_sha256・binary_manifest_sha256: string、recipe_revision: 1以上integer |
+| MediaSelection | action: install・adopt・update・backup・recover、target: TargetEvidence、selection: P02-STATEのSelectionまたはnull、backup_destination: stringまたはnull、confirmation: stringまたはnull |
+| HandoffRecord | schema_version: 1、media_operation_id・target_operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、binary_sha256: string、stage: 下記段階、target_receipt: OperationReceiptまたはnull |
+| RemovalResult | media_operation_id: OperationId、writes_complete・sync_complete・target_stopped・media_unmounted: booleanまたはnull、removable: boolean、checks: Check[] |
+| FirmwareResult | item_id: string、status: success・failed・unsupported・unknown、before・after: stringまたはnull、reboot_required: booleanまたはnull、evidence_ref: stringまたはnull |
+
+MediaSelectionは操作別に入力を検証する候補で、install/adoptは初回Selectionが必須、継続管理のupdate/backup/recoverでは保存済み構成を参照する。backupだけ保存先の選択を必須とし、更新内保全の保存先は親計画の担当入力で検証する。対象の再同定で前提が変わればconfirmationも破棄し、同じ文字列の再利用で新対象を確認済みとしない。操作の列挙は媒体内の入力モデル案であり、新しい共通CLIの採用ではない。
+
+HandoffRecord.stageはprepared・target_started・target_verified・ready_for_removal・boot_pending・complete・failed・unknownを候補とする。target_started以降で応答がなくなった場合はunknownで、対象側の実適用・記録を取得するまで次の適用へ進まない。target_receipt=nullを対象未実行の証明にしない。再起動で対象側operation_idを新規生成せず、同じ親計画の継続であることを照合する。
+
+RemovalResultの4条件は、確認できたtrue/falseと確認不能nullを区別する。removable=trueには全条件trueと必須checksの成功が必要。これは媒体を取り外せる判定であり、取り外した事実や次の内蔵OS起動成功を意味しない。FirmwareResultは値の読み戻しと復電の実動作を別evidenceへ分け、未確認のreboot_requiredをfalseで埋めない。
+
+OSインストールのストレージ・ユーザー・ネットワーク設定、媒体選択画面と起動unitの正式入口、stage別の保存先・排他の取得と解除は`D05-01`〜`D05-03`で確定する必要がある。単なる工程表を、Subiquityやsystemdの実契約・動作証拠の代替にしない。
+
+## 接続と責務の照合
+
+取り外しと媒体なしの起動確認を循環した前提にしない。採用候補の順序は、Live側の書込み工程の検証、内蔵OS側への継続情報の同期、対象のマウント・関連処理の終了確認、媒体の取り外し、内蔵OSの起動・継続処理、最終検証と結果確定とする。target_verifiedは取り外し前に実施した工程の検証に限り、内包サービスや媒体なし起動の検証完了ではない。
+
+内蔵OS側の継続処理は同期済みの同じ対象・計画・操作対応を読み、共通排他を再取得して実状態を照合する候補。Live側のロックハンドルやプロセスIDを起動後の所有証拠へ転用しない。継続処理が追加の選択・破壊的確認を必要とする場合は、既に受けた確認で代行せず停止する。起動用unit・継続情報の全形式・信頼・解除条件は`D05-03`のまま未確定とする。
+
+媒体なしの起動確認は対象内蔵OSで結果を保持・表示し、結果回収のためだけに媒体の常時接続・再接続を要求しない。物理PCをSSH保守へ切り替える代替経路も設けない。[P08-MASTER](PHASE_08.md#p08-master)の構成全体の完了はこの最終結果を照合し、RemovalResult.removableを構築完了として使用しない。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待結果・実施方法 |
@@ -85,6 +113,18 @@ Liveからサービス・パッケージ処理へ移る実行方式、次回起�
 | `A05-07` | 正常。VMの媒体を外して起動・再起動 | 内蔵OS・通常サービスが媒体に依存せず復帰 |
 | `A05-08` | 境界。再起動待機期限、前提の変化 | 期限超過・対象変更は照合待ち。無確認再投入なし |
 | `A05-09` | 異常。未対応機種、Secure Boot未確認 | 対応済み表示なし。禁止された設定変更なし |
+
+## 追加の受入ケース案
+
+`P05-HANDOFF`の段階と結果を検証する設計。媒体起動・取り外し・起動試験は専用VMのテスト用ディスクで実施し、実ホストの設定変更を伴わせない。
+
+| ケースID | 区分・前提と入力 | 期待結果・照合方法 |
+|---|---|---|
+| `A05-10` | 正常。取り外し前の全条件true、内蔵OS起動は未実施 | removable=trueでも全体completeにしない。起動確認の証拠を別に要求 |
+| `A05-11` | 異常。sync_complete=null、他条件true | removable=false。未確認を同期済みと補完しない |
+| `A05-12` | 正常。取り外し後に同じ計画の継続、媒体非接続で起動・再起動 | 対象内蔵OSの結果へ結合し、媒体・Live側PID/lockfileへ依存しない |
+| `A05-13` | 異常。target_startedで応答欠損、target_receipt=null | 未実行へ戻さずunknown。再導入・再消去0回 |
+| `A05-14` | 異常。継続時に別ディスクへ交換、または新しい必須確認が発生 | 対象・前提を再照合して停止。過去の確認文字列で代行しない |
 
 ## 未決事項と成立判定
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`D1`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B1`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（Phase 2はD3、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -66,6 +66,34 @@ CLIの候補は、対象登録・一覧・解除と、対象・操作の対話�
 
 型はP02-MODEL。台帳・機能別結果の全フィールド、権限と保存形式はD08-01〜03の未達。新設候補で旧実装なし、難易度は統合・喪失時復旧が高。将来の差し替えは台帳版・対象ID・遠隔操作対応の互換性を維持し、旧マスターとの同時変更防止と切戻し可能性を先に確定する。
 
+## データ契約の具体化案
+
+`P08-MASTER`の対象台帳、`P08-COHOST`の機能別結果と資源配分入力を具体化する候補。配置先は同節の候補を使用し、構成別仕様への正式反映・実ファイルの生成は行わない。
+
+| 型 | 全キー・制約の候補 |
+|---|---|
+| TargetRegistry | schema_version: 1、master_machine_id: MachineId、targets: RegistryEntry[]。件数上限はP08-MASTER |
+| RegistryEntry | target_id: 同節の識別子、host: string、port: 1〜65,535のinteger、user: string、credential_ref・trust_ref: string、expected_machine_id: MachineIdまたはnull |
+| FeatureReadiness | feature: server・mining・master、configured・applied・verified: boolean、status: ready・failed・unknown、checks: Check[] |
+| MasterReadiness | machine_id: MachineId、features: FeatureReadiness[]、target_count: 0以上integer、ready: boolean |
+| CapacityInput | cpu_total・cpu_reserved・cpu_server・cpu_mining: 0以上integer、memory_total_bytes・memory_reserved_bytes・memory_server_bytes・memory_mining_bytes: 0以上integer、evidence: TargetEvidence |
+
+target_idの重複と、同じ検証済み対象を異なるIDで同時管理する登録を拒否する候補。expected_machine_id=nullは未導入時にだけ許容し、実接続後に得た識別情報を無確認で台帳へ書き戻さない。host・userは入力長と文字種・接続先形式を`P09-SSH`の正式契約へ照合し、任意のSSH設定断片を受け付けない。credential_ref・trust_refは所有者管理下の安全な参照で、値やファイル内容を台帳へ格納する意味ではない。
+
+MasterReadiness.featuresは三機能のFeatureReadinessをちょうど1件ずつ含める。configured/appliedだけでreadyにせず、verifiedと必須検査成功が必要。MasterReadiness.readyは全三機能readyのときだけtrue。target_count=0でも対象登録入口の準備は検証できるが、接続・遠隔実行が成功した証拠にはしない。
+
+資源配分の評価候補は、`cpu_reserved + cpu_server + cpu_mining <= cpu_total`と、bytes単位で同形のメモリー式の両方が成立すること。整数加算はchecked arithmetic、計算不能・観測不足は失敗。予約・割当の入力の生成方法、最低必要量、検出CPUとスケジューラ制限の対応、systemdへの適用方法は`D08-02`の採用事項で、ゼロ予約を既定値として通さない。式の成立だけで実負荷時の管理経路やアプリ性能を保証しない。
+
+マスター保全では、台帳版・master_machine_id・保全時点の未確認要求を同じ保全物へ対応付ける候補。失われたマスターの識別継承と旧マスターの制御権失効を確認できない場合、readinessがreadyでも遠隔変更を再開しない。切替の具体手段と秘密情報の復旧は`D08-03`およびセキュリティポリシーの決定待ちである。
+
+## 接続と責務の照合
+
+マスター自身の変更は[P05-MEDIA](PHASE_05.md#p05-media)から、Cloud先の変更は[P09-REMOTE](PHASE_09.md#p09-remote)から開始する。TargetRegistry.master_machine_idとRegistryEntry.expected_machine_idを取り違えず、マスターの管理状態・共通ロックを遠隔対象の管理記録へコピーしない。
+
+同じ物理マスター上の三機能は一つの親計画・共通排他で調整する候補。対象台帳の変更、遠隔操作の要求・結果保存と、マスター自身の保守が共有する資源を照合する。台帳の解除を対象OSの削除・構成解除・実行中操作の取消へ拡張せず、未確認要求が残る対象を無条件に解除しない。台帳側と対象側の排他の全取得順序は`D08-01`・`D09-02`の未達に残す。
+
+喪失時の復元は[P04-BACKUP](PHASE_04.md#データ契約の具体化案)の同じ保全物・形式・検証方法へ対応付ける。新しい物理マスターの構築成功と旧制御主体の失効確認は別の必須条件である。復元後も未確認要求を読み取り照合するまで遠隔変更を停止し、冗長化や同時二台運用を復元の副作用として導入しない。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待結果・確認 |
@@ -78,6 +106,18 @@ CLIの候補は、対象登録・一覧・解除と、対象・操作の対話�
 | `A08-06` | 異常。内包機能の途中失敗・必須記録欠損 | 部分成功と全体未完了を分ける。無条件除去なし |
 | `A08-07` | 正常。媒体を外して起動・再起動 | 内包機能と管理入口が内蔵OSだけで準備可能 |
 | `A08-08` | 異常。保全物復元後に対象・ホスト鍵が不一致 | 操作を再投入せず、未確認の範囲を提示 |
+
+## 追加の受入ケース案
+
+`P08-MASTER`・`P08-COHOST`・`P08-BACKUP`の照合に対する設計。台帳・機能状態・容量・復元情報は所有者管理下の模擬fixtureを使用する。
+
+| ケースID | 区分・前提と入力 | 期待結果・確認方法 |
+|---|---|---|
+| `A08-09` | 異常。FeatureReadinessがserver/miningの2件だけ、またはmaster重複 | MasterReadiness.ready=false。欠損機能を省略した縮退成功なし |
+| `A08-10` | 正常。三機能の必須検査成功、target_count=0 | 機能の準備状態はready候補、遠隔接続・実行の成功証拠は0件として分離 |
+| `A08-11` | 境界。cpu_total=8、予約2/server2/mining4とmining5、加算overflow | 式は前者だけ成立。後者とoverflowは拒否。前者も最低資源・実負荷の未達を充足扱いにしない |
+| `A08-12` | 異常。同じ検証済み機器を別target_idへ登録、未確認要求ありで解除 | 重複登録・無確認解除を拒否。対象OSの削除を行わない |
+| `A08-13` | 異常。復元した台帳は正しいが旧マスターの失効が未確認 | 遠隔変更を再開しない。構築成功と制御権の切替を別に判定 |
 
 ## 未決事項と成立判定
 

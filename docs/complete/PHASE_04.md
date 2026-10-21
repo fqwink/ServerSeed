@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`D1`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B1`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（Phase 2はD3、他はD1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -86,6 +86,34 @@ OSパッケージ操作は1回3,600秒以内、サービス操作は1回120秒�
 
 Valueの各リクエスト・結果の全フィールドは各契約の未決事項に含める。初期に独立crateは作らない。将来の抽出・差し替えは、同じA04ケースで新旧の出力・副作用・復旧可能範囲を照合し、呼出元切替・互換移行・旧実装除去を別途承認対象にする。今回は旧コードも除去対象も存在しない。
 
+## データ契約の具体化案
+
+`P04-SELF`・`P04-UPDATE`の準備結果と、`P04-BACKUP`・`P04-APPLY`の操作結果を次の候補へ具体化する。共通形式は[P02-MODEL](PHASE_02.md#共通参照型の候補)、資源は[P03-RESOURCE](PHASE_03.md#データ契約の具体化案)を再利用する。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| PreparedSelf | target: TargetEvidence、plan_id: PlanId、action: install・update・uninstall・recover、release_version: string、binary_sha256: stringまたはnull、metadata_sha256: string、source: stringまたはnull、checks: Check[] |
+| StepReceipt | step_id: string、contract: ContractRef、phase: not_started・started・applied・verified・failed・unknown、before_ref・after_ref・backup_ref: stringまたはnull、checks: Check[]、error: Diagnosticまたはnull |
+| OperationReceipt | operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、steps: StepReceipt[]、recovery: not_needed・available・unavailable・unknown、record: RecordReceipt、checks: Check[] |
+| BackupReceipt | backup_id: string、operation_id: OperationId、target: TargetEvidence、profile: 既存構成、data_kind: configuration・application・database・master、location: string、bytes: 0以上integer、sha256: string、restore: RestoreEvidence |
+| RestoreEvidence | method_ref: ContractRef、artifact_sha256: string、target_ref: string、verified_at・valid_until: 時刻string、checks: Check[]、verified: boolean |
+
+ハッシュは[既存マニフェスト](../BASIC_SPEC.md#更新マニフェスト)の実値制約へ参照する。PreparedSelfのuninstallだけbinary_sha256・sourceをnullとし、それ以外は対象候補の識別を必須とする。recoverの正常版の選定条件は本体復旧の正本を維持する。準備段階のchecksは本体未取得の検査をpassへしない。互換性に使うリビジョンは適用済み記録から取得し、本体の収録値で置換しない。
+
+StepReceiptは親計画の各stepと1対1に対応し、未開始も省略しない。started後に結果を確認できなければunknownとし、not_startedへ戻さない。検証済みの前提が変わったら、そのstepだけでなく依存する後続の実行可否を再判定する。OperationReceiptは全必須stepがverifiedかつRecordReceiptがcompleteの場合にだけ親が成功を返せる根拠となる。復旧操作が成功しても元stepのfailedは保持する。
+
+BackupReceiptは取得・保存・復元確認の参照を結合する候補で、既存のバックアップ成功状態の代替ではない。verified=trueは同じartifact_sha256の保全物を所定の隔離先へ復元し、方法が要求する全必須検査に成功した場合だけ。`verified_at <= now < valid_until`で判定し、時刻不明・逆転・方法/版/対象不一致は無効とする候補。具体的な有効期間と対象別の検査方法は`D04-02`で決め、仮の共通期限を作らない。
+
+適用関数がエラーを返す場合も、最後に確認したStepReceiptと保存済み記録への参照を親へ保持させる契約が必要である。汎用ContractErrorだけで実適用位置を失う経路は未充足とし、エラーと部分結果を結合するRust型・永続化の全形式は`D04-01`〜`D04-04`の採用審査に残す。新しいファイルパスを復旧時の任意書込み先として受理する案にはしない。
+
+## 接続と責務の照合
+
+PreparedSelf・StepReceiptは[P03-PLAN](PHASE_03.md#データ契約の具体化案)の対象・plan_id・契約参照へ結合する。self単独は構成の適用・migration変更を含めず、通常update内のselfは親operation_idとロックを使用する。署名・メタデータ・実配置の各照合が異なる段階で失敗した場合、到達していないstepはnot_startedとして保持する。
+
+工程上限の最大値の合計と、実際の見積時間・親期限を区別する。全stepに個別最大値をそのまま消費させず、実行時は`min(個別上限, 親の残期限)`で制御する候補。開始前に必要な処理時間・保全・停止予算を確保できる根拠がなければblockedとし、既定の上限値だけで実行可能性を認定しない。見積方法と停止の実現性は各未決事項に残す。
+
+BackupReceipt.restoreは[P06-DATA](PHASE_06.md#p06-data)・[P08-BACKUP](PHASE_08.md#p08-backup)の対象固有検証へ結び付ける。同じパスでも対象・形式・アプリ版が違えば再利用しない。CLIの成功表示・SSHのresult_ready・媒体のtarget_verifiedはいずれも、対象側OperationReceiptと必須記録の一致を必要とする。出力送達失敗は適用済み状態を巻き戻す根拠にしない。
+
 ## 受入ケース案
 
 | ケースID | 区分・入力 | 期待する結果・検証 |
@@ -100,6 +128,18 @@ Valueの各リクエスト・結果の全フィールドは各契約の未決事
 | `A04-08` | 異常。適用途中失敗、記録失敗、復元不能 | 資源ごとの位置・保全範囲を返し、全体成功にしない |
 | `A04-09` | 異常。削除対象が別ファイルへ交換、稼働unitあり | 本体削除を停止し、保護対象は保持 |
 | `A04-10` | 異常。OSパッケージ更新失敗、復元元破損 | 自動ダウングレード・無検証復元なし。後続停止 |
+
+## 追加の受入ケース案
+
+`P04-SELF`・`P04-BACKUP`・`P04-APPLY`の中断位置と証拠の結合を検証する設計。全ケースで対象・計画・操作IDを固定し、対象外の資源が不変であることも照合する。
+
+| ケースID | 区分・前提と入力 | 期待結果・確認方法 |
+|---|---|---|
+| `A04-11` | 異常。署名は成功、metadataハッシュだけ不一致 | 候補起動前停止。署名成功で後段検査を省略しない |
+| `A04-12` | 異常。step=appliedの直後に記録I/O失敗 | 適用位置を保持し、親成功なし。ContractErrorだけで部分結果を失わない |
+| `A04-13` | 境界。restoreのnowがvalid_until直前・同時、artifactハッシュ変更 | 直前かつ同一物だけ有効候補。同時・別物は更新前提にせず停止 |
+| `A04-14` | 異常。復旧処理は成功、元の更新stepはfailed | 元結果を成功へ変更しない。復旧結果を別に記録 |
+| `A04-15` | 境界。個別上限より親残期限が短い、停止予算を確保不能 | 親期限を超えて実行しない。開始不可の理由と未実施stepを保持 |
 
 ## 未決事項と成立判定
 

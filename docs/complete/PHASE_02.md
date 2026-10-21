@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`D3`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。今回の詳細化は`P02-CLI`と関連参照・受入設計に限る。解析の詳細案は維持し、契約内容の採用や既存仕様の切替を含めない。
+案版`B1`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はD1の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB1の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -33,6 +33,12 @@
 | `ExecutionContext` | 借用する対象証拠・計画・操作、排他所有者、期限、取消状態。単なるJSONの読み込みだけでは生成しない |
 
 時刻保存はUTCのRFC3339、秒未満3桁、末尾`Z`へ正規化する採用案とする。期限判定は経過時間と絶対期限を分離し、時計後退・再起動後の期限不明は有効と推測しない。乱数の取得手段・OS識別情報との結合は`D02-01`の調査対象であり、識別子生成を実装可能と判定しない。
+
+### 共通参照型の候補
+
+ContractRefの全キーはfile・anchor・contract_id・draft・commit・adopted。前5項目は空でないstring、adoptedはboolean。fileは文書索引が案内するリポジトリ相対パス、anchorはその文書の節、contract_idはその節の契約ID、draftは現在の案版、commitは参照を評価する確定ツリーの完全なコミットIDとする。採用審査用と採用済みの参照をadoptedで区別し、値だけで承認の存在を証明せず所有者の承認根拠と照合する。作成途中の文書には架空のコミットを埋めず、提出コミットができた時点の確認資料で参照集合を束縛する。
+
+以下の追加データ契約は、特記がなければ表に列挙したキーを全集合とする候補。すべて必須、null許容は明記した箇所だけ、未知キー・欠損・重複・暗黙の型変換を拒否する。objectの空集合と未知集合を区別し、arrayの順序・件数は担当節へ照合する。stringは解析の文字列上限内、integerはi64の範囲内とし、担当の狭い範囲が優先する。外部入力を検証した後の内部値にも同じ制約を適用する。これは各担当データの未記載項目を補完する包括スキーマではない。
 
 ## P02-CLI
 
@@ -490,6 +496,50 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 `run(spec: &Value, ctx: &ExecutionContext) -> Result<Value, ContractError>`は終了状態・出力バイト数・制限超過・経過時間・停止確認を返す案。標準入力の配送量上限、子孫停止の実現方式、ブロッキングI/Oの中断と親停止時の保全は未確定。`Child::kill`だけでは全条件を満たせず、新しい外部ツール・FFIを暗黙に追加しない。
 
+## データ契約の具体化案
+
+### 対象証拠と状態結果
+
+`P02-MODEL`のTargetEvidenceを次のメモリー上の値へ具体化する候補。OS固有の証拠取得自体は`D02-01`・`D03-02`で調査する。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| EvidenceField | status: observed・absent・unknown、value: stringまたはnull、reason: 固定コードstringまたはnull。observedはvalueのみ、absent/unknownはreasonのみ |
+| TargetEvidence | execution_id・disk_id・root_id・os_id・os_version・boot_idはEvidenceField、observed_atは時刻string。各値を同じ採取世代へ対応付ける |
+| StateDecision | state: 既存総合状態、rule: integerの1〜7、profile: 既存構成またはnull、setup_required: boolean、evidence: TargetEvidence、checks: P02-CLIのCheck[] |
+| Selection | profile: 既存構成、plan_id: PlanId、target: TargetEvidence、selected_at: 時刻、origin: media・master。選択画面が生成し、設定読込みだけでは生成しない |
+
+証拠のabsentは取得に成功して不在を確認した場合だけで、OS情報が未取得の場合はunknown。EvidenceFieldのreason候補は`MODEL_NOT_PRESENT`・`MODEL_UNREADABLE`・`MODEL_UNSUPPORTED`・`MODEL_CHANGED`。StateDecision.ruleは[既存判定順](../BASIC_SPEC.md#状態判定の優先順位)の最初の該当番号とし、stateと一致しない組を拒否する。MANAGEDのprofile=nullや、未選択値をmaster/serverへ補完する結果を生成しない。Selectionは権限証明でも永続的な承認トークンでもなく、再検査で対象・計画が変われば破棄する。
+
+TargetEvidenceの全フィールドがobservedであることを状態判定の一律前提にしない。空ディスクではrootやOSの不在をabsentとして証明する必要があり、unknownと区別したうえで既存判定順の各条件へ照合する。観測世代の一致だけで未取得の値を補完せず、disk_id等の取得・必須性が未確定なら対応する判断IDを残す。
+
+識別子のparseは長さ・接頭辞・小文字hexを完全一致で確認し、空白除去や大文字変換をしない。生成側は候補と照合できる既存IDの集合を受け、衝突時は`MODEL_ID_COLLISION`として停止する。無限に乱数を引き直さず、乱数源の成立性・照合範囲が不足する限り`D02-01`は未解消。時刻の候補表現は`YYYY-MM-DDTHH:MM:SS.mmmZ`、年1970〜9999、有効な暦日、秒0〜59。過剰な小数桁を受理して丸めず、生成時だけナノ秒をミリ秒へ切り捨てる。経過時間はInstantで別に評価する。
+
+### 記録確定と実行結果
+
+`P02-STORE`には、記録候補を事前にすべて直列化・検査してから、同じ親操作の下で確定する方式を提案する。準備失敗は対象変更前に停止する。実資源の検証後に履歴を確定し、その操作IDを参照する終了記録を最後に確定する。履歴だけ確定・終了記録未確定の中断は、実適用状態と履歴の一致を復旧側が確認するまで成功としない。
+
+追記型history.jsonlの論理的な追記を、既存バイト列と新しい完結行を含む一時ファイルの同期・renameで実現する候補とする。既存行の改変・並替え・欠落は禁止。同じ操作IDの同じ確定行は再追加せず、異なる結果なら競合として停止する。これで複数ファイル全体の原子性が成立したとはしない。全履歴のコピー容量、保持・退避、親ディレクトリ同期、クラッシュ時の照合手順は`D02-05`に残す。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| RecordReceipt | operation_id: OperationId、stage: prepared・history_committed・complete、record_paths: string[]、verified: boolean。completeと全必須保存の成功時だけverified=true |
+| CommandOutcome | status: exited・spawn_failed・signaled・timed_out・cancelled・output_limit・io_failed・stop_unknown、exit_code: integerまたはnull、signal: integerまたはnull、stdout_bytes・stderr_bytes・elapsed_ms: 0以上integer、stopped: boolean |
+
+CommandOutcomeはプロセスの観測結果で、操作全体の成功ではない。exit_codeはexited時のみ、signalはsignaled時のみ数値を持つ。出力量は保持できた量と総観測量を混同せず、本候補のbytesは上限検出までの観測量。上限を1 byte超えた時点で失敗し、以降の無制限収集は行わない。標準入力も1 MiB以下の固定byte列を候補とし、空入力は明示的なEOF、書込み失敗後の再配送はしない。起動・入力配送・出力回収・終了確認をすべて同じ期限へ算入する。
+
+2026-10-22に採用版の[SystemTime](https://doc.rust-lang.org/std/time/struct.SystemTime.html)、[File](https://doc.rust-lang.org/std/fs/struct.File.html)、[CommandExt](https://doc.rust-lang.org/std/os/unix/process/trait.CommandExt.html)を再照合した。壁時計の非単調性、明示同期、プロセス群設定と実際の子孫終了確認を区別する。プロセス群を作るだけで子孫の停止・親停止時の排他維持を証明せず、`D02-04`は未達のまま。追加データのRust完全宣言・生成関数・OS取得実証も各判断IDの採用対象である。
+
+## 接続と責務の照合
+
+CLIのCheckは検査実施時の構造で、[状態キャッシュ](../BASIC_SPEC.md#状態スナップショット)のchecks[].resultとは別の既存契約である。CLIのrequired・not_applicableをキャッシュへそのまま書かず、保存用のpass・warn・fail・unknownへの対応が確定するまで`D02-02`・`D02-05`を未達にする。読取りコマンドは変換・診断をメモリー上だけで行う。
+
+TargetEvidence.disk_id/root_idは[P03-FS](PHASE_03.md#p03-fs)の実対象固定と照合する。OS・ブートIDは観測時点の識別で、SSHのホスト鍵やMachineIdと単独で同一視しない。media/masterというSelection.originは入口の区分であり、config.ymlのusb/cloudを変更する理由にならない。保存するenvironmentは基本仕様の導入経路を使う。
+
+保存記録の終了状態と[P04-UPDATE](PHASE_04.md#データ契約の具体化案)のStepReceiptを照合し、`history_committed`だけを操作完了にしない。RecordReceiptは実際に確認できた保存先と段階だけを返し、復旧が必要な中断記録を通常のfinish呼出しで上書きしない。必須履歴の容量・同期・原子置換が成立しない場合、変更開始を保留する。
+
+外部実行のtimeoutは実行開始からの親予算に制限され、出力・終了待ちにも残予算を割り当てる候補。停止確認不能はstopped=false、status=stop_unknownとし、ロックを解放しただけで新変更を許可しない。stdだけによる停止・同期I/Oの期限保証の未達を外部ツールの暗黙採用で埋めない。
+
 ## 受入ケース案
 
 | ケースID | 区分・入力 | 期待結果と確認方法 |
@@ -504,6 +554,18 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 | `A02-08` | 異常。記録途中の容量不足・同期失敗 | 成功を返さず、実適用位置の照合待ち。無承認巻戻しなし |
 | `A02-09` | 境界。時間・出力量の上限と直後の超過 | 所定の失敗分類。子孫終了と記録確定を別に照合 |
 | `A02-10` | 異常。秘密項目混在、既存保存先、dry-run | 秘匿化不能項目を採取せず、上書き・保存の迂回なし |
+
+## 追加の受入ケース案
+
+`P02-MODEL`・`P02-STATE`・`P02-STORE`・`P02-EXEC`の追加設計。OS取得器・記録器の障害は隔離fixtureで注入し、未確定の取得・停止方式を実装済みとしない。
+
+| ケースID | 区分・前提と入力 | 期待結果・照合対象 |
+|---|---|---|
+| `A02-71` | 境界。規定桁のplan/op ID、末尾を大文字化、空白追加、生成時衝突 | 規定表記だけ受理。衝突はMODEL_ID_COLLISIONで停止、再生成ループなし |
+| `A02-72` | 異常。同じdevice pathでdisk_id交換、OS情報unknown、偽のMANAGEDキャッシュ | MODEL_CHANGEDと取得不能を保持。キャッシュで対象・対応OSの不足を補完せず、基本仕様のUNKNOWN判定へ照合 |
+| `A02-73` | 境界。時刻の小数3桁/4桁、秒59/60、時計後退・再起動 | 候補形式外を拒否。期限不明を有効としない。壁時計と経過時間の比較を分離 |
+| `A02-74` | 異常。履歴確定直後・終了記録前で中断、同じ操作IDに異なる結果 | completeを返さず復旧照合。同じIDの履歴を重複追加・上書きしない |
+| `A02-75` | 境界。stdin/stdout/stderrの上限+1 byte、子だけ残存、終了確認不能 | 超過を成功にせず、stop_unknown/stopped=falseを保持。再配送・次の変更開始をしない |
 
 ## 未決事項と成立判定
 

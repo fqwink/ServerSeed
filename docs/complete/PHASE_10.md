@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`D1`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B1`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（Phase 2はD3、他はD1）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB1）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -67,6 +67,38 @@ OS再導入だけでデータを復元したと報告しない。保全物があ
 
 共通型はP02-MODEL、RemoteSessionはP09-SSH。難易度は高、旧実装なし。将来の差し替えでは導入資材・対象識別・記録版と接続先変更の互換性を評価し、旧実装除去前に起動不能時も照合可能な経路を保持する。初回導入の失敗を、存在しない旧OSへの切戻し成功として表示しない。
 
+## データ契約の具体化案
+
+`P10-BOOTSTRAP`の能力判定と`P10-OS`の工程結果を具体化する候補。接続先の識別は`P09-SSH`、配送は`P09-REMOTE`、管理対象の状態は`P02-STATE`へ参照し、Cloud用の別の総合状態を新設しない。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| BootstrapCapability | target: TargetEvidence、installer_ref: ContractRefまたはnull、checks: Check[]、installable: boolean |
+| InstallInput | target: TargetEvidence、storage_ref・network_ref・user_ref・boot_ref: ContractRef、materials: MaterialRef[]、selection: Selection、plan_id: PlanId |
+| MaterialRef | exception_id: 台帳IDstring、artifact_ref: string、sha256: 既存ハッシュ表記string、bytes: 正のinteger、architecture: 既存CPU値 |
+| InstallProgress | plan_id: PlanId、operation_id: OperationId、target: TargetEvidence、stages: InstallStage[]、reconnect: ReconcileResultまたはnull |
+| InstallStage | name: 下記固定工程名、status: not_started・started・verified・failed・unknown、evidence_ref: stringまたはnull、error: Diagnosticまたはnull |
+
+能力検査の必須ID候補は`P10-BOOTSTRAP/execution`・`privilege`・`materials`・`storage`・`boot`・`management_path`。後5件にも同じ契約ID接頭辞を付ける。全件がpass、installer_refが採用済み、対象が同じ場合だけinstallable=true。unknown・fail・未採用をnot_applicableへ変更して集合を縮小しない。既存OSの有無は別の状態判定へ照合し、SSHの接続成功をこの集合のpassとして使わない。
+
+InstallInputの各refは完全な入力契約への参照であって、契約本文の代わりではない。ストレージ・ネットワーク・ユーザー・ブートの具体値は、採用した方式の確定済みスキーマへ別に照合する必要がある。未選定のインストーラー、版、実行環境、必須値をこの参照表だけで確定したとは扱わない。
+
+固定工程順の候補はtarget_recheck・preserve・partition・filesystem・os_expand・boot_configure・management_configure・boot_verify・reconnect・handoff。各工程の実適用位置をInstallStageで記録し、後続not_startedを省略しない。対象方式で工程が不要な場合も、承認済み契約に理由を対応付けた検証結果を持たせ、実装者の判断で飛ばさない。各工程の予算は親の残期限を超えず、消去・展開・起動を再送しない。
+
+新OSからの再接続は、予定されたOS・CPU・ディスク/ルートの対応と管理経路、ホスト鍵の信頼根拠を検査する。同じIP・接続成功・復元したmachine-idのどれか一つだけでは同一対象と判定しない。再起動後の証拠が不足すればInstallProgressは未完了で、Phase 9の構成変更を開始しない。
+
+OS導入前の永続記録・排他、各工程に必要なコマンドと資材、工程別の復旧可否は`D10-01`〜`D10-03`に残る。候補の工程名・MaterialRefの存在を、資材の使用許可やroot filesystem方式の採用に読み替えない。
+
+## 接続と責務の照合
+
+[P05-HANDOFF](PHASE_05.md#p05-handoff)から再利用するのは対象OS側の継続・識別・結果照合の責務だけであり、媒体操作ID・USBのマウント・取り外しをCloudの必須入力にしない。Cloudの前後の対応はP09-REMOTEのrequest_idと対象operation_idへ結合する。媒体用HandoffRecordを全項目そのまま配送する流用は認めない候補とする。
+
+対象OSがまだない段階は通常の`/var/lib/serverseed/`と実行中OSの共通ロックだけでは排他・記録を代替できない。実行環境を支えるOSに作った記録と、後から起動する対象OSの記録を区別し、両者とマスターに保持する証拠の確定・継続方式を`D10-02`で審査する。対象ディスクを消去する前にこの方式が成立しなければ、installableをtrueにしない。
+
+一時環境のOSが通常運用の対象外であることと、その環境からUbuntuを導入できる能力は別に判定する。必要な標準機能・実行物・権限・記録先が未確認なら保留し、「SSHさえあれば必ず導入可能」とも「Ubuntu以外は一律利用不可」とも補完しない。選定済みインストーラーの外部契約が揃った範囲だけで能力行を定義する。
+
+P09-RECONNECTの同一性・信頼・対象OSの起動確認を終えてから本体導入へ移る。OS起動成功、構成適用、バックアップ復元、アプリ検証は別のstepとして[P04の結果](PHASE_04.md#データ契約の具体化案)へ接続し、OS導入の成功一つで全保守完了にしない。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待結果・検証 |
@@ -79,6 +111,18 @@ OS再導入だけでデータを復元したと報告しない。保全物があ
 | `A10-06` | 異常。新OS起動不能、SSH自体が停止 | 保持した証拠と利用可能経路に基づく案内。事業者操作の自動化なし |
 | `A10-07` | 境界。OS導入・再接続の上限超過 | 適用位置と未確認を表示し、成功・未実行を推測しない |
 | `A10-08` | 異常。保全物破損、復元先不一致 | データ復元停止。OS起動成功をデータ復旧へ転用しない |
+
+## 追加の受入ケース案
+
+`P10-BOOTSTRAP`・`P10-OS`・`P10-RECOVER`の能力と引継ぎを検証する設計。実際の導入試験は方式・資材・隔離条件を承認した専用VMでのみ行う。
+
+| ケースID | 区分・前提と入力 | 期待結果・検証方法 |
+|---|---|---|
+| `A10-09` | 異常。SSH接続成功、必須能力1件unknownまたはinstaller未採用 | installable=false。対象ディスクへの書込み0回 |
+| `A10-10` | 異常。空ディスクだがOS導入前の排他・永続記録を確立不能 | 消去前停止。一時OSのoperationだけで対象排他を成立としない |
+| `A10-11` | 異常。Cloud要求へ媒体操作ID・USBマウントを必須とする入力 | 経路契約の不一致。USB準備をCloudの追加条件にしない |
+| `A10-12` | 異常。os_expand後中断、後続not_started、同じIPに別OSから応答 | 工程位置を保持し、同一対象・信頼の照合完了までhandoffなし |
+| `A10-13` | 正常・異常。OS起動は成功、バックアップ復元は失敗 | OS段階の結果とデータ復元失敗を分離。構成・保守全体の成功なし |
 
 ## 未決事項と成立判定
 

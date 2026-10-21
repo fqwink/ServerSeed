@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`D1`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B1`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（Phase 2はD3、他はD1）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB1）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -59,6 +59,37 @@
 
 共通型はP02-MODEL。受入行・証拠・成果物集合の完全スキーマ、許容する版、結果と実行上限の対応はD11-01に残る。難易度は集計が中、正式公開との統合が高。新設案で旧実装なし。将来の差し替えは同じ固定成果物と欠損・改変fixtureで検証し、署名済みバイト列や公開済みタグを移行目的で書換えない。
 
+## データ契約の具体化案
+
+`P11-ACCEPT`の受入行と`P11-RELEASE`の同一性検査へ渡す証拠を具体化する候補。将来の製品受入の形式であり、今回の文書検査をpassとして記入するための形式ではない。
+
+| 型 | 全キー・値域の候補 |
+|---|---|
+| AcceptanceRow | requirement_id: 既存要件ID、contract: ContractRef、case_id: 受入ID、architecture: 既存CPU値、profile: 既存構成またはnull、entry: media・ssh_existing・ssh_bootstrap・internal、environment_ref・artifact_sha256・expected_ref: string、result: pass・fail・not_run・not_applicable、actual_ref・reason: stringまたはnull |
+| AcceptanceMatrix | schema_version: 1、implementation_commit: 完全コミットID、rows: AcceptanceRow[]、complete: boolean |
+| ReleaseEvidence | schema_version: 1、tag・commit・build_environment_ref: string、artifacts: ArtifactEvidence[]、acceptance: AcceptanceMatrix、publishable: boolean |
+| ArtifactEvidence | name・sha256: string、bytes: 正のinteger、producer_ref: string、verification_refs: string[] |
+
+受入行のキーは要件・契約・ケース・CPU・構成・入口の組で一意にする。pass/failはactual_ref必須、not_run/not_applicableはreason必須。not_applicableには担当正本の非適用根拠への参照を要求し、能力未確認・試験困難・未実装を非適用にしない。必須行のnot_run/fail、欠損・重複・承認済み契約や期待結果の不在が一件でもあればcomplete=false。
+
+expected_refは実出力から作らず、採用済みの受入条件と固定した入力・前提への参照とする。actual_refは実行コマンド・対象・前後状態・実出力・成否を特定する所有者管理下の証拠を指す。証拠のバイト列・対象コミット・環境・成果物が変わった場合は、同じケース名でも結果を自動再利用しない。
+
+ReleaseEvidence.artifactsの期待集合は[既存成果物名](../BASIC_SPEC.md#リリース)だけから生成し、各名前をちょうど1件要求する。本体とISOのCPU対応、両マニフェストとbuild情報、署名・checksumの相互参照を既存工程へ照合する。単なるファイル名一致やproducerの申告だけをverification_refsの代わりにしない。
+
+publishable=trueの候補条件は、全必須成果物の一致、必要な実行・VM受入のcomplete、各許諾・例外・署名鍵・公開設定の担当条件の成立を所有者が確認できること。未確定の担当条件はfalseとし、チェック数の多数決で成功にしない。公開可否の評価関数と実際の公開操作は分離し、評価成功だけでタグ作成・署名・uploadを開始しない。
+
+受入集合の全列挙、証拠の保存・改変検出、集計用Rust型と公開APIの版・権限の実証は`D11-01`〜`D11-03`の未達に残す。文書だけの改善でこれらの証拠が存在した扱いにはしない。
+
+## 接続と責務の照合
+
+[P01-CHECK](PHASE_01.md#データ契約の具体化案)の検査目的・コミット・環境と、AcceptanceMatrixの対象を照合する。文書案・構文検査・クロスビルドの結果は、製品実行・VM・実機の代替にせず、各担当が要求する証拠だけを適用する。test署名と本番署名、配布物検査とソース公開審査も混同しない。
+
+媒体の起動試験と[P05-HANDOFF](PHASE_05.md#接続と責務の照合)の取り外し後の起動・再起動は別行にする。マスターでは三機能の結果を統合し、arm64のmining/masterを成功試験の対象へ推測追加しない。一方で、対応外構成を拒否する試験は非適用として消さない。
+
+ReleaseEvidenceは「同じ本体をISOに収録した」証拠と、手動VM試験で使った候補のハッシュを結合する。ISOを再生成してハッシュが変わったら、そのISOの内容・起動・導入検証を再照合する。同じタグ・recipe・ファイル名だけを結果再利用の根拠にしない。公開要求の応答欠損は実際の配置を照合し、強制upload・タグ付け替えで一致させない。
+
+許諾・署名鍵・実機試験境界・個別例外は担当正本の未確定部分を維持する。これらは今回の本文案作成範囲外であり、全体の採用・実装移行・正式公開を妨げる判断事項として所有者へ提示する。反復回数や受入設計数をそれらの解消根拠にしない。
+
 ## 受入ケース案
 
 | ケースID | 区分・前提 | 期待結果・照合方法 |
@@ -71,6 +102,18 @@
 | `A11-06` | 異常。test鍵・未確定許諾・再配布条件不足 | 担当ポリシーへ照合して正式公開を停止 |
 | `A11-07` | 境界。再取得後の改変、公開要求の応答欠損 | 実配置を照合し、一致確認まで成功・再送を決めない |
 | `A11-08` | 異常。公開済み同名成果物・タグの変更要求 | 置換しない。新しい版・生成・検証の工程へ戻す |
+
+## 追加の受入ケース案
+
+`P11-ACCEPT`・`P11-RELEASE`の証拠検査を設計する。署名・成果物・実行結果は試験用fixtureであり、正式リリースや本番鍵の使用を今回許可しない。
+
+| ケースID | 区分・前提と入力 | 期待結果・照合方法 |
+|---|---|---|
+| `A11-09` | 異常。必須受入行を1件欠損、同じキーの行を2件、actual_refなしpass | complete=false。件数・多数決で不足を隠さない |
+| `A11-10` | 異常。expected_refが実出力の自己申告だけ、契約は未採用 | 受入証拠として拒否。文書検査の結果を製品結果へ置換しない |
+| `A11-11` | 異常。同じrecipe・版で再生成したISOだけハッシュ変更 | 変更ISOへ古い起動・導入結果を流用しない。publishable=false |
+| `A11-12` | 異常。媒体起動はpass、取り外し後の起動・再起動がnot_run | 物理経路の受入未完了。removable=trueでも代替しない |
+| `A11-13` | 異常。全ファイル一致だが鍵・許諾・例外・実機境界のいずれか未確定 | publishable=false。対象正本と必要な所有者判断を提示し、公開操作0回 |
 
 ## 未決事項と成立判定
 
