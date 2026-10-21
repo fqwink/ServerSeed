@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B1`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B2`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB1）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB2）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -78,7 +78,7 @@ Liveからサービス・パッケージ処理へ移る実行方式、次回起�
 
 | 型 | 全キー・値域の候補 |
 |---|---|
-| RecipeInput | schema_version: 1、architecture: 既存CPU値、base_ref・tools_ref: ContractRef、base_sha256・binary_sha256・binary_manifest_sha256: string、recipe_revision: 1以上integer |
+| RecipeInput | schema_version: 1、architecture: 既存CPU値、base_ref: MaterialRef、tools_ref: MaterialRef[]、binary_sha256・binary_manifest_sha256: string、recipe_revision: 1以上integer。MaterialRefは[型の詳細](#型とapiの詳細案)で定義 |
 | MediaSelection | action: install・adopt・update・backup・recover、target: TargetEvidence、selection: P02-STATEのSelectionまたはnull、backup_destination: stringまたはnull、confirmation: stringまたはnull |
 | HandoffRecord | schema_version: 1、media_operation_id・target_operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、binary_sha256: string、stage: 下記段階、target_receipt: OperationReceiptまたはnull |
 | RemovalResult | media_operation_id: OperationId、writes_complete・sync_complete・target_stopped・media_unmounted: booleanまたはnull、removable: boolean、checks: Check[] |
@@ -125,6 +125,77 @@ OSインストールのストレージ・ユーザー・ネットワーク設定
 | `A05-12` | 正常。取り外し後に同じ計画の継続、媒体非接続で起動・再起動 | 対象内蔵OSの結果へ結合し、媒体・Live側PID/lockfileへ依存しない |
 | `A05-13` | 異常。target_startedで応答欠損、target_receipt=null | 未実行へ戻さずunknown。再導入・再消去0回 |
 | `A05-14` | 異常。継続時に別ディスクへ交換、または新しい必須確認が発生 | 対象・前提を再照合して停止。過去の確認文字列で代行しない |
+
+## 型とAPIの詳細案
+
+資材の採用情報と仕様へのContractRefを混同しない候補。ISOとCloudで共通の取得済み資材の識別型MaterialRefを本節へ集約する。版・ライセンス・承認の現在情報は例外台帳が正本で、型の全フィールドがあるだけでは使用可能にしない。
+
+```rust
+pub struct MaterialRef {
+    exception_id: String, artifact_ref: String, sha256: String,
+    bytes: u64, architecture: String,
+}
+pub enum MediaAction { Install, Adopt, Update, Backup, Recover }
+pub enum HandoffStage {
+    Prepared, TargetStarted, TargetVerified, ReadyForRemoval,
+    BootPending, Complete, Failed, Unknown,
+}
+pub struct RemovalResult {
+    media_operation_id: OperationId, writes_complete: Option<bool>,
+    sync_complete: Option<bool>, target_stopped: Option<bool>,
+    media_unmounted: Option<bool>, removable: bool, checks: Vec<Value>,
+}
+```
+
+MaterialRef.bytesは外部integerの上限をさらに適用し0を拒否する。architectureは既存CPU値、artifact_refは台帳で特定した不変成果物への参照で、任意の取得先へ展開するパスではない。RecipeInputのtools_refには使う実行物を各1件含め、まとめた「ツール一式」の自己申告を受理しない。生成環境のイメージと各実行物の両方を照合する。
+
+RemovalResult.checksはP02-CLIのCheck形式へvalidatorで照合するValueだけを保持する。Option<bool>のNoneをfalseと同じ根拠へ潰さず、表示では「未確認」とする。HandoffRecordの実行前情報とtarget_receiptは異なる段階で確定し、target_started後の欠損を未実行へ戻す生成関数を設けない候補とする。
+
+## 状態と中断の詳細案
+
+`P05-HANDOFF`の通常順はprepared→target_started→target_verified→ready_for_removal→boot_pending→completeの候補。各遷移は直前段階の記録・対象同一性と次表の根拠を要求し、段階名を直接書き換えて飛び越さない。
+
+| 遷移または事象 | 必須根拠・結果 |
+|---|---|
+| prepared→target_started | 対象側runningと排他の照合。Live側のPIDを代用しない |
+| target_started→target_verified | 取り外し前工程の実結果・記録一致。起動後サービスの検証はまだ含めない |
+| target_verified→ready_for_removal | 継続情報の同期とRemovalResultの全条件成立 |
+| ready_for_removal→boot_pending | 利用者の取り外しと内蔵OS起動への引渡し。ソフトウェアの許可表示だけで取り外した事実を作らない |
+| boot_pending→complete | 同一対象の媒体なし起動・再起動、構成別検証、必須記録確定 |
+| started以降で応答欠損 | unknown。対象実状態の照合まで新しい適用を開始しない |
+| 検証失敗の確証 | failed。元工程と復旧結果を分離して保持 |
+
+LiveのルートがUSB上のSquashFS等を参照している場合はmedia_unmounted=trueと判定できない。取り外し可能にする方式の第一候補を、必要資材を固定したRAM上の実行環境と対象内蔵OSの継続処理の組合せとして提示する。メモリー容量、ブート設定、RAMへの複製・検証、全参照解除の成立性は`D05-01`・`D05-03`で確認するまで未達であり、単なるumount要求成功を根拠にしない。
+
+boot_pendingの確認結果は内蔵OSへ保持し、結果回収だけのために媒体の再接続を必須にしない。failed/unknownからcompleteへの直接遷移は認めず、明示的な復旧計画・実状態照合と未実施検証を必要とする候補とする。
+
+## 依存と互換性の詳細案
+
+ISOの生成環境、実行するLive環境、導入後の内蔵OSを三つの識別済み環境として扱う候補。ツール版・生成資材はMaterialRef、仕様への参照はContractRefとし、互いを代用しない。
+
+| 境界 | 互換性と未達時の扱い |
+|---|---|
+| ベースISOと生成ツール | EX-002・EX-008の個別固定参照をrecipeへ結合。浮動版と未選定のunitで生成しない |
+| Subiquity受渡し | 実行時だけ確認済み/autoinstall.yamlを生成。無確認の先行インストールを抑止する外部契約が成立しない版は使用不可 |
+| Liveから対象へ | 同じplanと対象operation対応を保持するが、install情報・PID・lockのコピーなし |
+| 媒体と内蔵OSの形式差 | 読めるhandoff形式版・本体版・対応CPUを先に照合。未知版を古い意味へfallbackしない |
+| 機種別firmware | メーカー/機種/版/項目/公式手段を個別に固定。未登録機種は自動変更なし |
+
+新しいISOはP11-RELEASEの固定した共通本体から生成する。古い媒体で新しい管理形式を検出した場合は変更せず停止し、媒体の正規交換へ案内する。独自にmedia内本体だけを更新して互換にする方式を追加しない。
+
+引継ぎ制御をcrateへ抽出する将来案は、媒体起動・取り外し・起動後継続を同じ隔離VMで比較する。メモリーだけの模擬結果は媒体参照解除・ブート互換の証明にせず、旧形式の除去前に既存媒体からの復旧可能範囲を確認する。
+
+## 受入条件の充足照合案
+
+ISOは固定資材/生成/起動、MEDIAは選択/導入入力、HANDOFFは段階/取り外し/内蔵OS、FIRMWAREは機種別外部契約と試験許可へ対応する。MaterialRefの存在と台帳の使用可能判定を別に確認する。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A05-15` | 異常。RecipeInputのbase_refへ仕様のContractRefだけを指定 | 資材型・台帳対応不正で生成停止。仕様リンクをベースISOとして扱わない |
+| `A05-16` | 異常。LiveのrootがUSBを参照、全対象書込みは終了 | media_unmounted未成立、removable=false。umount要求だけで安全取り外し表示なし |
+| `A05-17` | 正常・異常。各handoff遷移と、target_startedからcompleteへの飛越し | 必須証拠がある隣接遷移だけ受理。媒体なし起動・再起動を省略しない |
+
+必要なSubiquity/ブート設定、RAM実行環境、継続unitと全handoff保存形式が未確定なら媒体保守は未充足。通常CIのISO内容検査、専用VMでの起動/取り外し、実機の機種別動作はそれぞれ別の証拠とし、実機試験の許可境界が未決のまま実行しない。
 
 ## 未決事項と成立判定
 

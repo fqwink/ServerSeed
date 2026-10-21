@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B1`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B2`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB2）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -79,10 +79,7 @@ OSパッケージ操作は1回3,600秒以内、サービス操作は1回120秒�
 | 宣言案 | 所有権・結果・副作用 |
 |---|---|
 | `prepare_self(input: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | 固定候補と検査結果を所有して返す。planだけの取得制約を維持 |
-| `apply_self(ctx: &mut ExecutionContext, prepared: &Value) -> Result<Value, ContractError>` | 本体だけを所定の手順で変更。親操作へ結果を返す |
-| `backup(ctx: &mut ExecutionContext, request: &Value) -> Result<Value, ContractError>` | 検証した保存物・復元根拠を返す。引数の保存先以外へ保存しない |
-| `restore(ctx: &mut ExecutionContext, request: &Value) -> Result<Value, ContractError>` | 復元先と保全元を照合。OS再導入を暗黙実行しない |
-| `apply_resources(ctx: &mut ExecutionContext, plan: &Value) -> Result<Value, ContractError>` | 資源別結果を返す。総合結果の記録確定は親が担当 |
+| 適用・保全・復元・資源適用 | 宣言は[型付きの返却契約](#型とapiの詳細案)へ集約。本体だけの変更、指定した保存先、OS再導入の分離、親による記録確定を維持 |
 
 Valueの各リクエスト・結果の全フィールドは各契約の未決事項に含める。初期に独立crateは作らない。将来の抽出・差し替えは、同じA04ケースで新旧の出力・副作用・復旧可能範囲を照合し、呼出元切替・互換移行・旧実装除去を別途承認対象にする。今回は旧コードも除去対象も存在しない。
 
@@ -140,6 +137,83 @@ BackupReceipt.restoreは[P06-DATA](PHASE_06.md#p06-data)・[P08-BACKUP](PHASE_08
 | `A04-13` | 境界。restoreのnowがvalid_until直前・同時、artifactハッシュ変更 | 直前かつ同一物だけ有効候補。同時・別物は更新前提にせず停止 |
 | `A04-14` | 異常。復旧処理は成功、元の更新stepはfailed | 元結果を成功へ変更しない。復旧結果を別に記録 |
 | `A04-15` | 境界。個別上限より親残期限が短い、停止予算を確保不能 | 親期限を超えて実行しない。開始不可の理由と未実施stepを保持 |
+
+## 型とAPIの詳細案
+
+`P04-SELF`・`P04-UPDATE`・`P04-APPLY`の開始後失敗は、`P02-MODEL`のChangeResultで部分適用位置を必ず返す候補。StepReceipt・OperationReceipt・PreparedSelf・BackupReceiptの外部項目は[データ契約](#データ契約の具体化案)を参照し、同名の内部structはその検証済み値だけを保持する。
+
+```rust
+pub enum StepPhase { NotStarted, Started, Applied, Verified, Failed, Unknown }
+pub enum RecoveryAvailability { NotNeeded, Available, Unavailable, Unknown }
+pub struct BackupRequest {
+    target: TargetEvidence, profile: Profile, data_kind: String,
+    destination: BackupDestination, method: ContractRef,
+}
+pub struct BackupDestination {
+    device_id: String, filesystem_id: String, path: std::path::PathBuf,
+}
+pub struct RestoreRequest {
+    source: BackupReceipt, destination: TargetEvidence, method: ContractRef,
+}
+pub struct BackupProgress {
+    operation_id: OperationId, stage: String, temporary_evidence: Vec<String>,
+    receipt: Option<BackupReceipt>,
+}
+pub fn apply_self(ctx: &mut ExecutionContext, prepared: &PreparedSelf)
+    -> ChangeResult<OperationReceipt>;
+pub fn backup(ctx: &mut ExecutionContext, request: &BackupRequest)
+    -> ChangeResult<BackupProgress>;
+pub fn restore(ctx: &mut ExecutionContext, request: &RestoreRequest)
+    -> ChangeResult<OperationReceipt>;
+pub fn apply_resources(ctx: &mut ExecutionContext, plan: &Value)
+    -> ChangeResult<OperationReceipt>;
+```
+
+BackupRequest.profileは構成選択済みのデータ保全だけを対象とする候補。本体専用の退避は既存selfトランザクションの責務とし、架空のprofileでBackupReceiptを生成しない。BackupDestinationは保存先の識別済み値であり、そのパスを復元時の書込み先へ無条件転用しない。BackupProgressは途中位置を持ち、正式なBackupReceiptは全保存・復元確認の成功後だけSomeとする。stageの遷移と一時物の取扱いは中断契約の採用対象として具体化し、未完了の保存物を正常なreceiptへ変換しない。
+
+## 状態と中断の詳細案
+
+BackupProgress.stageの候補全集合はpreparing・capturing・saved・restore_checked・complete・failed・unknown。receiptはcompleteだけでSomeとし、途中失敗では一時物の参照・確認済み位置とerrorを保持する。savedはハッシュ一致までで復元可能性を意味しない。取得対象の整合性確保に失敗したらcapturingへ進まない。
+
+| 中断・失敗位置 | 停止と復旧候補 |
+|---|---|
+| 容量・対象・保存先の再照合前 | 対象変更なし。入力・計画を再確認 |
+| capturing中、転送切断・容量不足 | 不完全物を正式名・正常receiptにしない。再取得の自動開始なし |
+| saved後、復元確認の失敗 | 保存物の事実は保持、verified=false。更新前提は不成立 |
+| アプリ停止後に保全失敗 | 許可済みの元稼働状態への復帰を試み、元の保全失敗と復帰結果を別に残す |
+| self preparedで配置だけが候補へ変化 | 実ハッシュで位置を照合し、正本の本体復旧へ。元本体への無条件上書きなし |
+| 資源applied後、再観測・記録失敗 | 当該資源と依存後続を停止。部分結果をChangeFailureへ保持 |
+| 復旧も失敗・不明 | unavailable/unknownを保持。新しい通常更新へ進まない |
+
+資源復元の候補は、元計画で許可された保全元と同一対象だけを逆依存順に処理する。作成したdirectoryへ他者のファイルが増えた場合は再帰削除せず復旧不能範囲として止める。復旧成功でも元操作のfailedをsuccessへ変更しない。バックアップの暗号形式と不完全物の保存・除去条件が未確定な間は、cleanupを理由にデータを自動削除しない。
+
+## 依存と互換性の詳細案
+
+取得・検証の第一候補を次へ具体化する。個別実行物の固定版・全引数・検証・採用承認は[台帳の審査候補](../DEPENDENCY_EXCEPTIONS.md#追加の個別審査候補)で扱い、現在の使用可能判定を変更しない。
+
+| 責務 | 採用審査候補と境界 |
+|---|---|
+| HTTPS取得 | OS提供curl等の取得実行物へ委譲。TLS・redirect・取得先・上限・全引数を固定し、任意オプションを受けない |
+| SHA-256 | 既存OS検証コマンドの採用情報へ接続。期待値は署名済みmanifestから取得し、同じ未検証元の自己申告だけで判定しない |
+| OpenPGP検証 | 既存gpgvの契約を使用。秘密鍵・署名生成を取得処理へ持たせない |
+| アーカイブ・暗号化 | 既存OSツール利用案と専用内製形式案を別に比較。暗号を未評価で新規内製化しない |
+| package/systemd | EX-001の個別コマンド契約。パッケージ管理競合・unit状態と副作用を実行前後に照合 |
+
+更新の互換表候補は、現在のconfig/migration各revisionと選択構成、候補の対応範囲、必要な移行契約ID、移行後revision、元本体/データへ戻せる範囲を1行として扱う。行がない組合せは停止し、番号差だけで移行可能としない。self単独は移行行を実行せず、現在revisionが互換範囲内の場合だけ本体を変更する。
+
+初回は旧実装がないため新旧比較なし。将来の分離・差し替えは取得→準備→実適用→検証→記録の境界を維持し、各障害位置のChangeResultと永続証拠を同じテストで比較する。旧コード除去は全呼出元の切替・依存検査・復旧経路確認の後だけとし、暗黙のFFI・外部crate追加を行わない。
+
+## 受入条件の充足照合案
+
+SELFは既存置換/復旧とPreparedSelf、UPDATEは層別工程と互換表、BACKUPはBackupProgress/Receipt、APPLYは資源別StepReceiptへ対応する。共通のChangeFailureは開始後の適用済み位置を保持する。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A04-16` | 異常。capturing中に保存容量不足、正式receiptなし | partial=Some(BackupProgress)、receipt=None。不完全物の正式昇格・無確認除去なし |
+| `A04-17` | 異常。復旧対象directoryに新しい未管理ファイルが存在 | 再帰削除0回。復旧不能範囲を保持し、元操作も失敗のまま |
+| `A04-18` | 異常。selfは互換範囲外、構成移行行だけが存在 | self単独では移行せず停止。確認済み通常updateへの判断が必要 |
+
+設定値の未確定動作は[担当ポリシーの審査候補](../POLICIES.md#完全仕様化に伴うバックアップ設定の審査候補)へ集約する。暗号・鍵・保存/削除・復元期限・アプリ別形式を決めずに取得成功だけを完全仕様成立としない。対象外である本体専用退避へ架空のprofileを追加せず、既存self保全と構成データの独立バックアップを区別する。
 
 ## 未決事項と成立判定
 

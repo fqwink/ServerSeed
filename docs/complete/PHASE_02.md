@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B1`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B2`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB1の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB2の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -566,6 +566,89 @@ TargetEvidence.disk_id/root_idは[P03-FS](PHASE_03.md#p03-fs)の実対象固定�
 | `A02-73` | 境界。時刻の小数3桁/4桁、秒59/60、時計後退・再起動 | 候補形式外を拒否。期限不明を有効としない。壁時計と経過時間の比較を分離 |
 | `A02-74` | 異常。履歴確定直後・終了記録前で中断、同じ操作IDに異なる結果 | completeを返さず復旧照合。同じIDの履歴を重複追加・上書きしない |
 | `A02-75` | 境界。stdin/stdout/stderrの上限+1 byte、子だけ残存、終了確認不能 | 超過を成功にせず、stop_unknown/stopped=falseを保持。再配送・次の変更開始をしない |
+
+## 型とAPIの詳細案
+
+`P02-MODEL`の共有宣言候補。Valueからの構築は担当validatorだけに限定し、整数のRust型に入ることと表の狭い許容範囲を満たすことを区別する。時刻・ID・対象の証拠は別型で保持する。
+
+```rust
+pub struct PlanId(String);
+pub struct OperationId(String);
+pub struct MachineId(String);
+pub struct UtcMillis(String);
+pub enum Profile { Master, Mining, Server }
+pub enum EntryOrigin { Media, Master }
+pub enum EvidenceField {
+    Observed(String), Absent { reason: String }, Unknown { reason: String },
+}
+pub struct TargetEvidence {
+    execution_id: EvidenceField, disk_id: EvidenceField, root_id: EvidenceField,
+    os_id: EvidenceField, os_version: EvidenceField, boot_id: EvidenceField,
+    observed_at: UtcMillis,
+}
+pub struct ContractRef {
+    file: String, anchor: String, contract_id: String,
+    draft: String, commit: String, adopted: bool,
+}
+pub struct ContractError { code: String, message: String, field: Option<String> }
+pub struct Selection {
+    profile: Profile, plan_id: PlanId, target: TargetEvidence,
+    selected_at: UtcMillis, origin: EntryOrigin,
+}
+pub struct ChangeFailure<T> {
+    error: ContractError, partial: Option<T>, persisted_evidence: Vec<String>,
+}
+pub type ChangeResult<T> = Result<T, ChangeFailure<T>>;
+```
+
+EvidenceFieldの外部形式は[既存候補の3キー](#対象証拠と状態結果)へ一意に変換する。enumの内部表現を新しいJSON形式として流出させない。IDのparseは表記検査だけ、生成はOS乱数・衝突照合を伴う別工程。TargetEvidenceをCloneしても観測時点の証拠の複製にすぎず、再検査済みにはならない。
+
+ChangeFailureは開始後の部分結果を消さない共通の返却規約候補。開始前だけpartial=Noneを許容し、実適用または開始記録後はSomeを必須とする。persisted_evidenceは実在を確認した記録参照だけで、保存不能時は空を許すがerrorへ記録失敗を保持する。プロセス強制終了でこの返却自体がない場合は永続記録と実状態の照合へ戻る。ExecutionContext・OperationGuardの実所有権とOS上の寿命は`D02-04`のまま別途確定が必要であり、宣言から推測しない。
+
+## 状態と中断の詳細案
+
+`P02-STORE`の確定候補は、排他取得→running同期→実適用→実状態検証→履歴確定→終了記録確定→補助記録照合→completeとする。各境界の中断判定を以下へ固定する案で、複数ファイル全体が原子的だとは主張しない。
+
+| 観測した位置 | 復旧側の扱い |
+|---|---|
+| runningを保存できず実適用なし | 開始失敗。変更を開始しない |
+| runningあり、実適用の位置不明 | 中断・照合待ち。未適用と推測しない |
+| 実状態は期待どおり、履歴なし | 適用済みだが記録未完了。同じ変更を再適用しない |
+| 履歴あり、operationがrunning | 履歴のID・結果と実状態を照合する復旧計画。通常finishで上書きしない |
+| 終了記録あり、last-success等が不一致 | 必須記録集合未完了。completeを返さない |
+| 全記録一致、応答のみ欠損 | 読取りで同じ確定結果を回収。適用は再送しない |
+
+必須記録の全集合・同期失敗時の保存場所は`D02-05`に残し、上表があるだけで確定処理を実装可能としない。状態キャッシュへ写すCheckの候補対応はpass→pass、必須fail→fail、任意fail→warn、unknown→unknown、根拠のあるnot_applicable→warn。キャッシュのmessageに非適用理由を残し、必須検査の欠損をwarnへ落とさない。キャッシュは真実の代替ではなく、読取り時には書き戻さない。
+
+`P02-EXEC`は起動前・起動済み・停止要求済み・終了確認済みを区別する。起動後のtimeout/出力超過/取消は一度だけ停止要求へ移り、子孫・I/O回収の終了を確認できない場合はstop_unknownとする。Childの破棄は終了確認ではないことを[公式資料](https://doc.rust-lang.org/std/process/struct.Child.html)へ照合した。以後の変更は保留し、ガードの破棄だけを排他安全性の証明にしない。
+
+## 依存と互換性の詳細案
+
+共通モジュール間の依存候補はcli→model/format/state/store、state→model、store→model/platform、platform-command→model。formatはprofilesやstoreへ依存せず、解析だけでOS変更・保存を開始しない。循環依存をcrate分割で隠さない。
+
+| 担当 | 標準で使う範囲 | 残る内製・外部境界 |
+|---|---|---|
+| MODEL | String・Option・Result・SystemTime・Instant | 識別生成・暦日変換・期限判定は内製。OS乱数/起動情報の取得契約はD02-01 |
+| PARSE/CLI | UTF-8・整数・BTreeMap・Vec・Write | 文法・スキーマ・診断・出力保全は内製。外部parser crateなし |
+| STORE | File・OpenOptions・同期・非待機ロック | 複数記録照合・親停止・対象固定は別に成立性確認 |
+| EXEC | Command・Child・Instant | 子孫停止・入出力の期限・監督単位はD02-04。FFIを迂回採用しない |
+| bundle圧縮・HTTPS | 標準機能だけで充足認定しない | 外部OSツールの個別例外候補は台帳で審査。独断でtar/curlを使用しない |
+
+スキーマ識別候補は`共通契約ID/形式名/版`。config・policy・managed・install・state・operation・history・self_transaction・version・last_success・last_failure・CLI envelopeを別の形式名として管理し、同じschema_versionの数字だけで互換としない。各キー全集合は担当節へ対応付け、旧二択のprofileを含む記録は互換根拠がない限り書換え停止とする。
+
+将来の内製crate差し替えは、parseの受理集合・型・エラー位置、CLIのbyte列/終了値、stateの優先順、storeの障害位置、execの終了/残存プロセスを比較対象にする。新旧へ同じfixtureを与え、差異があれば仕様採用・移行を先に判断する。内部のstruct配置だけを理由に保存版を更新せず、外部表現が変わるときは版・移行・切戻しの全契約を確定する。
+
+## 受入条件の充足照合案
+
+MODELは[型とAPI](#型とapiの詳細案)、CLI/PARSEは各詳細節、STATEは既存判定順、STORE/EXECは[中断表](#状態と中断の詳細案)と[依存境界](#依存と互換性の詳細案)へ対応付ける。スキーマ名の列挙だけでは各キー全集合と移行を充足しない。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A02-76` | 異常。実適用後のChangeFailureでpartial=None | 返却契約違反を検出。実適用範囲を不在として後続へ渡さない |
+| `A02-77` | 異常。history確定、operation=running、補助記録は前操作 | complete不可。3記録と実状態の照合を要求、履歴再追加・再適用0回 |
+| `A02-78` | 正常・異常。必須fail/任意fail/根拠あり非適用のCheckをキャッシュへ変換 | 候補対応のfail/warn/warnを照合。必須集合の欠損はwarnにせず、読取りコマンドの保存0件 |
+
+採用前に残る判断を、型/ID/時刻、CLI全検査と出力上限、全形式スキーマと移行、実行・排他寿命、複数記録確定、圧縮/取得の6判断へ対応付ける。特にstd::fs/processのAPIが存在することは、安全なroot固定・子孫停止・全I/Oの期限保証の実現根拠ではない。計測・反証試験の設計と実結果を分離し、未実施を自動検査の成功で閉じない。
 
 ## 未決事項と成立判定
 

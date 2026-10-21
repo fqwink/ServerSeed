@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B1`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B2`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB1）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB2）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -68,7 +68,7 @@
 | 宣言案 | 入出力と副作用 |
 |---|---|
 | `mining_plan(config: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | 能力と入力から適用計画を返す。用途を自動選択しない |
-| `evaluate(samples: &Value, config: &Value) -> Result<Value, ContractError>` | 読み取り済み観測から状態・制御候補を返す純粋な評価 |
+| 監視評価 | 宣言は[型付きevaluate_monitor](#型とapiの詳細案)へ集約。前状態・試料・設定を入力にする純粋処理 |
 | `control(ctx: &mut ExecutionContext, action: &Value) -> Result<Value, ContractError>` | 許可・競合・対象を再照合し、該当サービスだけを変更 |
 
 型はP02-MODEL。サンプル・状態遷移・actionの全スキーマはD07-03で審査する。旧実装はなし。将来のモジュール抽出・crate差し替えでは、fixtureの観測列を同じ順で与え、新旧の判定・待機・副作用・復旧を比較する。未確認の温度・機器契約を互換性の既定値にしない。
@@ -97,7 +97,7 @@ hashrate_milliは1/1,000 hash/s、temperature_milli_cは1/1,000℃の整数を�
 | 接続または採掘能力が不成立の状態が停止判定期間以上 | retry_wait・restart候補。許可・排他と残り回数の再確認が必須 |
 | 上記の異常なく全必須観測が成立 | running・none |
 
-再試行回数は実際に受理・開始されたrestartごとに1増やす候補で、観測再取得・拒否された制御要求は数えない。上限到達時はstopped、単にプロセスが生存しただけで回数を0へ戻さない。正常継続によるリセット期間は`D07-03`の決定事項とし、未定義の間に実装側でリセットしない。
+再試行の計数と停止保持は[状態と中断](#状態と中断の詳細案)に集約する。観測再取得・拒否された制御要求を実開始回数へ数えず、プロセス生存だけで回数を0へ戻さない。
 
 evaluateは観測・設定から候補を返すだけで、制御の許可にはならない。controlが同一試料世代、サービスの対象、許可・共通排他と機器状態を再照合する。CPU側のrestart候補をGPU停止やホスト再起動に変換しない。全状態×事象の遷移、温度不明時動作と監視用記録の確定方式はなお未達である。
 
@@ -133,6 +133,95 @@ service単位の復旧も[P02-STORE](PHASE_02.md#p02-store)の排他・未完了
 | `A07-11` | 異常。温度null、プロセス生存と接続はtrue | running・再開へ補完しない。担当の温度不明時動作が未確定なら保留 |
 | `A07-12` | 境界。再試行上限まで受理済み、次に復旧候補、別途ロック競合で拒否 | 上限後はstopped。拒否だけではattempts_usedを増減しない |
 | `A07-13` | 異常。CPU側restart、GPUは正常、マスターで遠隔操作中 | GPU停止・ホスト再起動・driver更新を追加せず、共有排他へ照合して競合時は保留 |
+
+## 型とAPIの詳細案
+
+`P07-RUN`では観測の不在と0を型で分け、評価の入力へ前状態を必須にする候補。既存evaluate案のsamples/configだけでは再試行回数・温度停止の継続を再現できないため、状態を引数として明示する。
+
+```rust
+pub enum Engine { Cpu, Gpu }
+pub enum MonitorPhase { Preparing, Warming, Running, RetryWait, ThermalStop, Stopped, Unknown }
+pub enum ControlAction { None, Start, Stop, Restart }
+pub struct MonitorMemory {
+    state: MonitorState, failure_since_ms: Option<u64>,
+    cool_since_ms: Option<u64>, healthy_since_ms: Option<u64>,
+    last_control_receipt: Option<String>, pending_control: Option<String>, stop_latched: bool,
+}
+pub struct ControlReceipt {
+    request_id: String, epoch: String, action: ControlAction,
+    accepted: bool, started: Option<bool>, elapsed_ms: u64,
+}
+pub struct Evaluation {
+    next: MonitorMemory, proposal: ControlProposal, checks: Vec<Value>,
+}
+pub fn evaluate_monitor(previous: &MonitorMemory, sample: &MiningSample, config: &Value)
+    -> Result<Evaluation, ContractError>;
+pub fn observe_control(previous: &MonitorMemory, proposal: &ControlProposal, receipt: &ControlReceipt)
+    -> Result<MonitorMemory, ContractError>;
+```
+
+MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#データ契約の具体化案)へ参照し、engineはEngine、時刻は検証済みu64、温度はi64、hashrateはu64を内部表現にする。外部整数の上限も保持する。evaluate_monitorは純粋処理で、observe_controlだけが同じ提案・実施receiptを照合して次状態を生成する。last_control_receiptは重複消費防止用ID、pending_controlは未確定の要求ID。提案を出しただけでは回数・開始時刻を確定しない。
+
+監視器内部のAPI候補は上記に統一する。MonitorMemoryの保存・再起動後の継承は別の契約が必要で、経過時刻の値だけを永続化して同じepochとして復元しない。
+
+## 状態と中断の詳細案
+
+`P07-RUN`の全内部状態を、次の優先規則へ照合する候補。まず世代・対象・時刻の不正、次に過熱・温度不明、続いて状態固有行を評価する。同じ試料から二つの制御要求を出さない。
+
+| 対象状態・条件 | 次状態と制御 |
+|---|---|
+| 全状態、対象・epoch・時刻が不正 | unknown、none。連続時間を全て無効化 |
+| 全状態、有効温度が停止値以上 | thermal_stop、稼働中ならstop、停止確認済みならnone。プロセス状態も不明ならunknown/noneとして無確認の制御をしない |
+| 全状態、必要温度がunknown | unknown、none。停止要否の安全判断は担当ポリシー確定まで保留 |
+| 全状態、未確定controlあり | 起動/restart提案なし。過熱の先行保護は維持し、同じ対象の実位置を照合する |
+| stop_latched=true | 起動/restart提案なし。別の温度状態へ移っても保持を解除しない |
+| stopped、明示した新規開始が未承認 | stopped、none。正常試料だけでは再開しない |
+| unknown、有効試料を再取得 | unknown、none。再同定・明示復旧の確認待ち |
+| preparing、全開始条件成立 | start提案。受理結果の照合前はpreparingを保持 |
+| warming、待機期限未満 | warming、none。明確な過熱は先行規則で停止 |
+| warming、待機期限到達 | 全必須観測が正常ならrunning、それ以外は障害継続の計測へ |
+| running、障害継続が停止判定時間未満 | running、none。healthy_since_msは無効化 |
+| running/warming、障害継続が停止判定時間以上 | retry_wait、none。待機開始時刻を固定 |
+| retry_wait、待機未完了 | retry_wait、none。観測ごとに待機開始を更新しない |
+| retry_wait、待機完了・許可あり・残り回数あり | restart提案。受理結果まではretry_wait |
+| retry_wait、回数上限 | stop_latched=true、stopped、stop提案。停止確認不能はunknownでも保持は維持 |
+| thermal_stop、再開値以下の連続安定期間未満 | thermal_stop、none。温度上昇でcool_since_msを無効化 |
+| thermal_stop、連続安定期間成立・許可あり・残回数あり・保持なし | start提案。受理結果まではthermal_stop |
+| 上記以外で許可・必須値が不足 | 現状態を保持しnone。理由をchecksへ残す |
+
+start/restartの受理と実開始を同じ要求IDで確認してからwarmingへ遷移する。通常の初回開始を除き、障害restartと温度停止後の自動startはいずれも1回を消費する候補。拒否・未開始の確証では消費せず、開始後の結果不明は消費済み・unknownとする。受理済みで開始自体が不明ならpending_controlを保持して照合まで次の制御を始めない。同じreceiptは再消費しない。retry_wait中の自然解消も、保持なし・未確定要求なしで起動不要と確認できる場合だけrunningへ戻る。
+
+正常継続・過熱/冷却・プロセス再起動・自動的なepoch変更では回数やstop_latchedを解除しない候補。リセットは運用上の明示選択・必要確認を経た新しい監視セッションだけとし、開発の仕様採用承認とは区別する。ControlReceiptの対象・epoch・要求ID・時刻・実状態の対応が不明ならunknownを維持し、receiptの自己申告だけで実開始を認定しない。
+
+温度再開の連続安定期間はmining設定の必須integer秒、1〜600を採用候補とする。取得不能・時刻後退・epoch変更では連続性を破棄する。実機の停止温度・再開温度自体は能力表が正本で、共通値を設定しない。未完了の共通変更があればcontrolは保留し、提案状態を実制御成功として保存しない。
+
+## 依存と互換性の詳細案
+
+`P07-DEVICE`はEX-004/EX-005の個別版・機器・algorithmごとに、取得項目と単位・精度・欠損値・外部APIの契約を固定する候補。メーカー名・GPU名だけの互換認定は行わない。
+
+| 境界 | 内製と差し替えの比較対象 |
+|---|---|
+| 能力検出adapter | 外部出力をMiningSampleへ変換する内製処理。単位・丸め・unknownの意味を固定 |
+| 監視評価 | MonitorMemoryと試料列からEvaluationを返す純粋処理。同じ列で状態・提案・待機・回数を比較 |
+| 制御adapter | 許可・共通排他・要求IDを再検査し、該当サービスだけを操作。実施receiptを評価へ戻す |
+| エンジン/driver | 外部例外であってRust依存ではない。共有driver/カーネルの変更は運転制御へ含めない |
+| 更新互換 | エンジン版・設定版・algorithm・driver・保全物の組を固定。旧エンジンだけでは設定復元可としない |
+
+固定小数への変換候補は、元データの単位・精度が確認できる場合に1/1,000単位へ切り捨てる方式。符号・overflow・非数・単位不明はnullと理由へ対応付ける。温度の負値を一律0へ丸めず、センサーの許容範囲と照合する。丸め方式自体も`D07-01`の採用対象で、機器の安全温度をこれで決めない。
+
+初期は同一パッケージ内のadapter/monitor/controlを分離し、将来のcrate差し替えで能力表・設定・観測形式が変わる場合は互換表と移行・復旧を先に確定する。外部ソフトのコード持込みを内製化と扱わない。
+
+## 受入条件の充足照合案
+
+DEVICEは機器/外部APIの能力、CONFIGは入力全集合と許可、RUNは前状態/試料/receiptの遷移、UPDATEは正常版・設定・driverの互換範囲へ対応する。状態表の優先規則と個別条件が矛盾する試料は正常化せずunknownへ返す。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A07-14` | 異常。restart提案はあるが制御拒否のreceipt、次に同じ試料 | 回数・warmingへの遷移を確定しない。同じ試料の重複制御も行わない |
+| `A07-15` | 境界。retry_waitの待機開始1000ms、待機5秒、入力5999/6000ms | 前者はnone、後者は許可/残回数を満たす場合だけrestart提案。観測ごとの待機リセットなし |
+| `A07-16` | 異常。過熱かつprocess_alive=null、epoch変更後の古い正常時間、上限停止後の過熱→冷却 | 不明はunknown/none、連続時間無効。stop_latchedを保持し、冷却やepoch変更による自動再開なし |
+
+再試行の実開始回数はlast_control_receiptを重複消費せず更新する。監視用状態の保存・障害後の再同定・controlの冪等性キーは`D07-03`に残り、評価器の表だけで実制御を完全仕様成立としない。実機の温度/電力・採掘対応は模擬試料の成功から認定しない。
 
 ## 未決事項と成立判定
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B1`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B2`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB1）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB2）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -88,7 +88,7 @@ publishable=trueの候補条件は、全必須成果物の一致、必要な実�
 
 ReleaseEvidenceは「同じ本体をISOに収録した」証拠と、手動VM試験で使った候補のハッシュを結合する。ISOを再生成してハッシュが変わったら、そのISOの内容・起動・導入検証を再照合する。同じタグ・recipe・ファイル名だけを結果再利用の根拠にしない。公開要求の応答欠損は実際の配置を照合し、強制upload・タグ付け替えで一致させない。
 
-許諾・署名鍵・実機試験境界・個別例外は担当正本の未確定部分を維持する。これらは今回の本文案作成範囲外であり、全体の採用・実装移行・正式公開を妨げる判断事項として所有者へ提示する。反復回数や受入設計数をそれらの解消根拠にしない。
+許諾・署名鍵・実機試験境界・個別例外は担当正本の未確定部分を維持する。審査候補の文書化と、正式条文・方式・固定版の採用や実施を区別し、未確定部分を全体の採用・実装移行・正式公開を妨げる判断事項として所有者へ提示する。反復回数や受入設計数をそれらの解消根拠にしない。
 
 ## 受入ケース案
 
@@ -114,6 +114,87 @@ ReleaseEvidenceは「同じ本体をISOに収録した」証拠と、手動VM試
 | `A11-11` | 異常。同じrecipe・版で再生成したISOだけハッシュ変更 | 変更ISOへ古い起動・導入結果を流用しない。publishable=false |
 | `A11-12` | 異常。媒体起動はpass、取り外し後の起動・再起動がnot_run | 物理経路の受入未完了。removable=trueでも代替しない |
 | `A11-13` | 異常。全ファイル一致だが鍵・許諾・例外・実機境界のいずれか未確定 | publishable=false。対象正本と必要な所有者判断を提示し、公開操作0回 |
+
+## 型とAPIの詳細案
+
+`P11-ACCEPT`は要求される行の集合を実結果から作らない候補。ScopeとExpectedCaseを先に固定し、実結果の欠損・余分な結果を検出する。
+
+```rust
+pub struct ExpectedCase {
+    requirement_id: String, contract: ContractRef, case_id: String,
+    architecture: String, profile: Option<Profile>, entry: String,
+    expected_ref: String,
+}
+pub struct AcceptanceScope { specification_commit: String, cases: Vec<ExpectedCase> }
+pub struct ActualCase {
+    key: ExpectedCase, implementation_commit: String, environment_ref: String,
+    artifact_sha256: String, result: String, actual_ref: Option<String>, reason: Option<String>,
+}
+pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>)
+    -> Result<AcceptanceMatrix, ContractError>;
+```
+
+resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseのkeyに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。戻り値のcompleteは関数が算出し、呼出元のtrueを信頼しない。
+
+既存acceptance_matrixのValueは解析入口の説明に限定し、集計内部はこの型付き境界を使用する候補。verify_releaseは純粋な同一性評価とし、署名・タグ操作・GitHub uploadの副作用を持たせない。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
+
+## 状態と中断の詳細案
+
+`P11-RELEASE`の内部工程候補はinputs_fixed→binaries_verified→binary_signed→iso_verified→set_signed→staged→retrieved_verified→published。工程名は公開済み状態の自己申告ではなく、各固定成果物への検証証拠を必要とする。
+
+| 事象 | 停止・再開の扱い |
+|---|---|
+| 本体・build metadata・manifestを署名後に変更 | 対応する固定・生成・署名・試験へ戻す。古い署名を再利用しない |
+| ISOだけ再生成・ハッシュ変更 | 当該ISOの内容・起動・導入・媒体なし起動を再検証。名前一致だけでは再利用不可 |
+| 一つの必須成果物不足・upload失敗 | staged未完了。部分集合を正式公開しない |
+| upload応答欠損 | 実際のdraft/tag/assetを読取り照合。未配置と推測して上書きしない |
+| 再取得したbyte列が不一致 | 公開停止。提出候補を配布先の別物へ合わせない |
+| publish応答欠損 | 実際の公開状態と全assetを確認。再度の公開要求を自動送信しない |
+| 公開後の欠陥 | 公開物の固定を維持し、新しい版の判断へ。強制upload・tag付替えなし |
+
+集計の停止と、既に実行した署名・配置・公開の実状態を分ける。publishable=falseへ再判定しても公開が取り消された事実にはならず、保護・是正は所有者の承認範囲を別に確認する。秘密情報や非公開報告を公開証拠へ含めない。
+
+## 依存と互換性の詳細案
+
+受入・公開は、全P01〜P10の必要契約と例外台帳の個別情報・許諾・署名鍵・公開権限へ依存する候補。公開APIの戻り値だけで実際の閲覧状態・assetのbyte列を証明しない。
+
+| 審査対象 | 候補の判断と残る根拠 |
+|---|---|
+| draft配置 | 実リポジトリの閲覧権限とdraft資材の取得権限を別に照合。非公開性を名称から推測しない |
+| GitHub操作 | 採用API版・認証権限・tag/release/asset識別・失敗/応答欠損の読取り照合をEX-009へ個別登録 |
+| 正式署名 | 試験鍵から分離した本番手順をセキュリティポリシーで確定。CIへの鍵持込みを暗黙承認しない |
+| 許諾 | 独自成果物と第三者資材の対象・条文・再配布条件を別々に確認。公開目的を利用許諾へ変換しない |
+| 結果再利用 | 同じcommit・環境・入力・成果物・期待契約への適用根拠を確認。変更した軸の試験は再実施 |
+
+リリース確認器をcrateへ抽出する場合も公開操作は別責務に維持し、検査器の単体試験から実upload/署名を呼ばない。成果物集合・相互参照・欠損/改変・未実施結果への判定を同じfixtureで比較する。公開済み資材をテスト用の書換え対象にしない。
+
+## 受入条件の充足照合案
+
+各フェーズの同名節は担当契約・受入ケース・未達を対応付ける。全体の成立判定では、[必須条件](../POLICIES.md#完全仕様の必須条件)の13項目を次表の不足へ照合する。案の具体化先を示すもので、13項目を満たしたという判定ではない。
+
+| 必須項目 | 具体化先と現在の不足 |
+|---|---|
+| 要件と担当フェーズ | 基本仕様の受入/追跡→P01〜P11の契約一覧。採用承認済みcommitが全件未成立 |
+| 責務と範囲 | 各契約・各依存表。機種/一時実行環境/外部採用範囲はD05-04・D07-01・D10-01等が残る |
+| 入力 | 各データ契約・型/API。全設定・全保存形式・OS方式別入力はD02-03・D06-01・D07-02・D10-02等が残る |
+| 既定値と検証 | P02-CLI/PARSEと担当validator。ポリシーfalse・全形式の検証順序の採用判断が残る |
+| 出力 | P02-CLI、各receiptと受入表。担当検査集合・全payload・保存失敗の詳細はD02-02等が残る |
+| 実行と状態 | 各状態/中断表。実行入口・子孫/遠隔寿命・導入方式の実現契約が残る |
+| 副作用と保護 | P02-STORE/EXEC・P03-FS・各操作。root固定・排他引継ぎ・媒体解除方式が残る |
+| 失敗と復旧 | ChangeFailure、StepReceipt、各中断表。完全な永続形式・復旧限界はD02-05・D04-04・D09-02・D10-03等が残る |
+| 判定と数値 | 各候補の境界と算定。機器値域・復元期限・同居の最低資源等が未確定 |
+| 非機能の検証 | 各受入・上限・依存表。製品共通の目標/測定/合否、OS方式の成立性確認が残る |
+| 保存と互換性 | 担当形式と互換表候補。全フィールド・旧形式/三構成移行・主体切替は未確定 |
+| 依存と外部契約 | 各依存表と例外台帳。全個別固定版・全引数・許諾・承認根拠が未完了 |
+| 受入条件 | 各A01〜A11の設計。方式未確定のケース、全組合せの固定集合と採用判断が残る |
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A11-14` | 異常。全実結果passだがAcceptanceScopeの期待行を1件削除 | 承認済みscopeとの不一致。縮小した集合を全体completeにしない |
+| `A11-15` | 異常。upload応答欠損、同名assetは存在するがhash違い | 配置不一致で停止。自動上書き・再upload0回 |
+| `A11-16` | 境界。全241設計を列挙、13必須項目の1項目が未確定 | ケース数で充足認定せず未成立。設計の存在を実施済みにしない |
+
+仕様策定の成立と、製品受入の完了は別工程。将来の実装試験の設計を確定することは必要だが、仕様策定中に製品試験の実結果がないことだけを未成立理由にはしない。一方、方式・入力・保護・判定が一意に定まらない現在の未達は、反復回数で解消せず所有者の採用判断と残る具体化へ戻す。
 
 ## 未決事項と成立判定
 

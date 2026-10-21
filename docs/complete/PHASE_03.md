@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B1`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B2`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB1）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB2）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -48,7 +48,7 @@
 
 同じ定義・実状態では、生成時刻とplan_idを除く変更内容・順序・停止理由が同じになることを要求する案。計画の同一性に使用する正規化バイト列とdigestは`D03-03`で確定し、既存JSON例のハッシュ欄を独自追加した扱いにしない。
 
-適用前に対象・定義・観測前提が変わった場合は計画を破棄して再計画・再確認する。計画の有効期間は生成から10分以内を候補とするが、期間内でも前提照合を省略しない。観測・差分・計画の各上限は30秒、再試行0回を提案する。
+適用前に対象・定義・観測前提が変わった場合は計画を破棄して再計画・再確認する。計画の期限境界は[状態と中断](#状態と中断の詳細案)に集約し、期間内でも前提照合を省略しない。観測・差分・計画の各上限は30秒、再試行0回を提案する。
 
 ## 内製単位とAPI案
 
@@ -118,6 +118,75 @@ file内容は、組込み資材または検証済み保全領域にある不変b
 | `A03-11` | 異常。観測後に親directoryをsymlinkへ交換 | 適用前の対象固定・再照合で停止。方式未確定の間は試験保留として残す |
 | `A03-12` | 境界。構築器へ1,000/1,001資源、別途単一文書の解析上限超過 | 件数検査と文書上限検査を分離。前者の件数内を解析成功・全件表示可能と誤認しない |
 | `A03-13` | 異常。unchanged依存先だけを計画後に変更、または計画期限超過 | 実変更資源が不変でも適用停止・再計画。残り資源だけ自動適用しない |
+
+## 型とAPIの詳細案
+
+`P03-RESOURCE`は外部Valueを検証後、下記の所有する型へ変換する候補。FileAttributes・DirectoryAttributes・Adoptionの項目と制約は[データ契約](#データ契約の具体化案)が定義先で、Rust表現はそれぞれ同名の非公開フィールドstructとする。内容そのものはbyte列で、ContentRefの解決器だけが取得する。
+
+```rust
+pub struct ContentRef(String);
+pub enum ResourceAttributes { File(FileAttributes), Directory(DirectoryAttributes) }
+pub struct Resource {
+    resource_id: String, owner: String, path: std::path::PathBuf,
+    attributes: ResourceAttributes, depends_on: Vec<String>, adoption: Adoption,
+}
+pub struct ResourceSet { target: TargetEvidence, resources: Vec<Resource> }
+pub enum Presence { Present, Absent, Unknown }
+pub struct ResourceObservation {
+    resource_id: String, presence: Presence,
+    attributes: Option<ResourceAttributes>, identity: Option<String>, reason: Option<String>,
+}
+pub struct ContentBlob { reference: ContentRef, bytes: Vec<u8>, sha256: String }
+pub fn resolve_content(reference: &ContentRef) -> Result<ContentBlob, ContractError>;
+```
+
+resolve_contentの参照集合は組込み資材・検証済み保全物へ限定し、呼出元がURLや任意パスを登録する入口は作らない。返すbyte列は所有し、長さ・ハッシュと固定参照を照合した後だけ比較・適用へ使う。資源のkindはenumの分岐から一意に求め、kindとattributesの不一致を構築時に拒否する。uid/gidはu32、modeは検証済みu16、外部の8進stringとの変換時にも正確な桁・許可ビットを検証する。実ファイルの固定方法をこの型で代替しない。
+
+既存API表のValueは解析境界の説明であり、内部の受渡しはResourceSet・ResourceObservationの検証済み値へ限定する候補。型変換失敗時は観測・計画・適用を呼ばない。Planの完全な形式と版は`D03-03`へ対応付ける。
+
+## 状態と中断の詳細案
+
+`P03-PLAN`の計画はgenerated・blocked・confirmed・invalidatedの内部位置を持つ候補。confirmedへ進む条件は対象・定義・全観測前提・契約版が一致し、blocked_byが空で、必須選択と確認を終えていること。確認前に適用を開始しない。
+
+| 事象 | 判定・後続 |
+|---|---|
+| 1資源でも観測unknown・競合・循環 | blocked。変更可能な他資源だけを適用しない |
+| 計画と同じ資源・属性を再観測 | 差分と依存順を構造比較。時刻・生成ID以外の差があればinvalidated |
+| 変更しない依存資源だけが変化 | invalidated。変更対象だけの一致では続行しない |
+| 確認後に対象・所有根拠・定義・契約版が変化 | invalidated。再計画と再確認が必要 |
+| 作成から600秒未満で前提一致 | 期限条件だけは成立。他の実行条件を省略しない |
+| 600秒ちょうど・超過・時刻不明 | invalidated。適用開始0件 |
+| 適用開始後に期限到達または応答欠損 | P04-APPLYの実位置照合へ移る。未開始計画へ戻さない |
+
+上記の厳密な期限境界は採用候補であり、既存の「10分以内」という候補をこの境界へ統一する審査対象とする。読み取り観測が途中で失敗した場合は完結した資源の事実を報告できるが、欠損集合を空として実行可能計画にしない。差分・計画の処理に管理状態の修復・自動保存を追加しない。
+
+## 依存と互換性の詳細案
+
+`P03-RESOURCE`はP02-PARSE→資源validator、`P03-FS`は対象識別→OS観測、`P03-PLAN`は検証済み資源・観測→差分/依存順序の方向とする候補。計画器からP04適用器を呼ばず、適用器が計画を入力として受ける。
+
+| 境界 | 完全仕様化で固定する候補 |
+|---|---|
+| 所有範囲 | root内のパス・属性と機能所有者の組。親directoryの管理を子の所有権に拡大しない |
+| 観測 | 対象の機器・root・親の同一性と内容byte列。mtimeだけで一致判定しない |
+| ファイル安全性 | 標準File APIだけでTOCTOU防止を保証しない。OS方式と反証試験が未確定なら適用不可 |
+| 資源版 | 初期はfile/directoryのみ。package/systemdの型はP04-APPLYの別採用後だけ追加 |
+| 計画互換 | 対象・所有範囲・全観測前提・変更属性・順序・停止理由が比較対象。ID/時刻だけを除外 |
+
+計画の配送同一性候補は、P02-CLIの決定的JSON出力から生成ID・時刻を除いた計画固定部分をbyte列として固定し、SHA-256で識別する方式。署名対象の配布物を再生成する正規化とは別用途で、hash実行契約はP04-SELFと例外台帳へ接続する。どのキーを固定部分へ含めるかの完全集合・形式版が未確定なため、この方式案だけではdigestを計算可能・真正性確認済みとしない。
+
+抽出候補は観測器と純粋な差分/グラフ評価を分け、観測器を模擬へ差し替えても本番FS安全性の成功証拠にしない。同じResourceSetと観測列で変更集合・順序・blocked理由を新旧比較し、対象固定方式の差は隔離環境で別に再検証する。
+
+## 受入条件の充足照合案
+
+RESOURCEは型・属性・取り込み、FSは対象固定、PLANは依存グラフ・差分・期限へ対応する。外部modeは4桁の`[0-7]{4}`、内部u16の許容範囲は0〜0o7777とする候補。uid/gidの範囲はデータ契約へ照合し、Rust整数へ変換できただけでは受理しない。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A03-14` | 異常。content_refは同じ、解決したbyte列または長さだけ相違 | 内容照合失敗。異なる内容を同じ資材として計画・適用しない |
+| `A03-15` | 境界。mode=0000/7777/8888、uid=4,294,967,294/4,294,967,295 | 前2modeと範囲内uidだけ次段へ。範囲外はvalidatorで拒否 |
+| `A03-16` | 境界。確認済み計画の経過599,999/600,000ms、依存資源だけ変化 | 期限未満かつ全前提一致だけ期限検査を通過。同時到達・依存変更は再計画 |
+
+安全なroot固定方式と計画全形式が未確定なら、差分の純粋評価の設計と実FS適用の成立を分ける。上記のuid/mode受理は権限変更の許可ではなく、操作の安全条件を別に満たす必要がある。未達は`D03-01`〜`D03-03`とPhase 2の依存へ追跡する。
 
 ## 未決事項と成立判定
 

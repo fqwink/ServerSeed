@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B1`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B2`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB1）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB2）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -77,7 +77,7 @@
 
 | 型 | 全キー・値域の候補 |
 |---|---|
-| RemoteRequest | schema_version: 1、request_id: OperationId型、master_machine_id: MachineId、target_id: 台帳ID、target: TargetEvidence、plan_id: PlanId、plan_ref: string、action: install_body・setup・update・backup・recover、contracts: ContractRef[] |
+| RemoteRequest | schema_version: 1、request_id: OperationId型、master_machine_id: MachineId、target_id: 台帳ID、target: TargetEvidence、plan_id: PlanId、plan_ref: string、action: install_body・setup・update・backup・recover・install_os、contracts: ContractRef[]。install_osの入力・実行条件はPhase 10のみで定義 |
 | DeliveryRecord | request_id: 上記ID、target_id: 台帳ID、plan_id: PlanId、request_digest: string、operation_id: OperationIdまたはnull、status: accepted・started・result_ready・unknown、receipt: OperationReceiptまたはnull |
 | ReconcileResult | request_id: 上記ID、target_id: 台帳ID、delivery: DeliveryRecordまたはnull、identity_match: booleanまたはnull、lock_observed: booleanまたはnull、checks: Check[]、resubmit_allowed: boolean |
 | CancelResult | request_id: 上記ID、delivered・target_acknowledged・target_stopped: booleanまたはnull、receipt: OperationReceiptまたはnull |
@@ -124,6 +124,79 @@ ReconcileResultのdelivery=nullは記録を確認できない状態を含むた�
 | `A09-11` | 正常。対象の必須結果は確定、返信だけ欠損 | 読取り照合で同じ結果を回収。RemoteRequest再送・適用0回 |
 | `A09-12` | 異常。取消は配送済み、対象ackまたは停止がnull | 中断完了と報告しない。SSHクライアント終了を対象停止へ転用しない |
 | `A09-13` | 境界。12回目の観測失敗、待機期限到達、stdoutにプロンプト混入 | 次の接続なし、変更再送なし。不正応答を成功JSONとして受理しない |
+
+## 型とAPIの詳細案
+
+`P09-REMOTE`の変更要求・照合・取消を別の型として配送する候補。install_osは配送層が識別するだけで、Phase 9の既存OS向け操作から自動選択しない。
+
+```rust
+pub enum RemoteAction { InstallBody, Setup, Update, Backup, Recover, InstallOs }
+pub struct QueryRequest { request_id: OperationId, target_id: TargetId }
+pub struct CancelRequest { request_id: OperationId, target_id: TargetId, plan_id: PlanId }
+pub enum RemoteMessage { Submit(RemoteRequest), Query(QueryRequest), Cancel(CancelRequest) }
+pub enum DeliveryStage { Accepted, Started, ResultReady, Unknown }
+pub struct RemoteFailure {
+    error: ContractError, delivery: Option<DeliveryRecord>,
+    request_may_have_arrived: bool,
+}
+pub fn validate_remote(input: &Value) -> Result<RemoteMessage, ContractError>;
+pub fn send_change(session: &mut RemoteSession, request: &RemoteRequest)
+    -> Result<DeliveryRecord, RemoteFailure>;
+pub fn query_change(session: &mut RemoteSession, request: &QueryRequest)
+    -> Result<ReconcileResult, RemoteFailure>;
+pub fn cancel_change(session: &mut RemoteSession, request: &CancelRequest)
+    -> Result<CancelResult, RemoteFailure>;
+```
+
+各メッセージのschema_version候補は1、kindはsubmit/query/cancelで、kindとpayloadは一つだけ対応させる。QueryRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
+
+RemoteSessionは検証済み接続と対象証拠を所有し、Cloneを許可しない候補。drop・SSHプロセス終了は対象操作の取消・ロック解除を意味しない。固定入口・初回搬入の実現手段が未決なため、これらの宣言だけで配送可能とはしない。
+
+## 状態と中断の詳細案
+
+`P09-REMOTE`の配送は未送信・配送開始・accepted・started・result_readyを区別する候補。unknownは観測不能であって、対象側を未送信へ戻す状態ではない。
+
+| 切断位置・観測 | 再照合と禁止する動作 |
+|---|---|
+| stdin配送開始前の停止が確実 | request_may_have_arrived=false。変更を送っていない根拠を提示 |
+| stdinの一部または全部を送信、受理応答なし | true。未受理と推測せずQueryRequestだけを送る |
+| acceptedあり、operationなしまたは読取り不能 | unknown。開始前と決めつけず排他・実状態を照合 |
+| operation=running、deliveryがacceptedのまま | 開始位置の部分確定。二度目の変更適用なし |
+| result_readyと対象必須記録が一致 | 同じ確定結果を返す。返信失敗で適用し直さない |
+| result_ready、実状態・履歴・対象IDが不一致 | 成功を受理せず照合待ち。送信側記録で上書きしない |
+| CancelRequest受理、停止応答なし | 取消未確認。SSH終了を中断完了にしない |
+
+同じrequest_id・同じ固定要求を再受信した場合は既存記録への照合だけとし、変更入口を再実行しない。同じIDで別要求なら衝突として拒否する。変更の自動再送は常に0回。queryの再試行は読取りだけで、再接続の上限へ算入する。
+
+対象側の処理寿命がSSHセッションへ依存している場合、切断後の停止・続行のいずれも推測しない。セッションから独立した監督単位と記録方式を`D09-01`・`D09-02`で選定し、その確証がない間は取消・排他・再開の仕様充足を認めない。
+
+## 依存と互換性の詳細案
+
+`P09-SSH`はEX-001のOpenSSH等を外部境界とし、SSH/TLS/暗号をRustの外部crateで代替しない候補。信頼・秘密情報・root禁止の条件はセキュリティポリシーだけで定義する。
+
+| 境界 | 採用審査で固定する候補 |
+|---|---|
+| ローカル接続 | 実行物の絶対パス・固定版・引数全集合。自由な-F/-o/ProxyCommand等の持込みを許可しない |
+| 遠隔入口 | 固定した入口と単一構造化stdin。host/user/pathをshell文字列へ連結しない |
+| 初回搬入 | 検証済み共通バイナリと検証情報を転送し、対象で再照合。コンパイラー導入を要求しない |
+| 昇格 | 非root接続から非対話の明示昇格。対象VPSの追加手入力待ちを残さない |
+| 配送互換 | message版・plan形式・対象本体の対応を確認。未知版/未知actionを既存操作へfallbackしない |
+
+固定入口を本体へ内包する案と、独立した監督入口を用意する案を`D09-01`の比較対象とする。前者でも初回の検証済み本体の搬入と実行を自動化する外部契約が必要。後者は共通バイナリ統一方針との影響を明示し、未承認の別エージェントを追加しない。接続成功だけでどちらかが準備済みとしない。
+
+将来のtransport差し替えは切断前後・部分stdin・余分stdout・同一要求再受信・対象再起動を同じfixtureで比較する。配送の成否と対象操作の成否を別に保持し、旧配送記録を読めなくなる変更には移行・照合・切戻し契約を先に確定する。
+
+## 受入条件の充足照合案
+
+SSHは信頼/認証/固定入口、REMOTEは型/配送/排他・記録、RECONNECTは対象同一性/観測再試行へ対応する。配送messageのkindとactionは別に検証し、照合要求へ変更payloadを混在させない。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A09-14` | 異常。QueryRequestへaction/update計画を混在 | 未知キー/不正messageとして拒否。読取り照合から変更実行0回 |
+| `A09-15` | 異常。stdinを1byte配送後に切断、記録を読めない | request_may_have_arrived=true。変更再送0回、照合待ち |
+| `A09-16` | 正常・異常。install_os配送と、install_bodyで空ディスク検出 | 前者だけPhase 10へ対応。後者は能力/対象不成立で停止しOS消去へfallbackしない |
+
+固定入口の初回準備・検証済み本体の搬入・昇格・切断後寿命、両側記録の完全形式と排他、全SSH引数と認証参照の契約は未達として残る。接続1回の成功を初回導入・再起動後照合・独立バックアップの成功へ転用しない。
 
 ## 未決事項と成立判定
 

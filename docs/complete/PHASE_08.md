@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B1`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B2`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB1）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB2）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -118,6 +118,76 @@ MasterReadiness.featuresは三機能のFeatureReadinessをちょうど1件ずつ
 | `A08-11` | 境界。cpu_total=8、予約2/server2/mining4とmining5、加算overflow | 式は前者だけ成立。後者とoverflowは拒否。前者も最低資源・実負荷の未達を充足扱いにしない |
 | `A08-12` | 異常。同じ検証済み機器を別target_idへ登録、未確認要求ありで解除 | 重複登録・無確認解除を拒否。対象OSの削除を行わない |
 | `A08-13` | 異常。復元した台帳は正しいが旧マスターの失効が未確認 | 遠隔変更を再開しない。構築成功と制御権の切替を別に判定 |
+
+## 型とAPIの詳細案
+
+`P08-MASTER`の台帳値と、選択済み対象の操作を分ける候補。登録による暗黙接続、一覧表示による接続・変更は行わない。
+
+```rust
+pub struct TargetId(String);
+pub struct RegistryEntry {
+    target_id: TargetId, host: String, port: u16, user: String,
+    credential_ref: String, trust_ref: String, expected_machine_id: Option<MachineId>,
+}
+pub struct TargetRegistry {
+    schema_version: u32, master_machine_id: MachineId, targets: Vec<RegistryEntry>,
+}
+pub enum RegistryEdit { Register(RegistryEntry), Remove(TargetId) }
+pub struct RegistryChange {
+    before_sha256: String, after: TargetRegistry, affected: Vec<TargetId>,
+}
+pub fn validate_registry(input: &Value) -> Result<TargetRegistry, ContractError>;
+pub fn registry_change(current: &TargetRegistry, edit: RegistryEdit, pending: &[TargetId])
+    -> Result<RegistryChange, ContractError>;
+```
+
+validate_registry・registry_changeはI/Oなし。後者はpendingに含まれる対象の解除・同じIDの置換を拒否し、同じ対象への別名登録も既知の同一性証拠があれば拒否する。未確認のホストを名前だけで別機器と認定しない。before_sha256は保存前の再照合へ使い、台帳保存・対象側操作は別の実行契約とする。
+
+マスターCLIの具体候補は`serverseed master targets list`、`serverseed master targets add`、`serverseed master targets remove`、`serverseed master run`、`serverseed master reconcile`の5入口。add/remove/runは対話入力・必要確認を要求し、--yesで対象・操作・構成を補完しない。list/reconcileは照合だけ。新構文の採用・全オプションと結果の確定は`D08-01`で行い、共通CLIが今すでに受理するとは扱わない。
+
+## 状態と中断の詳細案
+
+`P08-COHOST`はserver→mining→masterの順に機能別の開始・適用・検証位置を保持し、ホスト全体のreadyは三機能の成功後だけ算定する候補。対象0件という事実は管理入口の準備と遠隔成功を分離する。
+
+| 事象 | 停止と再開候補 |
+|---|---|
+| 開始前に一機能の能力不足 | 変更開始なし。二機能だけのmasterへ縮退しない |
+| server成功後にmining失敗 | serverの実適用位置を保持、master工程not_started、全体ready=false |
+| 各機能成功、媒体なし起動が未確認 | 構築未完了。機能検証だけで完了にしない |
+| 遠隔要求が実行中・不明でホスト変更要求 | 台帳と対象側記録の照合まで新しいホスト変更を開始しない |
+| 未確認要求ありで台帳解除 | 拒否。対象操作の取消・OS削除を代行しない |
+| マスター喪失後に保全物復元 | 旧主体の失効と全未確認要求の読取り照合まで遠隔変更を保留 |
+| 一機能の復旧成功 | その機能の結果だけ更新。全機能と統合の再検証なしでreadyにしない |
+
+台帳更新と遠隔開始を競合させない候補順序は、マスター内の共通ガード取得→対象登録と未確認要求の照合→要求の固定・記録→対象側ガード取得→受理・実行。ネットワーク待ちの間にどのマスター側資源を保持するか、親停止時の寿命と永続照合は`D08-01`・`D09-02`でOS方式を確定する。順序表だけで分散トランザクション成立とは扱わない。
+
+## 依存と互換性の詳細案
+
+マスターはCore・server・miningを呼び、Coreからmasterへ依存させない候補。台帳と遠隔要求の形式変更では、マスターの版と対象の版の組ごとに読取り・配送・中断照合の可否を固定し、不明な相手へ変更を送らない。
+
+| 対象 | 互換性の必須照合候補 |
+|---|---|
+| 台帳 | target_id・接続設定・信頼参照・expected_machine_idの意味、形式版と登録解除の保護 |
+| 同居 | 同じAppPlan・MiningSample/制御契約、共通ガードと機能別結果。master専用の複製なし |
+| 資源配分 | 実測CPU/メモリー、予約とserver/mining割当、systemdの実適用値・管理経路の負荷試験 |
+| マスター保全 | 台帳版・主体ID・未確認要求・対象側結果の対応。秘密情報の非平文条件は担当ポリシー |
+| 喪失時復元 | 新物理マスターの媒体構築、旧主体の失効、全対象の再同定、未確認要求照合 |
+
+CPU割当の単位候補は論理CPU相当の整数、memoryはbytes。予約・server必要量の最小値を採用せずに計算式だけ通す実装は禁止条件の解消にならない。実測方法・負荷条件・不足判定の数値は`D08-02`で所有者へ提示して確定する。ゼロ値・未指定を自動算定と扱わない。
+
+将来のcrate差し替えはregistry・cohost・remoteの順に呼出元を確認し、移行中に旧新主体が同じ対象へ変更を送れないことを先に検証する。旧主体の失効が未確認なら切替成功としない。冗長化・複数マスターへの拡張は今回の候補に含めない。
+
+## 受入条件の充足照合案
+
+MASTERは台帳/CLI/対象管理、COHOSTは三機能・共有資源・親操作、BACKUPは主体失効と未確認要求の復元照合へ対応する。対象が0件であっても、全機能の存在・準備状態を検証する。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A08-14` | 異常。台帳編集前hashと保存直前hashが相違 | 競合として保存停止。新しい登録を消して上書きしない |
+| `A08-15` | 異常。serverはverified、mining失敗、master未開始 | 全体ready=false、三機能それぞれの実位置を保持。serverの無条件削除なし |
+| `A08-16` | 異常。新マスターはready、旧主体失効済みだが1要求の対象結果未照合 | 当該依存範囲の遠隔変更は保留。readinessだけで再開しない |
+
+資源予約の最低値・実測条件、マスターCLI全構文/表示、旧主体の失効手段と秘密情報の復元は所有者の判断が必要。これらを管理者入力という自由文字列へ逃がさず、指定先・型・範囲・確認・不成立時停止まで確定してから仕様充足を判定する。マスターの物理媒体構築条件とCloud管理先の条件は混同しない。
 
 ## 未決事項と成立判定
 

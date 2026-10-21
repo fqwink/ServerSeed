@@ -4,11 +4,11 @@
 
 ## 案の適用範囲
 
-本書およびPhase 2〜11の本文は、所有者から承認された「本文案の作成」に基づく採用審査用の案とする。現在の案版は全フェーズ`B1`。契約内容の採用承認・承認済み版はなし。作成作業の承認を、各候補の採用、仕様充足、実装着手または受入完了へ転用しない。案の対象はファイル・節・契約IDとGitコミットで識別し、承認後の版は別途所有者が確定する。
+本書およびPhase 2〜11の本文は、所有者から承認された「本文案の作成」に基づく採用審査用の案とする。現在の案版は全フェーズ`B2`。契約内容の採用承認・承認済み版はなし。作成作業の承認を、各候補の採用、仕様充足、実装着手または受入完了へ転用しない。案の対象はファイル・節・契約IDとGitコミットで識別し、承認後の版は別途所有者が確定する。
 
-照合元は`de9eb56031e816578c5122958cbd1f3ee2b28370`の基本仕様・方針・両ポリシー・構成別仕様とする。適用する憲章の最終変更コミットは`ece87b2fc4f7821e3723734c13d6b0e420b96cd8`。既存定義は各リンク先が正本であり、本案の候補を優先させない。本文中の「採用案」は採用された場合の動作を記述する。未決事項がある範囲は完全仕様未成立のままとする。
+照合元は`74784faea7feb723b56a9ef6341e39561ccebf72`の基本仕様・方針・両ポリシー・構成別仕様とする。適用する憲章の最終変更コミットは`ece87b2fc4f7821e3723734c13d6b0e420b96cd8`。既存定義は各リンク先が正本であり、本案の候補を優先させない。本文中の「採用案」は採用された場合の動作を記述する。未決事項がある範囲は完全仕様未成立のままとする。
 
-フェーズ共通の契約は担当ファイルで一度だけ具体化し、参照側では契約ID・節・上記の現在の案版を指定する。`B1`間の参照は設計上の接続であり、憲章第4条が要求する承認済み版への参照はまだ成立していない。既存本文の移動・削除、製品契約の切替、基本要求の変更は今回行わない。
+フェーズ共通の契約は担当ファイルで一度だけ具体化し、参照側では契約ID・節・上記の現在の案版を指定する。`B2`間の参照は設計上の接続であり、憲章第4条が要求する承認済み版への参照はまだ成立していない。既存本文の移動・削除、製品契約の切替、基本要求の変更は今回行わない。
 
 ## 要件と境界
 
@@ -20,7 +20,7 @@
 | `P01-CLI` | 引数解析・ヘルプ・未実装停止の骨格 | [CLI](../BASIC_SPEC.md#cli)、[起動応答](../BASIC_SPEC.md#起動時の応答) |
 | `P01-CHECK` | 検査入口・対象範囲・結果の対応 | [仕様充足検査](../BASIC_SPEC.md#仕様充足の検査)、[依存検査](../BASIC_SPEC.md#依存関係の検査) |
 
-共通JSONの未定義部分は[Phase 2](PHASE_02.md#p02-cli)の`P02-CLI`・B1を参照する。Phase 1の実装前にも、その使用部分の採用承認と仕様充足が必要となる。実装順序と契約の策定依存を混同せず、未定義のJSONを骨格実装で先に決めない。
+共通JSONの未定義部分は[Phase 2](PHASE_02.md#p02-cli)の`P02-CLI`・B2を参照する。Phase 1の実装前にも、その使用部分の採用承認と仕様充足が必要となる。実装順序と契約の策定依存を混同せず、未定義のJSONを骨格実装で先に決めない。
 
 ## P01-ENV
 
@@ -33,7 +33,7 @@
 | manifest・lockfile | 欠損、解析不能、禁止依存または解決差分で停止。検査中に再生成しない |
 | 対象CPUの実行検証環境 | ビルド環境と分けて記録。クロスビルドだけなら実行試験は未実施 |
 
-通常検査の開始からの上限は30分、外部コマンドの制御は`P02-EXEC`・B1へ接続する。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
+通常検査の開始からの上限は30分、外部コマンドの制御は`P02-EXEC`・B2へ接続する。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
 
 ## P01-CLI
 
@@ -85,7 +85,7 @@
 
 JobResultのcommandsは実行物と引数の配列を実行順に保持し、再実行可能な記述とする。未実行はcommands・evidenceを空配列、reasonを必須とする。passはreason=null、commandsと検査対象・実結果へのevidenceがそれぞれ1件以上必要で、空の成功を認めない。failも失敗位置へのevidenceとreasonを必須とする。証拠は所有者管理下の相対参照であり、秘密値や外部ログ本文を格納しない。reasonの固定値は`CHECK_ENV`・`CHECK_INPUT`・`CHECK_DEPENDENCY`・`CHECK_EXECUTION`・`CHECK_EVIDENCE`とする。
 
-検証順序は要求形式、対象コミット、検査目的、環境、依存、各ジョブ、結果集合の完全性。環境失敗なら全ジョブをnot_runとし、環境検査自体の失敗をreasonへ対応付ける。各ジョブの予算と親の残り予算の小さい方を使用する案で、最初のfail後は後続をnot_runとする。集計器のAPI候補は`validate_suite(input: &Value) -> Result<(), ContractError>`と`aggregate_suite(input: &Value, jobs: &Value) -> Result<Value, ContractError>`。どちらも純粋処理で、検査の実行・保存を行わない。
+検証順序は要求形式、対象コミット、検査目的、環境、依存、各ジョブ、結果集合の完全性。環境失敗なら全ジョブをnot_runとし、環境検査自体の失敗をreasonへ対応付ける。各ジョブの予算と親の残り予算の小さい方を使用する案で、最初のfail後は後続をnot_runとする。集計器の宣言は[型付きAPI](#型とapiの詳細案)に集約する。検査の実行・保存を行わない純粋処理とする。
 
 TOML・Markdownの内製解析範囲、全検査項目の機械判定可能範囲、実行ラッパーへの引数受渡しは`D01-02`に残る。このデータ契約だけで検査器を実装可能としない。
 
@@ -103,7 +103,7 @@ TOML・Markdownの内製解析範囲、全検査項目の機械判定可能範�
 | 経過時間 | [Instant](https://doc.rust-lang.org/std/time/struct.Instant.html)を制限判定に使用する案。保存時刻との相互代用はしない | `P02-MODEL` |
 | SSH・TLS・暗号・圧縮 | `net`等の基本APIだけで各プロトコル・検証済み形式を充足したとは認定しない | `D02-06`、`D04-02`、`D09-01`の調査・例外境界へ対応 |
 
-既存内製コードは現在存在しないため、再利用実装の評価対象なし。再利用するのは本案内の共通契約であり、実装済み機能とは区別する。JSON・YAMLの限定範囲の資料照合は[P02-PARSE・B1](PHASE_02.md#解析の範囲と一次資料)を参照する。その他の外部形式の照合と、採用版での境界ケースの実行試験は未実施とする。
+既存内製コードは現在存在しないため、再利用実装の評価対象なし。再利用するのは本案内の共通契約であり、実装済み機能とは区別する。JSON・YAMLの限定範囲の資料照合は[P02-PARSE・B2](PHASE_02.md#解析の範囲と一次資料)を参照する。その他の外部形式の照合と、採用版での境界ケースの実行試験は未実施とする。
 
 ## 接続と責務の照合
 
@@ -124,7 +124,7 @@ SuiteResultは[P11-ACCEPT](PHASE_11.md#データ契約の具体化案)の証拠�
 | `A01-05` | 正常。配置前の`version --json` | 本体情報と未適用情報を区別。OSや構成の偽装なし |
 | `A01-06` | 異常。固定版不一致、lockfile欠損、禁止依存 | 環境・依存検査失敗。取得・更新・自動修復なし |
 | `A01-07` | 境界。検査上限到達、検査入口欠損 | 失敗と未実施を識別。後続成功の捏造なし |
-| `A01-08` | 異常。B1契約だけを根拠に実装着手判定を要求 | 承認済み版なしとして失敗。文書検査成功と分離 |
+| `A01-08` | 異常。B2契約だけを根拠に実装着手判定を要求 | 承認済み版なしとして失敗。文書検査成功と分離 |
 
 ## 追加の受入ケース案
 
@@ -137,6 +137,76 @@ SuiteResultは[P11-ACCEPT](PHASE_11.md#データ契約の具体化案)の証拠�
 | `A01-11` | 異常。document_draftの結果をproduct_acceptanceへ結合 | 目的不一致で拒否。試験結果の成功へ転用しない |
 | `A01-12` | 境界。jobsが0件・同名2件、結果の欠損・余分な行 | CHECK_INPUTまたはCHECK_EVIDENCE。空集計・部分集計をcompleteにしない |
 | `A01-13` | 異常。対象コミットは同じ、検査後に環境または成果物を変更 | 証拠適用範囲の不一致。前の結果を再利用せず該当検査を要求 |
+
+## 型とAPIの詳細案
+
+`P01-CHECK`のValueによる未検証入力と、検証後の検査要求・結果を分ける候補。以下は宣言案で、実行体ではない。共通のContractRef・ContractErrorは`P02-MODEL`を使用する。
+
+```rust
+pub enum CheckPurpose { DocumentDraft, ImplementationGate, ProductAcceptance }
+pub enum CheckTarget { Document, RustTarget(String) }
+pub enum JobStatus { Pass, Fail, NotRun }
+pub struct SuiteRequest {
+    schema_version: u32, commit: String, purpose: CheckPurpose,
+    target: CheckTarget, jobs: Vec<String>, contracts: Vec<ContractRef>,
+}
+pub struct JobResult {
+    name: String, status: JobStatus, commands: Vec<Vec<String>>,
+    evidence: Vec<String>, reason: Option<String>,
+}
+pub struct SuiteResult {
+    schema_version: u32, commit: String, purpose: CheckPurpose,
+    target: CheckTarget, jobs: Vec<JobResult>, complete: bool,
+}
+pub fn validate_suite(input: &Value) -> Result<SuiteRequest, ContractError>;
+pub fn aggregate_suite(input: &SuiteRequest, jobs: Vec<JobResult>)
+    -> Result<SuiteResult, ContractError>;
+```
+
+validate_suiteは形式と組合せを検証し、ファイル・Git・環境を読まない。commitの実在・ツリー一致は実行前の環境検査で照合し、形式の成功を実在確認にしない。aggregate_suiteはjobsを所有して順序・件数・証拠の対応を検証する。入力と異なるpurpose/targetへ変更するAPIを設けない。フィールドは非公開で、検証なしの構築・completeだけの書換えを許可しない候補とする。
+
+## 状態と中断の詳細案
+
+`P01-CHECK`の検査実行について、実行器の内部位置を次の候補へ固定する。JobStatusとは別の工程位置であり、製品状態名ではない。
+
+| 現在位置・事象 | 次の位置・結果 |
+|---|---|
+| received、要求不正 | rejected。ジョブ実行0件、CHECK_INPUT |
+| received、要求形式が妥当 | checking_environment。まだジョブを実行しない |
+| checking_environment、環境・依存不成立 | stopped。全ジョブnot_run、失敗根拠を保持 |
+| checking_environment成功 | running。要求順の最初のジョブだけ開始 |
+| running、ジョブpass | 次の要求ジョブへ。最終ジョブ後だけaggregating |
+| running、fail・取消・期限到達 | stopped。実行中ジョブの失敗位置を保持、後続not_run |
+| aggregating、証拠・集合が一致 | finished。全件passのときだけcomplete=true |
+| aggregating、欠損・不一致・出力失敗 | stopped。成功扱いせずCHECK_EVIDENCE |
+
+どの位置からのプロセス強制終了でも自動再開はしない。再実行時は新しい検査要求・環境照合を必要とし、前回の途中出力を最終SuiteResultとして使用しない。検査出力の保存失敗と製品ファイルの復旧を混同せず、再試行のための製品状態変更は0件。対象コミット・環境が変わった証拠は新しい検査へ自動再利用しない候補とする。
+
+## 依存と互換性の詳細案
+
+`P01-ENV`・`P01-CHECK`の依存候補を次へ限定する。検査用Ruby等をこの文書審査で使うことと、将来の製品・CI実行体の採用は別である。
+
+| 責務 | 再利用・内製・外部境界 | 差し替え前の照合 |
+|---|---|---|
+| CLI骨格 | P02-CLIの同一parse_args/dispatch | 引数列・正規化名・診断・終了区分・非変更性 |
+| 検査要求・集計 | 本書のvalidator/aggregatorを内製 | purpose・target・jobs・証拠の完全一致 |
+| TOMLとMarkdownの解析 | Cargo manifestの全依存区分・見出し解決を内製する候補 | 未対応構文は検査失敗。コメント・無効featureで禁止依存を隠せないこと |
+| ビルドと静的検査 | EX-007の採用版ツールを使用 | 版・target・lockfile・終了結果を固定 |
+| CI・VM・ISO実行基盤 | EX-008・EX-009の個別情報が必須 | 実行環境・権限・資材・公開範囲の一致 |
+
+Markdown/TOMLの全標準互換を宣言せず、実際に管理する構文集合・不正時出力・fixturesを`D01-02`で確定する。自動検査の意味判定限界は所有者確認へ残すが、機械判定できないことを成功と表記する方式は採用しない。初期は同一パッケージ内に置き、crate抽出時はSuiteRequest/ResultとP02-CLIの双方を同じ契約テストで比較し、呼出元・lockfile切替と旧コード除去を段階分離する候補とする。
+
+## 受入条件の充足照合案
+
+P01-ENVは固定環境・実行/クロスビルドの区分、P01-CLIはP02-CLIの入力と出力、P01-CHECKはSuiteRequest/Result・実行位置・依存表へ対応付ける。下記は追加の受入設計で、製品試験の成功記録ではない。
+
+| ケースID | 区分・固定入力 | 期待結果と確認 |
+|---|---|---|
+| `A01-14` | 異常。正しい長さの架空commit、形式検査だけ成功 | 環境検査で実在/対象ツリー不一致を検出。ジョブ実行0件、全not_run |
+| `A01-15` | 異常。jobsが2件、1件目実行中に取消 | 実行中の停止位置と失敗証拠を保持、2件目not_run。部分SuiteResultをcompleteにしない |
+| `A01-16` | 境界。ジョブは全passだが証拠1件のcommitだけ相違 | aggregatingで停止、CHECK_EVIDENCE。以前の結果の自動再利用なし |
+
+仕様充足の未達はCLI/型の採用、TOML・Markdown対応構文/検査項目、標準/外部実行基盤の個別採用条件。要求・型・工程・例外・受入を結び付けたことと、それらの採用済み版があることを分ける。Phase 1だけ先に実装する場合もP02-CLIの使用契約の成立が必要で、先行フェーズという番号を免除に使わない。
 
 ## 未決事項と成立判定
 

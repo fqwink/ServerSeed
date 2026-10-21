@@ -26,6 +26,8 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 
 ## `apps.yml`
 
+サーバ固有契約の採用審査用候補は[Phase 6](../complete/PHASE_06.md#p06-config)、型・APIは[型の詳細](../complete/PHASE_06.md#型とapiの詳細案)、方式別の互換境界は[依存と互換性](../complete/PHASE_06.md#依存と互換性の詳細案)を参照する。本書の既存定義は維持し、候補の存在をserver.yml・apps.ymlの受理形式の切替や採用承認と扱わない。
+
 `apps.yml`は本書のサーバ機能が管理するDockerアプリを定義する。読み込む構成の範囲は[構成の分離](../POLICIES.md#構成の分離)に従う。
 
 ```yaml
