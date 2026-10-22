@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B4`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B5`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB4）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB5）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -32,6 +32,8 @@
 
 P04-SELFの大容量取得結果候補FetchResultはsource_ref・destination_ref・expected_bytes・observed_bytes・sha256・synced・checksの全キー。参照は固定済み資材/新規保存先、bytesは共通整数制約、syncedはbool、checksはCheck[]とする。manifestの宣言量と本書の上限の小さい方で受信を制限し、超過検出の一byteを成功物へ含めない。metadataだけはメモリー、実本体/ISOは採用済み専用file-sinkを推奨する。HTTPエラー本文・TLS不成立・redirect・非ゼロ終了は正式物へ昇格せず、同期と実hash確認が完了するまで候補を起動しない。OS強制容量/停止方式が未成立なら取得開始も保留する。
 
+FetchResultは取得成功時だけ返す候補とし、sha256は実保存byte列の照合値、expected_bytesは信頼を確認した入力の宣言量、observed_bytesは実受信量で両者の完全一致を要求する。source_refは固定した取得要求ID、destination_refは排他的に作成した保存物IDで、任意URL/pathを事後評価しない。API候補`fetch_artifact(request: &FetchRequest, ctx: &ExecutionContext) -> ChangeResult<FetchProgress>`のFetchProgressはstage（prepared/receiving/verified/failed/unknown）、observed_bytes、temporary_ref、resultを全項目とし、resultはverifiedだけSome(FetchResult)、temporary_refは未作成時だけNone。部分受信・同期失敗・hash不一致はSome(partial)に保存位置を保持し、成功hashを推測して埋めない。メタデータの読取り取得は別のReadOnly文脈でメモリーだけへ受ける。
+
 ## P04-UPDATE
 
 既存の[更新順序](../BASIC_SPEC.md#更新処理)に、変更する層・対象構成・成果物・保全・復元確認・再起動を対応付ける。採用案では各変更ステップについて、開始条件、変更資源、期待結果、検証、復旧可否を計画へ保持する。
@@ -41,6 +43,8 @@ OSパッケージ操作は1回3,600秒以内、サービス操作は1回120秒�
 本体変更は既存仕様どおり最後の変更ステップとし、構成の適用済みrevisionと本体収録revisionを区別する。旧二択形式と三構成の移行・不可逆なアプリ更新は、互換範囲と復元検証が確定するまで開始不可。具体的な移行表は`D04-03`に残す。
 
 移行の審査入力候補MigrationRuleはsource_profile・target_profile・source_config_revision・target_config_revision・source_migration_revision・target_migration_revision・method・reversible・restore_methodを全キーとする。構成は既存enum、revisionはP02共通範囲、methodはContractRef、reversibleはbool、restore_methodだけnull可。reversible=trueなら復元方法と新旧双方の読取り互換が必須。適用済み版と一致する行が0件または複数ならblocked。同じ採用版への無変更行とデータ移行行を区別し、版の大小から変換を推測しない。具体的revision値は所有者の別採用を必要とする。
+
+MigrationRuleの候補照合はsourceの三値（構成/config/migration）と計画で固定したtargetの三値の完全一致とする。通常updateではsource_profile=target_profileが必須で、構成変更の行を選択しない。self単独では行を実行せず現在revisionの互換範囲だけを判定する。無変更行もmethodが指定する非変更検証を通す。不可逆行は保全・復元可能な範囲と不可逆な損失を計画へ明示し、reversible=falseを保護免除にしない。開始後の失敗は移行後の実形式・revision・step位置を記録し、設定の数値だけを旧値へ戻さない。
 
 ## P04-BACKUP
 
@@ -86,10 +90,10 @@ OSパッケージ操作は1回3,600秒以内、サービス操作は1回120秒�
 
 | 宣言案 | 所有権・結果・副作用 |
 |---|---|
-| `prepare_self(input: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | 固定候補と検査結果を所有して返す。planだけの取得制約を維持 |
+| `prepare_self(input: &Invocation, target: &TargetEvidence) -> Result<PreparedSelf, ContractError>` | self系の検証済み入力だけを受け固定候補と検査結果を所有して返す。plan時の取得制約を維持 |
 | 適用・保全・復元・資源適用 | 宣言は[型付きの返却契約](#型とapiの詳細案)へ集約。本体だけの変更、指定した保存先、OS再導入の分離、親による記録確定を維持 |
 
-Valueの各リクエスト・結果の全フィールドは各契約の未決事項に含める。初期に独立crateは作らない。将来の抽出・差し替えは、同じA04ケースで新旧の出力・副作用・復旧可能範囲を照合し、呼出元切替・互換移行・旧実装除去を別途承認対象にする。今回は旧コードも除去対象も存在しない。
+Invocation/PreparedSelfと各型付きAPIだけを内部契約とし、未検証Valueを適用器へ渡さない。各契約の未決事項は型・値・外部方式の採用へ対応付ける。初期に独立crateは作らない。将来は同じA04ケースで新旧の出力・副作用・復旧可能範囲を照合し、呼出元切替・互換移行・旧実装除去を別途承認する。今回は旧コード・除去対象なし。
 
 ## データ契約の具体化案
 
@@ -241,6 +245,8 @@ BackupRequestは検証済みBackupSetのsourceをtargetへ対応付け、残る�
 
 restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測既定値を作らない。valid_untilは確認時刻にTTLをchecked加算して求め、overflow・時計後退・方法の変更は無効。候補保存先は利用者が選んだローカルのmount済みFSだけ。ネットワーク転送・暗号方式の未選定を、平文保存や任意tar実行の許可にしない。
 
+BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各pathは空でない相対成分列で、directory自身のbytes=0・sha256=null、fileは実byte数/hashを必須とする。親directoryを含むことを未列挙の子の取得許可にしない。復元時は全entryと保全物の版/暗号/方法を先に検証し、全pathの出力先を固定してから変更する。復元確認が失敗した保存物は参照と検証失敗をBackupProgressへ残すが、正式BackupReceiptは生成しない。verified=falseの途中結果は成功receiptではなく検査証拠として扱い、更新前提にも保持期限による削除根拠にも使用しない。
+
 互換表は旧二択形式→三構成形式を自動変換不可、三構成形式→同じ採用版を検証後のみ可、未知revisionを不可とする候補。server/miningからmasterへの変更も単なるprofile書換えでは不可。対象revisionの実値・移行方法・切戻し可能範囲を所有者が決定するまで更新計画をblockedにする。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -250,6 +256,8 @@ restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測�
 ## 実行と復旧の確定候補
 
 P04-APPLYのjournal確定単位を一資源一工程とする候補。各変更前にbefore/backup_refとstartedを同期し、変更後に実観測を保存しapplied、全期待属性一致後にverifiedへ進める。startedの保存失敗なら変更しない。適用後の保存失敗はunknownとして最後の保存済み根拠と実適用位置をChangeFailureへ返す。
+
+journalのsequenceは親Plan.stepsの0始まりindexへ固定する候補。resource_idとstep IDを両方照合し、同一資源のstarted/applied/verifiedは同じ行の段階更新とする。重複行・逆行・別Planのbackup_refを拒否する。復旧は元計画で許可された逆依存順だけを候補とし、実状態が記録したafterに一致し、beforeと保全物が検証可能な場合だけ復元へ進む。after不明・第三者変更・復元元不明はAPPLY_RECONCILEとしてその依存範囲を保留し、再実行や全資源一括巻戻しを行わない。資源復旧の成否を元stepのfailedと別に保持する。
 
 | 資源 | 適用直後に照合する事実 | 復旧の限界 |
 |---|---|---|
@@ -289,6 +297,10 @@ lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障
 | `A04-23` | 同一保全物の暗号方式/方法版だけ変更、復元TTL到達 | 旧verifiedを使用せず重要更新停止。期限切れだけを理由に保全物を削除しない |
 | `A04-24` | 同一sourceに一致する移行行が二件、reversible=trueだが復元方法null | 変更前blocked。先勝ちの行選択・旧版への無条件切戻しなし |
 | `A04-25` | file/directory版へPackageResource、unit起動要求0だがactive=false、package途中設定 | 版不一致または検証失敗。資源拡張の黙認・要求成功だけのverified化なし |
+| `A04-26` | 宣言128byteに対し受信127/129byte、128byteだがsync失敗 | FetchResultなし。FetchProgressに実量と一時物参照を保持し、候補起動・正式昇格0回 |
+| `A04-27` | 通常updateにserver→master行のみ存在、移行後データ変更済みだが版記録は旧値 | 前者blocked、後者は実形式と記録の照合待ち。構成変更・版数だけの巻戻しなし |
+| `A04-28` | directoryに非zero bytes、未列挙の子、保存済みだが隔離復元失敗 | 形式拒否または対象外不取得。失敗物の証拠は保持するがBackupReceiptなし、重要更新停止 |
+| `A04-29` | journalのsequence重複、別Planのbackup_ref、適用後に第三者が内容変更 | journal不正またはAPPLY_RECONCILEで停止。逆依存復旧でも第三者変更を上書きしない |
 
 ## 未決事項と成立判定
 

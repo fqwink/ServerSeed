@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B4`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B5`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB4）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB5）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -50,15 +50,19 @@ HTTP確認は対象が返す状態コードと応答完了を判定する案と�
 
 P06-DATAの採用審査はアプリ名/正確な版/Compose全サービス/digest/データ形式/取得・復元・検査コマンド/隔離先/TTLを一行で対応付ける方式を推奨する。各コマンドは実行物・argv・必要権限・許可副作用・出力物・期待終了を契約参照から一意に求める。停止取得なら元稼働状態を記録してから停止し、復帰は元が稼働していたサービスだけ。Dockerの共有network/volumeは所有範囲を別に確認し、project名一致だけで削除を許可しない。行の欠損/重複・復元先不明なら更新前blocked。
 
+データ方法の照合キー候補はapp名・アプリ版・Compose全サービスのdigest集合・data_kind・保存形式版とする。BackupSet.methodはこの一意行のApplicationDataMethod.contractへ完全一致させ、capture/restore/verifyのどれかだけを別行から継ぎ合わせない。停止取得ではstop前の全サービス状態を記録し、一部停止失敗ならcaptureへ進まず、許可範囲内の復帰結果を個別に残す。隔離先が元データ領域・同一DBへ解決する場合、またはその同一性が不明ならDATA_ISOLATIONで復元確認を停止する。復帰不能・復元検査失敗はdata_verified=trueにしない。
+
 ## 内製単位・API案
 
 配置候補は`src/profiles/server/config.rs`・`apps.rs`・`data.rs`。構成入力とDocker呼出しの調整は内製、Docker/Composeそのものは個別採用条件が必要な外部基盤。共通処理への依存方向を逆転させず、Coreからサーバ固有設定を直接読む案にはしない。
 
 | 宣言案 | 返却・副作用・失敗 |
 |---|---|
-| `server_plan(config: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | アプリ別の対象・差分・保全・復旧計画。変更なし |
+| `plan_server(input: &ServerInput, target: &TargetEvidence, compose: &[ComposeEvidence]) -> Result<Vec<AppPlan>, ContractError>` | 検証済み入力と取得済みCompose証拠から計画を所有して返す。変更・通信なし |
 | アプリ適用の型付き境界 | [依存と受入](#依存と受入の確定候補)のAppPlan[]→ChangeResultに集約。開始後の部分位置を保持 |
-| `check_app(app: &Value, ctx: &ExecutionContext) -> Result<Value, ContractError>` | 指定した検査の観測だけ。自動修復や更新なし |
+| `check_app(plan: &AppPlan, context: CommandContext<'_>) -> Result<HealthResult, ContractError>` | 許可された検査だけ。自動修復なし、ReadOnly時は個別の非変更契約が必須 |
+
+ComposeEvidence候補の全項目はname・compose_sha256・service_names・image_digests・contract。service_namesとimage_digestsのキーは同じ空でない集合、nameはAppConfigと一致、contractは採用済みのCompose観測契約とする。plan_serverは取得済み証拠しか使わず、浮動image解決やpullを行わない。apply_serverの結果列は入力AppPlan順と一対一に対応し、先行失敗後も後続をnot_startedのOperationReceiptとして保持する。HealthResultがpassでも必須のデータ検査/記録が不足すればAppResultを全体成功へ集約しない。
 
 公開型はP02-MODELを参照し、リクエスト・結果の厳密な全集合はD06-01〜03に含める。難易度は構成解析が中、アプリ固有のデータ互換・復旧が高。新設案で旧実装は存在しない。将来のcrate抽出にはP06-DATAと共通保全の境界、呼出元、共通契約テストと移行順序を先に確定する。
 
@@ -201,6 +205,8 @@ P06-CONFIGの新形式候補はapps.ymlのrootをschema_version: 1とapps: AppCo
 
 旧healthcheck.typeから新kind、旧backup.commandからcaptureへの自動変換は行わない。旧一文字列を一実行pathとする規則だけではrestore/verify/TTL/隔離先を作れないため、これらを所有者が指定した新形式を別計画として検証する。enabled=falseも構文検査対象とし、無効な危険設定を隠さない。無効化を既存コンテナ・データの自動除去と解釈しない。
 
+validate_serverの候補順序はserverの形式/版/全値→apps不在か読取り失敗か→apps形式/版→各AppConfigを掲載順に検証→名前重複→機能適用条件とする。null/空文字/欠損を相互に補完しない。掲載順は入力エラーの位置だけへ使用し、実行順は検証完了後のアプリ名ASCII順。enabled=falseでも全health/backup値を検証するが、正常に無効と指定されたアプリから適用stepや停止/除去stepを生成しない。apps=[]の正常判定とDocker基盤・サーバ構成全体の受入は別に確認する。
+
 AppPlanのresourcesはP03-RESOURCE、実適用はP04-APPLY、データの保存はP04-BACKUPへ渡す。backup.method=nullで重要データ変更を伴う計画は、データ保護条件を別に満たせない限りblocked。形式のnull許容を保全免除にしない。restore_ttl_secondsはP04-BACKUPと同じ正整数範囲へ照合する。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -242,6 +248,9 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 | `A06-20` | enabled=falseだが型不正、旧工程名validated、旧backup.commandだけ | 形式/工程不一致で拒否。無効項目の黙認・第二状態列・暗黙の移行なし |
 | `A06-21` | body_limit_bytes=0で本文0/1byte、期待status=199/200/300 | 空本文と2xx入力だけ候補条件を通過。超過本文・1xx/3xx期待は拒否、ヘッダー到着だけで成功にしない |
 | `A06-22` | 同じapp版にデータ方法二行、共有volumeの所有不明、元は停止済み | 前二件は開始前停止。保全後に元停止サービスを勝手に起動・共有データを除去しない |
+| `A06-23` | 入力順z,aで両方妥当、enabled=falseのa、次にaへ不正health追加 | 妥当時の適用はzのみ。不正時はaも検証拒否。入力順・実行順・無効化の意味を区別 |
+| `A06-24` | app a失敗後にbが未開始、Compose証拠のサービス一件欠損 | bのnot_startedを保持。証拠不足時は計画前停止、pull/自動修復/結果列の省略なし |
+| `A06-25` | captureとrestoreが別方法行、二サービス中一方のstop失敗、隔離参照が本番DBへ解決 | 方法不一致/取得前停止/DATA_ISOLATIONを区別。capture・本番復元を実行せず元失敗を保持 |
 
 ## 未決事項と成立判定
 

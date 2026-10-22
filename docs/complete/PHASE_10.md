@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B4`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B5`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB4）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB5）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -31,6 +31,8 @@
 導入機構の第一候補は、対応する一時環境からUbuntu公式の導入基盤を起動し、確認済み設定で対象へ適用する方式。別候補は公式root filesystem資材の展開と起動構成だが、追加の責務・復旧・資材検証が必要になる。どちらも採用・動作確認済みではない。対応する実行環境、実行物、資材、ブート能力は`D10-01`で比較・決定し、Ubuntu以外の実行環境を根拠なく使用可能・一律対象外にしない。
 
 導入方式の選定入力候補InstallerBindingはkind: A/B、execution_contract: ContractRef、materials: MaterialRef[]、execution_environment_ref: string、supported_architectures・supported_boot_modes: string[]を全キーとする。能力行はこの一件と実環境を照合し、方式ごとに固定工程と外部実行/期待結果を対応付ける。第一候補はA、Aの公式対応/非対話契約が成立しない場合は自動でBへ移らず所有者へ選定を戻す。Bを採るなら展開/FS/loader/network/userの全契約を別に揃える。SSH以外の入口を増やさず、実行環境の必要能力と対象OSの対応を別に判定する。
+
+能力評価の候補順序は実行環境同定→選定済みInstallerBinding一件→必要実行物と資材→権限→対象ストレージの除外/識別→消去外の記録/排他→起動能力→導入後の管理経路。BootstrapCapability.checksは六つの能力検査に加え、その根拠となるP10-OS/journal.durableを明示参照する。未確定のinstaller_refや必須Check欠損はinstallable=falseとし、判定不能を非適用へ落とさない。実行環境が非Ubuntuでも対象OSの対応判定を流用せず、選定済みexecution_contractへの一致だけで能力可否を決める。方式の自動選択・不足コマンドの無承認導入は行わない。
 
 ## P10-OS
 
@@ -59,15 +61,17 @@ OS再導入だけでデータを復元したと報告しない。保全物があ
 
 起動後照合の候補BootExpectationはtarget_disk_id・expected_root_ref・os_id・os_version・architecture・endpoint_ref・host_trust_ref・request_id・plan_idを全キーとする。refは固定した対象/台帳/信頼資料、IDは共通型で、OS/CPUは基本仕様の対象条件へ照合する。推奨は再起動前に期待集合を固定し、実応答と一項目ずつ照合する方式。ホスト鍵の予定変更も担当ポリシーで独立に信頼を確認する。partition以前の不成立は変更なし、partition以後の不明は実位置照合、SSH喪失は自動修復不可として分ける。空ディスクへの導入中断に旧OS切戻しを提案しない。
 
+BootExpectationの候補照合は、信頼参照→endpointの登録対応→request/plan→disk/root→OS/版/CPU→導入全工程記録の順。取得不能はBOOT_UNKNOWN、確認済み不一致はBOOT_MISMATCHとして区別し、両方ともPhase 9への構成変更引渡しを停止する。起動済みOSから得たrootを一時環境側のroot証拠で補完しない。修復要求には対象・許可された修復step・保全元・期待結果を固定した新計画を必要とし、partition/formatを含む再導入は別の必須選択/消去確認へ戻す。返却は開始前だけContractError、開始後はChangeResult<InstallProgress>で全未開始/確認不能工程を保持する。
+
 ## 内製API・移行案
 
 配置候補は`src/cloud/capability.rs`・`install.rs`・`recover.rs`。能力判定・計画・対象照合を内製し、選定したOS導入基盤を外部契約として呼び出す。OSインストーラー・SSH・ブートローダーそのものの内製化を本案の条件にしない。
 
 | 宣言案 | 入出力と失敗 |
 |---|---|
-| `capabilities(session: &mut RemoteSession) -> Result<Value, ContractError>` | 環境と対象を分けた観測結果。必要能力の不明を許可にしない |
-| `os_plan(input: &Value, capabilities: &Value) -> Result<Value, ContractError>` | 導入・再接続・復旧可能範囲を結合した計画。変更なし |
-| `install_os(ctx: &mut ExecutionContext, plan: &Value) -> Result<Value, ContractError>` | 工程別の実適用位置と結果を返す。再送・全消去を自動判断しない |
+| `capabilities(session: &mut RemoteSession, binding: &InstallerBinding) -> Result<BootstrapCapability, ContractError>` | 環境と対象を分けて観測。必要能力の不明を許可にしない |
+| `os_plan(input: &InstallInput, payload: &InstallPayload, capability: &BootstrapCapability) -> Result<Plan, ContractError>` | 検証済み入力から導入・再接続・復旧可能範囲を結合。変更なし |
+| `install_os(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<InstallProgress>` | 工程別の実位置と部分結果を保持。再送・全消去の自動判断なし |
 
 共通型はP02-MODEL、RemoteSessionはP09-SSH。難易度は高、旧実装なし。将来の差し替えでは導入資材・対象識別・記録版と接続先変更の互換性を評価し、旧実装除去前に起動不能時も照合可能な経路を保持する。初回導入の失敗を、存在しない旧OSへの切戻し成功として表示しない。
 
@@ -83,7 +87,7 @@ OS再導入だけでデータを復元したと報告しない。保全物があ
 | InstallProgress | plan_id: PlanId、operation_id: OperationId、target: TargetEvidence、stages: InstallStage[]、reconnect: ReconcileResultまたはnull |
 | InstallStage | name: 下記固定工程名、status: not_started・started・verified・failed・unknown、evidence_ref: stringまたはnull、error: Diagnosticまたはnull |
 
-能力検査の必須ID候補は`P10-BOOTSTRAP/execution`・`privilege`・`materials`・`storage`・`boot`・`management_path`。後5件にも同じ契約ID接頭辞を付ける。全件がpass、installer_refが採用済み、対象が同じ場合だけinstallable=true。unknown・fail・未採用をnot_applicableへ変更して集合を縮小しない。既存OSの有無は別の状態判定へ照合し、SSHの接続成功をこの集合のpassとして使わない。
+能力検査の必須ID候補は`P10-BOOTSTRAP/execution`・`privilege`・`materials`・`storage`・`boot`・`management_path`。後5件にも同じ契約ID接頭辞を付ける。全六件とP10-OS/journal.durableがpass、installer_refが採用済み、対象が同じ場合だけinstallable=true。unknown・fail・未採用をnot_applicableへ変更しない。OS有無は別の状態判定へ照合し、SSH接続成功を能力検査のpassへ転用しない。
 
 InstallInputの各refは完全な入力契約への参照であって、契約本文の代わりではない。ストレージ・ネットワーク・ユーザー・ブートの具体値は、採用した方式の確定済みスキーマへ別に照合する必要がある。未選定のインストーラー、版、実行環境、必須値をこの参照表だけで確定したとは扱わない。
 
@@ -212,11 +216,13 @@ P10-OSのInstallPayloadについて、先述の型に対応するレイアウト
 | whole_disk_uefi | GPT、espは先頭1 MiB後から512 MiB・fat32、rootはその直後から末尾予約1 MiBを除く残りの1 MiB切捨て・ext4。ESP/root以外なし |
 | whole_disk_bios | GPT、bios_bootは先頭1 MiB後から2 MiB・none、rootはその直後から同じ末尾予約を除く残り・ext4。採用loaderのBIOS/GPT対応が未検証なら使用不可 |
 | root容量 | 候補最小20 GiB。実OS・三構成・保全領域の必要容量を別に満たすこと。rootの最小値だけでmaster適合としない |
-| NetworkInput | 八キーの宣言を使用し、mac_addressは小文字colon区切り6octet、mtuは1280〜9000。interface_idだけで再同定せずMACと対応 |
+| NetworkInput | 七キーの宣言を使用し、mac_addressは小文字colon区切り6octet、mtuは1280〜9000。interface_idだけで再同定せずMACと対応 |
 | static | 初期候補はIPv4のみ。addressは1件のCIDR、gatewayは同一subnetの単一IPv4、dnsは1〜3件の一意IPv4。network/broadcast/unspecified/multicastを拒否。IPv6は方式別仕様待ち |
 | BootInput | modeとloader_materialとnext_endpointの既存集合を維持。next_endpointは登録済みRegistryEntry参照だけ。任意shell・loader設定断片を受理しない |
 
 レイアウト検査の候補計算はA=1,048,576 bytes、末端E=floor(expected_bytes/A)*A-A、UEFIのroot開始S=513*A、BIOSはS=3*A、root寸法=E-S。partition番号/順序はESPまたはbios_bootを1、rootを2とし、purpose/filesystem/mountpointは表の組だけを許容する。E<=S・算定overflow・寸法不一致を拒否する。UserInput.public_keysは制御文字/複数行/空/重複を拒否し、受理鍵形式と昇格方式の安全条件は担当ポリシーの採用待ち。自由なauthorized_keysオプションやshell断片を受けない。
+
+InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致→layout/boot.mode一致→sectorと全partition算定→network→user/公開鍵契約→loader/次endpointの順。NetworkInputはinterface_id/method/addresses/gateway/dns/mac_address/mtuの七項目だけで、八つ目を補完しない。dhcpの値集合とstaticの値集合は相互排他とし、staticのCIDRは一つのIPv4とprefix、gateway/dnsはCIDRを持たないIPv4へ照合する。複数アドレス・未知method・未確認MAC・必須の鍵/昇格方式未定義はINSTALL_PAYLOADで消去前停止。installerが後で補正することを成功条件にしない。
 
 これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
 
@@ -265,13 +271,16 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-20` | 方式Aは非対話契約不成立、方式Bの資材だけ存在 | installable=false、所有者の選定待ち。Bの自動選択・対象VPSでの追加手入力待ちなし |
 | `A10-21` | root寸法がE-Sと1sector違う、partition番号重複、公開鍵へ改行/options | payload拒否、消去前停止。外部installerの補正へ任せない |
 | `A10-22` | 同じIP/OSでroot対応不一致、予定の鍵変更だが独立信頼未確認、空disk導入後SSH喪失 | handoff不可/照合待ち/経路なしを分ける。旧OSへの架空切戻し・自動再消去なし |
+| `A10-23` | 六能力Checkはpassだが消去外journal未確定、execution_contractは別環境用 | installable=false。SSH成功・対象OSのUbuntu条件だけで能力の不足を補完しない |
+| `A10-24` | 七項目のNetworkInputへ未知八項目目、static gatewayへCIDR、dhcpで非空addresses | INSTALL_PAYLOAD/スキーマ拒否で消去0回。未知項目の補完・入力の自動修正なし |
+| `A10-25` | 再接続は成功だがroot不一致、別途root取得不能、修復計画にformat混入 | BOOT_MISMATCH/BOOT_UNKNOWN/再導入別確認へ分離。構成変更・再formatの自動続行なし |
 
 ## 未決事項と成立判定
 
 | 判断ID | 残る具体化・採用判断 | 影響 |
 |---|---|---|
 | `D10-01` | InstallerBindingを方式/環境単位で固定しAを第一候補とする。所有者は実資材・対応CPU/boot・非対話/監督の外部契約を比較して採用判断。A不成立時のB自動選択はしない | 導入方式全体 |
-| `D10-02` | 単一の六/八キー型と明示レイアウト算定を推奨。所有者はIPv4限定候補の要求適合、鍵/昇格・loader/network生成、永続記録/排他の実方式を決定。型の存在だけで消去可能としない | OS導入と中断照合 |
+| `D10-02` | StorageInputの六キー/NetworkInputの七キーと明示レイアウト算定を推奨。所有者はIPv4限定候補の要求適合、鍵/昇格・loader/network生成、永続記録/排他の実方式を決定。型の存在だけで消去可能としない | OS導入と中断照合 |
 | `D10-03` | BootExpectationの事前固定と工程別復旧限界を推奨。所有者は新OSの信頼確立/失効確認と隔離VMの証拠条件を決定。SSH喪失時に事業者操作や未確認の再導入で補完しない | 初回起動・復旧 |
 
 契約・共通依存の採用承認、実行環境の根拠・非機能要求の確定が残る。本文案はOS未導入環境の実装・受入・対応済みを示さず、完全仕様は未成立。

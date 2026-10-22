@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B4`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B5`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB4）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB5）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -58,15 +58,17 @@ CLIの候補は、対象登録・一覧・解除と、対象・操作の対話�
 
 喪失時切替の審査候補ControlTransferはold_master_id・new_master_id・registry_sha256・target_ids・revocation_evidence_refs・reconciliation_refsを全キーとし、IDはMachineId、対象/参照は重複なしarray。第一候補は新IDと対象側での旧制御権失効を明示する方式、旧ID自動継承は採らない。失効は台帳書換えでは証明できず、対象の認証/権限の実効性を担当安全審査へ対応付ける。対象一件でも失効/未確認要求の照合が欠ければその依存範囲の変更は保留する。失われた秘密鍵の復元を保全物の存在だけで保証しない。
 
+ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの証拠参照配列は同件数・同位置の対象IDに対応させる。各参照先にもold/new主体・対象・台帳hashを持つ照合資料を要求し、配列の位置一致だけで正しさを認定しない。新旧MachineIdが同じ、台帳hashが復元対象と違う、証拠が別対象、pending要求の結果一件でも未確認ならMASTER_TRANSFERで当該依存範囲の変更を保留する。旧主体失効の実方式はセキュリティポリシーで決めるまで未成立とし、照合器が失効処理を自動実行しない。
+
 ## 内製API・差し替え案
 
 配置候補は`src/profiles/master/registry.rs`・`cohost.rs`・`backup.rs`。台帳・統合制御・対応照合は内製、サーバと採掘の処理は各担当モジュールを呼び出す。Coreがマスター専用型へ依存する循環を作らない。
 
 | 宣言案 | 所有権・動作 |
 |---|---|
-| `master_plan(input: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | 機能別と共有資源の計画を所有して返す |
-| `apply_master(ctx: &mut ExecutionContext, plan: &Value) -> Result<Value, ContractError>` | 同じ対象OSの各機能を調整し、機能別結果を返す |
-| `reconcile_master(saved: &Value, observed: &Value) -> Result<Value, ContractError>` | 復元証拠と現在の台帳・対象状態を照合。変更の再投入は行わない |
+| `master_plan(registry: &TargetRegistry, server: &[AppPlan], mining: &Plan, capacity: &CapacityInput, target: &TargetEvidence) -> Result<Plan, ContractError>` | 三機能と共有資源の計画を所有して返す |
+| `apply_master(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<MasterProgress>` | MasterProgressはreceipt: OperationReceiptとfeatures: FeatureReadiness[]の二項目。開始後の部分位置と三機能の結果を保持 |
+| `reconcile_master(saved: &ControlTransfer, observed: &[ReconcileResult]) -> Result<Vec<Check>, ContractError>` | 固定した対象別証拠と観測結果を照合。失効・修復・再投入を実行しない |
 
 型はP02-MODEL。台帳・機能別結果の全フィールド、権限と保存形式はD08-01〜03の未達。新設候補で旧実装なし、難易度は統合・喪失時復旧が高。将来の差し替えは台帳版・対象ID・遠隔操作対応の互換性を維持し、旧マスターとの同時変更防止と切戻し可能性を先に確定する。
 
@@ -85,6 +87,8 @@ CLIの候補は、対象登録・一覧・解除と、対象・操作の対話�
 target_idの重複と、同じ検証済み対象を異なるIDで同時管理する登録を拒否する候補。expected_machine_id=nullは未導入時にだけ許容し、実接続後に得た識別情報を無確認で台帳へ書き戻さない。host・userは入力長と文字種・接続先形式を`P09-SSH`の正式契約へ照合し、任意のSSH設定断片を受け付けない。credential_ref・trust_refは所有者管理下の安全な参照で、値やファイル内容を台帳へ格納する意味ではない。
 
 MasterReadiness.featuresは三機能のFeatureReadinessをちょうど1件ずつ含める。configured/appliedだけでreadyにせず、verifiedと必須検査成功が必要。MasterReadiness.readyは全三機能readyのときだけtrue。target_count=0でも対象登録入口の準備は検証できるが、接続・遠隔実行が成功した証拠にはしない。
+
+FeatureReadinessの候補集約は、必須failが一件でもあればstatus=failed、failなしで必須unknown/欠損またはconfigured/applied/verifiedの未成立があればunknown、それ以外だけreadyとする。資源配分のresources.boundedと台帳整合の検査はmaster機能のchecksへ必須で結合し、三つのverified boolだけで全体readyを作らない。featuresはserver/mining/masterの固定順で返す。capacityの総量式、最低要求、測定根拠、実効制限の四条件を別Checkにし、一条件のpassを他条件へ複製しない。純粋集約器は測定・サービス操作・記録保存を行わない。
 
 資源配分の評価候補は、`cpu_reserved + cpu_server + cpu_mining <= cpu_total`と、bytes単位で同形のメモリー式の両方が成立すること。整数加算はchecked arithmetic、計算不能・観測不足は失敗。予約・割当の入力の生成方法、最低必要量、検出CPUとスケジューラ制限の対応、systemdへの適用方法は`D08-02`の採用事項で、ゼロ予約を既定値として通さない。式の成立だけで実負荷時の管理経路やアプリ性能を保証しない。
 
@@ -209,7 +213,9 @@ P08-MASTERのCLI候補を以下へ閉じる。共通フラグ・出力・終了�
 
 RegistryEntryの全キー候補はtarget_id・host・port・user・credential_ref・trust_ref・expected_machine_id。portは1〜65535、hostはDNS名またはIPの単一文字列、制御文字・空白・先頭hyphen・user@hostを拒否する。userはPhase 10のUserInputの名前制約へ参照。credential_ref/trust_refは保護された登録済み参照IDだけで、秘密値・任意pathを受け取らない。
 
-マスターCLIのdataはlist={registry_sha256,targets}、台帳変更={before_sha256,after_sha256,changed_target_ids}、run=DeliveryRecord、reconcile=ReconcileResultとする候補。list以外を一律変更扱いにはせず、reconcileの読取り結果保存は利用者指定成果物だけとする。登録時の接続・信頼の初回確認は別手順として計画し、listへ通信を混入させない。
+マスターCLIのdataはlist={registry_sha256,targets}、台帳変更={before_sha256,after_sha256,changed_target_ids}、run=DeliveryRecord、reconcile=ReconcileResultとする候補。list/reconcileの返却先はstdoutだけとし、--outputを拒否する前述の五入口へ統一する。結果保存用の別入口・既定ログ・明示成果物保存を追加しない。登録時の接続・信頼の初回確認は別手順として計画し、listへ通信を混入させない。
+
+台帳編集候補の検査順序は登録済みマスター自身の識別→台帳版/hash→編集一件の形式→同ID/同実対象重複→pending対象→利用者の選択/計画確認→保存直前hashとする。Registerに既存target_idを渡して更新へ変換せずREGISTRY_DUPLICATE、解除対象不在はREGISTRY_MISSING。台帳変更dataのhashは確定した前後byte列、changed_target_idsは当該一件だけ。dry-runではafterの予定値を表示するだけで保存しない。reconcileのSSHによる問合せはP09のQueryであり、listのローカル読取りと区別する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -251,6 +257,9 @@ P08-MASTERは台帳/対象選択、COHOSTは三機能の集約、BACKUPは管理
 | `A08-20` | 台帳欠損、run --dry-run、request-fileはあるが対話選択なし | 欠損は未確認、dry-run配送/保存0回。ファイル指定だけで選択成立にしない |
 | `A08-21` | 総量式は成立、最低予約を1単位下回る、制限総量は取得不能 | resources.boundedを通さない。入力の和・論理CPU数だけで実効容量を保証しない |
 | `A08-22` | 新ID構築済み、台帳は正しいが一対象の旧認証が有効、別要求の結果不明 | 対象別の制御切替未完了。新マスターのreadyで遠隔変更を再開しない |
+| `A08-23` | list/reconcileへ--output、既存IDのRegister、存在しないIDのRemove | CLI_OPTION_SCOPE/REGISTRY_DUPLICATE/REGISTRY_MISSING。保存・暗黙置換・登録解除の偽成功なし |
+| `A08-24` | 三機能のverified=trueだが最低資源Checkがunknown、次にfail | master.statusはunknown/failed、全体ready=false。総量式passや機能boolで不足を隠さない |
+| `A08-25` | 二対象の失効証拠を逆順、old/new ID同一、未確認要求一件残存 | MASTER_TRANSFERで保留。別対象の証拠・新構築成功を制御権移行の代用にしない |
 
 ## 未決事項と成立判定
 

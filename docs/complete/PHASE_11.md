@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B4`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B5`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB4）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB5）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -28,6 +28,20 @@
 | 非機能 | 各契約の上限・停止・保全と、基本仕様で確定する要求水準。未定義は未達 |
 
 受入集合の算定は、適用可能な組合せを一意に列挙し、非適用の理由を正本へ対応付ける案。arm64の本体・ISOがあることを、arm64でmining・masterが使える証明にしない。対応外入力を拒否する試験と、対応する機能の成功試験を分ける。
+
+経路/CPU/構成の期待行の候補は次表へ限定する。各行のケースは担当契約の正常・異常・境界設計から固定し、実結果の有無で減らさない。boot方式はenvironment_refの固定環境に含め、amd64媒体はUEFI/BIOS、arm64媒体はUEFIを別環境の別行にする。
+
+| 入口 | CPU | 成功経路を検証する構成 | 必須の拒否経路 |
+|---|---|---|---|
+| internal（共通本体） | amd64/arm64 | profile=nullの共通契約 | 非対応CPU/不正入力は別fixture |
+| media | amd64 | server/mining/master | 構成選択不能・機器能力不足 |
+| media | arm64 | server | mining/masterの選択後適用拒否 |
+| ssh_existing | amd64 | server/mining | Cloudへのmaster適用拒否 |
+| ssh_existing | arm64 | server | mining/masterの適用拒否 |
+| ssh_bootstrap | amd64 | server/mining | 使用中disk・能力不足・master適用拒否 |
+| ssh_bootstrap | arm64 | server | mining/master・能力不足の適用拒否 |
+
+純粋評価の同一ケースを全経路へ重複実行するのではなく、各ケースの担当契約・適用行・拒否入力・固定環境への対応をScopeで一度だけ列挙する。ケースIDの欠損、適用行の欠損、同じ一意キーの重複をそれぞれACCEPT_SCOPEとして検出する。非機能の要求値や対象実機が未決なら該当行をnot_runで残し、適用行の存在だけを仕様充足にしない。
 
 未承認案・未確定契約・未採用例外に依存する実装試験は実行可能としない。文書案の構文・参照検査だけは別目的で行えるが、受入行の製品試験結果には置換しない。実機検証の境界は[未確定の試験条件](../SECURITY_POLICY.md#検証環境の未確定条件)を維持し、VM成功だけで実機対応を付けない。
 
@@ -56,8 +70,8 @@
 
 | 宣言案 | 入出力・副作用 |
 |---|---|
-| `acceptance_matrix(scope: &Value, evidence: &Value) -> Result<Value, ContractError>` | 全必須行・成否・未達の対応を返す。未実施を成功へ変換しない |
-| `verify_release(input: &Value, evidence: &Value) -> Result<Value, ContractError>` | 固定した成果物集合と相互参照を検査し、公開可否の根拠を返す。自動公開なし |
+| 受入集計 | [collect_acceptanceの型付き宣言](#型とapiの詳細案)だけを使用。全期待行・実結果・未達を照合 |
+| リリース検証 | [verify_releaseの型付き宣言](#データ契約の具体化案)だけを使用。純粋検証で自動公開なし |
 
 共通型はP02-MODEL。受入行・証拠・成果物集合の完全スキーマ、許容する版、結果と実行上限の対応はD11-01に残る。難易度は集計が中、正式公開との統合が高。新設案で旧実装なし。将来の差し替えは同じ固定成果物と欠損・改変fixtureで検証し、署名済みバイト列や公開済みタグを移行目的で書換えない。
 
@@ -78,7 +92,11 @@ expected_refは実出力から作らず、採用済みの受入条件と固定�
 
 ReleaseEvidence.artifactsの期待集合は[既存成果物名](../BASIC_SPEC.md#リリース)だけから生成し、各名前をちょうど1件要求する。本体とISOのCPU対応、両マニフェストとbuild情報、署名・checksumの相互参照を既存工程へ照合する。単なるファイル名一致やproducerの申告だけをverification_refsの代わりにしない。
 
+リリース集合の候補検証順序は固定tag/commit/version→必須成果物名の完全一致→各byte数/hash→本体manifestからbuild/各CPU本体→媒体manifestから本体manifest/ISO/収録本体→checksum対象集合→全detached署名の対象→受入証拠→公開条件とする。checksum自身とその署名は既存仕様どおり一覧対象外だが、配布必須集合からは除外しない。余分なassetや重複名もRELEASE_SETで停止し、自動削除で一致させない。各署名の検証成功を別ファイルへ流用せず、再取得後も同じbyte集合と参照グラフを再検証する。
+
 publishable=trueの候補条件は、全必須成果物の一致、必要な実行・VM受入のcomplete、各許諾・例外・署名鍵・公開設定の担当条件の成立を所有者が確認できること。未確定の担当条件はfalseとし、チェック数の多数決で成功にしない。公開可否の評価関数と実際の公開操作は分離し、評価成功だけでタグ作成・署名・uploadを開始しない。
+
+純粋検証の候補APIは`verify_release(scope: &AcceptanceScope, set: &ReleaseSet, evidence: &ReleaseEvidence) -> Result<ReleaseCheck, ContractError>`。ReleaseCheckはchecks（Check[]）とpublishable（bool）を所有し、入力側のpublishable=trueは信用せず上記条件から算定する。形式/識別不一致はErr、正しく識別できた対象の条件不足はchecksに根拠を残したpublishable=falseとする。検証と実際の公開adapterを別に保ち、API応答欠損時の実配置は読取り照合へ戻す。
 
 受入集合の全列挙、証拠の保存・改変検出、集計用Rust型と公開APIの版・権限の実証は`D11-01`〜`D11-03`の未達に残す。文書だけの改善でこれらの証拠が存在した扱いにはしない。
 
@@ -142,7 +160,7 @@ pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>)
 
 resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseのkeyに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。戻り値のcompleteは関数が算出し、呼出元のtrueを信頼しない。
 
-既存acceptance_matrixのValueは解析入口の説明に限定し、集計内部はこの型付き境界を使用する候補。verify_releaseは純粋な同一性評価とし、署名・タグ操作・GitHub uploadの副作用を持たせない。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
+集計内部は上記collect_acceptanceだけを使用し、別のValue返却APIを実装しない。verify_releaseも純粋評価に分離する。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
 
 ## 状態と中断の詳細案
 
@@ -268,6 +286,9 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | `A11-20` | 同caseだが別environment、必須行を実結果だけnot_applicable、Phase 11ケース欠損 | 環境別照合・根拠不足/集合欠損を検出。scope縮小やPhase番号誤読による除外なし |
 | `A11-21` | release作成応答欠損、照合は権限不明の404、API残予算0 | 未配置と断定せず停止。再作成/上書き/親予算を超えた照合開始なし |
 | `A11-22` | 全配布物一致、六区分の一つだけ未確定、文書検査は成功 | publishable=false。文書検査の成功は保持するが正式許諾/署名/公開の成立へ転用しない |
+| `A11-23` | amd64媒体のBIOS環境行欠損、arm64 master拒否ケース欠損、全実結果はpass | ACCEPT_SCOPEで未完了。成功行の全passで起動方式・拒否経路の不足を隠さない |
+| `A11-24` | 期待集合へ余剰asset一件、checksum署名をmanifestへ流用、入力publishable=true | RELEASE_SET/署名対象不一致を検出。boolを再算定し、削除・署名・公開の副作用0回 |
+| `A11-25` | 全契約の案・全受入設計が存在するが一判断IDの採用/成立根拠が不足 | 文書案の検査結果と不足を保持。全フェーズ成立・実装着手可能・製品試験成功へ昇格しない |
 
 ## 未決事項と成立判定
 

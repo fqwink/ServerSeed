@@ -279,3 +279,5 @@ ISOを含む正式リリースでは、手動VM試験の成功を必須とし、
 候補の審査単位は、[暗号/保持と復元](complete/PHASE_04.md#p04-backup)のD04-02、[機種別操作](complete/PHASE_05.md#p05-firmware)のD05-04、[機器別温度](complete/PHASE_07.md#入力と保存形式の詳細案)のD07-01/03、[旧主体失効](complete/PHASE_08.md#p08-backup)のD08-03、[搬入/昇格](complete/PHASE_09.md#p09-ssh)のD09-01、[新OS信頼](complete/PHASE_10.md#p10-recover)のD10-03へ対応付ける。これらの値/型/工程は各担当本文だけに置き、安全条件の採用は本書へ集約する。公開鍵の受理方式・鍵blob検査・昇格権限、対象別失効の実効性は未確定のままで、自由なオプションや未審査の認証方式を許可しない。
 
 鍵方式・暗号形式・保管媒体・復旧担当・具体的権限と、実機試験を許可する場合の適用条件は所有者の別途採用判断が必要。読み取り専用であることを確認できないコマンドや、鍵・秘密値を含む証拠は審査用の公開資料へ出さない。
+
+候補の保護審査は、[ReadOnly/Changeの実行文脈](complete/PHASE_02.md#p02-exec)、[preboot/内蔵継続の切替](complete/PHASE_05.md#実行と復旧の確定候補)、[対象別の旧主体失効](complete/PHASE_08.md#p08-backup)、[初回搬入とQuery](complete/PHASE_09.md#p09-ssh)、[新OSの信頼照合](complete/PHASE_10.md#p10-recover)へ対応付ける。型・ID・guardの照合を、認証・権限・秘密情報保護の成立根拠と混同しない。特にQueryの非変更性、内蔵側の独立した実行主体、旧制御権失効の実効性は未採用方式のまま確認を要し、文書整理を現行保護条件の免除にしない。

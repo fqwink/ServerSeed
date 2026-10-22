@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B4`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B5`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB4の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB5の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -39,6 +39,8 @@ ID生成の純粋境界候補は`encode_id(kind: IdKind, entropy: &[u8; 16], exi
 ### 共通参照型の候補
 
 ContractRefの全キーはfile・anchor・contract_id・draft・commit・adopted。前5項目は空でないstring、adoptedはboolean。fileは文書索引が案内するリポジトリ相対パス、anchorはその文書の節、contract_idはその節の契約ID、draftは現在の案版、commitは参照を評価する確定ツリーの完全なコミットIDとする。採用審査用と採用済みの参照をadoptedで区別し、値だけで承認の存在を証明せず所有者の承認根拠と照合する。作成途中の文書には架空のコミットを埋めず、提出コミットができた時点の確認資料で参照集合を束縛する。
+
+ContractRefの検証候補は、fileのUTF-8相対パスと索引所属→commitの完全ID/実在→当該ツリー内のfile/anchor/contract_id→draft一致→adoptedと所有者の採用根拠、の順。絶対path・空成分・親逸脱・別ツリーの同名節を拒否する。失敗コードはMODEL_REFERENCEとし、adopted=falseは文書案目的でだけ受理、実装着手目的では拒否する。参照先の自己申告だけでadopted=trueを構築しない。型検証器は取得済みの文書/承認資料を借用し、Git取得・ネットワーク・ファイル修復を行わない。
 
 以下の追加データ契約は、特記がなければ表に列挙したキーを全集合とする候補。すべて必須、null許容は明記した箇所だけ、未知キー・欠損・重複・暗黙の型変換を拒否する。objectの空集合と未知集合を区別し、arrayの順序・件数は担当節へ照合する。stringは解析の文字列上限内、integerはi64の範囲内とし、担当の狭い範囲が優先する。外部入力を検証した後の内部値にも同じ制約を適用する。これは各担当データの未記載項目を補完する包括スキーマではない。
 
@@ -220,6 +222,8 @@ pub fn emit(bytes: &[u8], writer: &mut dyn std::io::Write) -> Result<(), Contrac
 Invocationは入力を所有し、source等の不要なOptionはNone、self_onlyはrecover以外でfalse。indexは実行名を除いた0始まり。Runのplanは`plan`要求でtrue、dry-runの実効modeもplanとする。helpでは指定値を保持しても使わない。パーサー・render・validate_responseはファイル・通信・ログ・時計に触れず、emitだけが指定writerへ書く。dispatchは時刻・観測を取得し担当契約へ委譲、helpでは管理対象を読まない。時刻取得の実現方式はP02-MODELの未達に接続する。
 
 CommandResponseの生成・検証は、上表のdata形と担当契約の承認済みスキーマを両方照合してから許可する。Valueのobject以外、矛盾するresult・ExitClass、非空errorsの成功、未定義payloadを拒否する。ExitClassは[結果表](#結果と終了区分案)の対応で数値化し、型名を製品状態に転用しない。dispatchの内部エラーも固定診断の応答に変換してrenderへ渡し、生の内部エラーを表示しない。開始後の実適用情報を失う変換は許可せず、保持方式未確定はP02-STORE・Phase 4へ残す。
+
+CommandResponseの構築候補では、担当dataの検証→Checkの全必須集合照合→診断の並替え/重複集約→結果表の適用→Envelope検証→整形、の順を固定する。required=falseのfailをerrorsへ残しながらsuccessにする矛盾は作らず、任意失敗はwarningsだけ、必須失敗はerrorsへ対応付ける。OperationReceiptが確定していてもstdout失敗時のプロセス終了は1となり、親操作の保存結果とCLI送達結果を別項目として報告する。代替エラーJSONの追記・変更再実行・保存済み成功の取消は行わない。
 
 内製の難易度候補は字句・診断整形が低、型検証・出力保全が中。stdにはServerSeed固有の文法・スキーマ・集約器がないため、この責務だけを内製する。将来のcrate抽出・差し替えでは同じ入力バイト列・応答・失敗writerを新旧へ与え、stdout・stderr・終了値・副作用を比較する。CLI・設定・保存形式の変更と旧コード除去は別の提示・承認が必要。今回は新設案だけで、新旧比較対象・切替・除去はない。
 
@@ -409,7 +413,9 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 解析は未知キーを消去せず、null・空文字・型・配列順序をそのまま返す。必須項目、未知キー、設定版、許容値・既定値・互換性は担当スキーマが後段で検証し、型の不一致をstringからinteger/boolへ再変換しない。構文として妥当な値を、既存の設定・マニフェストがすべて受理するとは扱わない。
 
-既存候補`validate(value: &Value, schema_id: &str) -> Result<(), ContractError>`のschema_id全集合・版・定義構造・検証順序と、各形式の移行は`D02-03`に残る。今回そのAPIや三構成の設定形式を確定せず、構文解析の詳細化をスキーマ検証まで完成した根拠にしない。JSON生成の既存候補はobjectキーをUTF-8バイト順とする。その他の出力byte・丸め・escapeは[P02-CLI](#p02-cli)の未達へ対応付け、解析成功から補完しない。
+スキーマ検証APIは下記の型付きvalidate_document候補だけを使用する。形式名・版・全キー・検証順序と各移行の採用はD02-03に残し、構文解析の詳細化だけでスキーマ充足とは判定しない。JSONの出力byteとescapeは[P02-CLI](#p02-cli)を参照する。
+
+スキーマ選択の候補APIは`validate_document(kind: SchemaKind, value: &Value) -> Result<ValidatedDocument, ContractError>`に一本化し、文字列IDの汎用validateを並行実装しない。SchemaKindは本書の登録表の各形式、ValidatedDocumentはその対応する検証済み型を一つだけ保持するenum。呼出元が保存先/用途からkindを選び、入力の自己申告だけで別形式へ切り替えない。root型の不一致はSCHEMA_TYPE、宣言する版が未対応ならSCHEMA_VERSION。JSON Pointerではキーの~を~0、/を~1へescapeし、配列indexは0始まり十進、rootは空文字とする。キーの内容をmessageへ転記せず、fieldだけに検証位置を持つ。全形式の型宣言・移行表の残る不足はD02-03に対応付ける。
 
 ### 解析の内製化と差し替え案
 
@@ -460,7 +466,9 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 ## P02-STATE
 
-`detect(target: &TargetEvidence, records: &Value) -> Result<Value, ContractError>`は[既存の判定順](../BASIC_SPEC.md#状態判定の優先順位)を変えず、採用案では各判定について根拠の出所・対象・未取得理由を返す。状態スナップショットを入力の事実より優先しない。
+候補APIは`detect_state(target: &TargetEvidence, records: &ValidatedRecords) -> Result<StateDecision, ContractError>`とし、[既存の判定順](../BASIC_SPEC.md#状態判定の優先順位)を変えない。ValidatedRecordsは本書の各記録validatorを通過した値と、個別記録のabsent/unknown/invalidを区別する集合。invalidを記録なしへ変換せず、採取した実状態と合わせて最初に該当するruleを返す。状態スナップショットを入力の事実より優先しない。
+
+対象総合状態と読取りコマンドの成否は別判定とする。前回operation=runningなら基本仕様どおりRECOVERABLEだが、記録・対象を正常に観測できたinspect/statusは実行中の事実だけで終了失敗にしない。新しい変更はoperation.clear不成立で停止する。各ruleの根拠・不成立・未取得をCheckへ保持し、呼出元がRECOVERABLEをMANAGEDへ補正する経路を設けない。
 
 初回の構成選択結果は、利用者の対話結果、対象証拠、計画IDに結合する値としてメモリー上で保持する案。設定ファイルだけで選択成立とはしない。変更開始直前に再照合し、保存は最終構成検証後にP02-STOREへ渡す。保存された構成の値と三構成の適用範囲は[各正本](../POLICIES.md#構成選択と継続管理)へ参照する。
 
@@ -485,8 +493,10 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 | 宣言案 | 制約 |
 |---|---|
 | `acquire(target: &TargetEvidence) -> Result<OperationGuard, ContractError>` | guardはClone不可、対象・所有プロセスと結合。取得失敗後の変更なし |
-| `begin<'g>(guard: &'g OperationGuard, plan: &Value) -> Result<ExecutionContext<'g>, ContractError>` | 既存の操作状態を記録できた場合のみ返す。contextはguardより長生きできない |
-| `finish(ctx: &mut ExecutionContext, result: &Value) -> Result<(), ContractError>` | 必須記録の確定に失敗したら成功を返さない。失敗記録も書けない場合はstderrと残存証拠を使い復旧待ち |
+| `begin<'g>(guard: &'g OperationGuard, plan: &Plan) -> Result<ExecutionContext<'g>, ContractError>` | 対象・期限・前提を再照合し、既存の操作状態を記録できた場合のみ返す。contextはguardより長生きできない |
+| `finish(ctx: &mut ExecutionContext, result: &OperationCompletion) -> ChangeResult<RecordReceipt>` | 必須記録の確定に失敗したら確認済み段階のRecordReceiptをpartialへ保持。失敗記録も書けなければstderrと残存証拠を使い復旧待ち |
+
+OperationCompletion候補の全項目はstatus（success/failed/interrupted）、finished_at（UtcMillis）、steps（StepReceipt[]）、required_records（固定保存先IDの重複なし集合）。finishは全stepと計画の一対一対応・statusの妥当性→必要記録集合→事前直列化→履歴→終了記録→補助記録の順で照合する。successは全必須stepのverifiedが必要。同じoperationの完結行が既存ならbyte完全一致だけ再追加なしで照合し、一文字でも違えばSTORE_CONFLICTとして元行を保持する。履歴は論理追記のまま、改行未完結の末尾を切除して続行しない。
 
 ログの採用案は、操作ID・対象ID・時刻・level・イベントID・秘匿化済みメッセージをJSONLへ記録する方式。保持・ローテーションは10 MiB×5世代を候補とするが、必須操作記録をログ整理で消去しない。履歴容量の保全・退避と操作上限の関係は`D02-05`の未決事項。
 
@@ -502,7 +512,9 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 | 再試行 | 共通実行器は自動再試行0回。呼出元だけが回数・待機・再照合を定義できる |
 | 取消 | 起動前は起動しない。起動後は対象契約の保全・停止へ移り、単に接続を閉じたことを終了とみなさない |
 
-`run(spec: &Value, ctx: &ExecutionContext) -> Result<Value, ContractError>`は終了状態・出力バイト数・制限超過・経過時間・停止確認を返す案。標準入力の配送量上限、子孫停止の実現方式、ブロッキングI/Oの中断と親停止時の保全は未確定。`Child::kill`だけでは全条件を満たせず、新しい外部ツール・FFIを暗黙に追加しない。
+候補APIは`run_command(spec: &CommandSpec, context: CommandContext<'_>) -> Result<CommandOutput, ContractError>`へ一本化する。CommandSpecの全項目はmaterial（CommandMaterial）、executable（PathBuf）、args（Vec<OsString>）、environment（BTreeMap<OsString, OsString>）、stdin（Vec<u8>）、timeout_ms/grace_ms（u32）。CommandMaterialはExternal(MaterialRef)またはRelease(ReleaseArtifactRef)のenum候補で、個別例外実行物と検証済み同一本体の起動を区別する。値域は本節の表とstdin契約へ照合する。CommandContextはReadOnly（対象証拠と期限を借用）またはChange（ExecutionContextを借用）のenumとし、前者は個別の非変更実行契約だけを許可する。読取りのためにguardや管理記録を新規作成しない。
+
+CommandOutputの全項目はoutcome（CommandOutcome）、stdout/stderr（Vec<u8>）。起動前の検証失敗だけErrを返し、起動試行後のspawn_failed・timeout・出力超過・停止不明もOk内の観測結果として保持する。Okをコマンド成功とは解釈せず、終了0・必要出力・停止確認を担当処理が別に照合する。入力1 MiB、出力各1 MiBの上限は解除しない。子孫停止・ブロッキングI/Oの中断と親停止時の保全はD02-04に残し、Child::kill・新しい外部ツール・FFIで補完済みとはしない。
 
 ## データ契約の具体化案
 
@@ -733,6 +745,13 @@ planと変更操作は適用可能な八検査と担当step検査を要求する
 | `A02-85` | guardを先にdropするcontext、監督unit不明なのにlockだけ取得成功 | 前者は所有権契約不成立、後者は変更開始不可。Rustの借用成立をOS子孫停止の証明にしない |
 | `A02-86` | failed操作の履歴は確定、last-failure同期失敗、以前のlast-successあり | complete不可、以前のlast-successを保持。同じ失敗行の追記・元結果の成功化なし |
 | `A02-87` | 固定memberに../名または同名linkを混入、生成物へ一件の余剰entry | 圧縮前または照合で拒否し正式保存なし。別用途の抽出・秘密項目の追加採取なし |
+| `A02-88` | 参照commitだけ別ツリー、またはadopted=trueだが所有者の採用根拠なし | MODEL_REFERENCE。現在の同名節やbool自己申告で参照を成立させず、取得/修復0回 |
+| `A02-89` | 任意fail一件と必須pass集合、次に必須fail追加、最後に確定後stdout失敗 | 順に警告成功/検証失敗/送達終了1。errors非空のsuccessと確定操作の再適用なし |
+| `A02-90` | kind=ConfigへInstall形式、キーa/b~cの型不正、rootがarray | 別kindへ再解釈せず拒否。fieldは/a~1b~0c、root型不正は空PointerとSCHEMA_TYPE |
+| `A02-91` | 対象記録は整合しoperation=running、inspect/status/updateをそれぞれ要求 | 総合状態は全てRECOVERABLE。読取りは観測結果を返し、updateは開始0回。状態と終了分類を混同しない |
+| `A02-92` | 同じoperationの既存完結行と同一/一byte相違、別途未完結末尾 | 同一は追記0回で照合、相違はSTORE_CONFLICT、未完結は復旧待ち。自動切除・partial喪失なし |
+| `A02-93` | ReadOnly文脈から変更コマンド要求、起動後timeout、spawn失敗 | 前者は起動前Errで管理領域不変。後二件はCommandOutputに区分と取得済み出力を保持し、Okを成功へ変換しない |
+| `A02-94` | 解析成功Valueをvalidatorなしで適用、開始後失敗をContractErrorだけへ縮約、同名の旧APIを追加 | 型付き境界/ChangeResult契約の違反。適用器へ通さず、部分結果・公開契約を一意に照合 |
 
 ## 未決事項と成立判定
 

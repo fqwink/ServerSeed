@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B4`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B5`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB4）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB5）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -29,7 +29,9 @@
 
 ローカルで引数配列を使っても、SSHの遠隔コマンド文字列が安全になるとは限らない。採用案では遠隔で呼ぶ入口を固定し、構造化リクエストを標準入力から渡す方式を第一候補とする。対象ユーザーのshell解釈、固定入口の初回準備・検証、権限昇格と入力配送の結合はD09-01の成立性確認が必要であり、任意のパス・引数を空白連結する代案にしない。
 
-初回搬入の審査候補BootstrapTransferはtarget_id・binary_material・manifest_material・signature_material・keyring_ref・staging_ref・entry_ref・privilege_refを全キーとする。各資材はMaterialRef、参照は事前審査した固定入口/保存先/昇格契約のIDであり任意path/オプションではない。第一候補は検証済み同一本体の搬入と薄い固定wrapper、第二候補は既存の監督入口を利用する方式。どちらも転送→対象側の真正性/実hash検査→root所有領域への確定→同一本体worker開始の全外部契約が必要。独立agent新設は候補に含めない。昇格不能や追加手入力が必要なら配送前にマスターへ不足を返す。
+初回搬入の審査候補BootstrapTransferはtarget_id・binary_material・manifest_material・signature_material・keyring_ref・staging_ref・entry_ref・privilege_refを全キーとする。先頭の三資材は[P05の独自成果物参照](PHASE_05.md#型とapiの詳細案)のReleaseArtifactRef、残るrefは事前審査した固定入口/保存先/昇格契約のIDであり任意path/オプションではない。SSH・検証実行物のMaterialRefとは区別する。第一候補は検証済み同一本体の搬入と薄い固定wrapper、第二候補は既存の監督入口を利用する方式。どちらも転送→対象側の真正性/実hash検査→root所有領域への確定→同一本体worker開始の全外部契約が必要。独立agent新設は候補に含めない。昇格不能や追加手入力が必要なら配送前にマスターへ不足を返す。
+
+搬入前の候補検証は対象ID→固定リリース版と三資材のmanifest対応→独立した信頼参照→保存先/固定入口/昇格契約→転送予算とする。同じ版名でもmanifest hashが違う組合せをSSH_BOOTSTRAPで拒否する。対象側で再検証・root所有領域の確定が終わるまで候補を実行しない。Connect候補の入力はRegistryEntryとConnectionLimitsの型付き値、ConnectionLimitsの項目はconnect_timeout_ms・transfer_timeout_ms・inspection_timeout_msで本書の各上限に従う。ユーザーのSSH設定断片を追加の引数列へ変換しない。
 
 ## P09-REMOTE
 
@@ -63,15 +65,17 @@
 
 再接続の合否候補はtrust.bound・identity.matches・records.consistentの各検査を独立に照合し、全必須passかつ同じ要求hash/操作結果の確定時だけ成功とする。最初の観測試行も回数へ算入し、各試行を開始できるのは30秒の接続予算と親残期限の小さい方が正の場合。終了後5秒の待機を挟むが、上限到達後の待機・次試行は行わない。読取り成功でもrecord_consistent=nullならresubmit_allowed=false。推奨は固定した切断位置列での再現試験で、実VPSの状態を未確認のまま使用しない。
 
+再接続予算の候補起点は再接続要求を受け付けた単調時計の時点とし、600秒に接続・Query・照合・待機を全て算入する。一試行は一接続とそのQuery/照合を含み、接続確立だけで回数を消費しない方式にはしない。開始済み試行のtimeout/切断も一回、残期限は親期限と本再接続期限の早い方で制限する。待機は前試行の終了から5秒、待機中に期限へ到達した場合は即停止し次を開始しない。必要な停止/結果処理の予約を引いた残量が正でない場合も開始不可。最終試行の接続成功後に記録がunknownなら結果は未確認のまま、回数をリセットしない。
+
 ## 内製単位・公開API案
 
 配置候補は`src/profiles/master/ssh.rs`・`remote.rs`・`reconcile.rs`と`src/cloud/`の対象側入口。通信の制御と対応照合を内製し、共通の適用エンジンを複製しない。難易度は遠隔の状態照合・安全な配送が高。
 
 | 宣言案 | 入出力と責務 |
 |---|---|
-| `connect(target: &Value, limits: &Value) -> Result<RemoteSession, ContractError>` | セッションは接続・対象識別を所有。台帳更新・対象変更は行わない |
-| `submit(session: &mut RemoteSession, request: &Value) -> Result<Value, ContractError>` | 固定要求の配送結果と対象側位置を返す。重複適用しない |
-| `reconcile(session: &mut RemoteSession, request: &Value) -> Result<Value, ContractError>` | 対象の実状態と記録を照合。読取りの許可を変更へ拡張しない |
+| `connect(target: &RegistryEntry, limits: &ConnectionLimits) -> Result<RemoteSession, ContractError>` | セッションは接続・対象識別を所有。台帳更新・対象変更なし |
+| 変更配送 | [型付きsend_change](#型とapiの詳細案)のみ。固定要求と部分配送位置を保持、重複適用なし |
+| 読取り照合 | [型付きquery_change](#型とapiの詳細案)のみ。照合の許可を修復・変更へ拡張しない |
 
 型はP02-MODEL、RemoteSessionの完全な宣言・寿命・排他とpayloadはD09-01〜02の未達。新設案で旧実装は存在しない。将来の差し替えには同じ切断位置・重複要求・鍵変更fixtureを適用し、配送記録・対象操作IDと保存形式の互換性・切戻し限界を確認する。
 
@@ -153,6 +157,8 @@ pub fn cancel_change(session: &mut RemoteSession, request: &CancelRequest)
 ```
 
 各メッセージのschema_version候補は1、kindはsubmit/query/cancelで、kindとpayloadは一つだけ対応させる。QueryRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
+
+RemoteFailure.request_may_have_arrivedはboolの候補で、到達可能性が不明な場合もtrueへ保守的に結合し、falseを既定値にしない。Queryは対象のremote/operation/history/監督単位を取得してReconcileResultをメモリー上で生成するだけで、欠損記録の作成・deliveryの修復・取消を行わない。同じSubmit ID/hashを再受信しても既存結果の読取りだけ、同ID別hashはREMOTE_COLLISIONで保持済み記録不変。Cancelのdelivered/acknowledged/stoppedは独立の証拠を要し、acknowledged=trueかつstopped=nullから終了確定へ進めない。部分受理後の保存失敗はRemoteFailure.deliveryに最後の確認済み段階を保持する。
 
 RemoteSessionは検証済み接続と対象証拠を所有し、Cloneを許可しない候補。drop・SSHプロセス終了は対象操作の取消・ロック解除を意味しない。固定入口・初回搬入の実現手段が未決なため、これらの宣言だけで配送可能とはしない。
 
@@ -255,6 +261,9 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 | `A09-20` | 初回本体は搬入済み、root所有確定または昇格の証拠なし | worker開始0回。転送成功を導入準備完了にせず、別agent/任意shellで補完しない |
 | `A09-21` | master_id旧別名、取消stopped=null、requestのplan_idだけ変更 | 別名拒否・取消未確認・要求hash変化。Plan.digest一致だけで同一要求と扱わない |
 | `A09-22` | 十二回目の接続成功、identity一致だがrecord_consistent=null、残期限0 | 成功/再投入を許可せず照合待ち。追加待機・十三回目・submit再送なし |
+| `A09-23` | 三搬入物は同じ版名だがmanifest hash相違、または昇格契約未確定 | SSH_BOOTSTRAPでworker起動0回。独自成果物を外部EX登録で代用せず対象側再検証を要求 |
+| `A09-24` | Query先のdelivery欠損、到達可能性不明、同ID別hashのSubmit | Query保存0件/可能性true/REMOTE_COLLISION。記録修復・再配送・既存要求の置換なし |
+| `A09-25` | 十一試行終了後の待機中に600秒到達、十二試行目は接続成功だがQuery不明 | 前者は十二回目開始なし、後者は未確認で終了。接続成功で回数/期限を更新せずsubmit再送0回 |
 
 ## 未決事項と成立判定
 
