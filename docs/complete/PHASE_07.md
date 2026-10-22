@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B6`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B7`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB6）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB7）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -163,13 +163,19 @@ MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#�
 
 保存レコードが対応する操作/計画の対象と設定hashを、MonitorMemory.target/config_sha256へ復元時に照合する候補。レコードに未定義のトップレベルtargetを追加せず、対応する操作記録を取得できなければ復元を保留する。要求の照合はこの確認済み値を参照し、request自身のtarget/hashだけで正しさを認定しない。設定変更は新しい監視セッションの明示確認と保存互換の審査へ戻し、記憶内のhashだけを差し替えて旧receiptを再利用しない。
 
+監視対象の同一性比較候補はTargetEvidenceのobserved_atを除く六証拠のobserved値を比較し、時刻だけの更新を別機器としない。通常運転では六証拠を取得できない場合はMONITOR_TARGETとして制御を保留する。boot/実行環境の変化は同じdiskでも新監視世代の照合を要求する。epochはP02の新規OperationId生成と同じ一意な表記を使用し、監視セッションごとに新しく生成する。新epochでも保存済み回数/停止保持/未確認要求を引き継ぐ条件は維持し、epochの新規生成だけをリセット承認にしない。OS乱数の未選定はD02-01の依存として残す。
+
 ControlRequest候補の全項目はtarget（TargetEvidence）・proposal（ControlProposal）・config_sha256・request_id。request_idは本書のengine/epoch/sample_elapsed_ms/action/config_sha256の組を一意に束縛する参照で、衝突時はMONITOR_COLLISION。evaluate_monitorは一試料につき状態表を上から一度だけ評価し、未確定要求中・保持中・unknownの条件を後段の正常試料で上書きしない。observe_controlは同じ要求ID/epoch/actionを一度だけ消費し、別要求のreceiptはMONITOR_RECEIPTとして状態不変で拒否する。制御開始後の失敗では実開始の確証または未確認をpartialへ保持し、再試行枠を未消費へ戻さない。
 
 observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/epoch/actionと保存memory、request.config_sha256と固定設定を照合する候補。同じIDでも別対象・設定・試料に束縛されている要求は拒否する。accepted=falseならstarted=false、accepted=trueでもstarted=nullは未確認としてpendingを保持し、started=trueの確認なしでwarmingへ遷移しない。初回以外の開始可能性が残る場合は回数を保守的に予約し、実開始なしの確証なしに枠を再利用しない。
 
+制御receiptの候補照合ではelapsed_msを要求試料のelapsed_ms以上かつ同じepochへ限定する。action=noneからControlRequestを生成せず、noneのreceiptもMONITOR_RECEIPT。accepted=false/started=falseは未開始の確証としてpendingを解除するが、処理済みrequest_idを保持して同じ試料の再発行・再消費を防ぐ。stopのstarted=trueは停止要求の開始だけで、process_alive=false等の実停止確認なしに停止完了としない。start/restartの開始とstopの開始は別の遷移へ結び付け、stopのreceiptからwarmingを作らない。
+
 ## 状態と中断の詳細案
 
 `P07-RUN`の全内部状態を、次の優先規則へ照合する候補。まず世代・対象・時刻の不正、次に未確定要求の照合、次に過熱・温度不明、続いて状態固有行を評価する。未確定要求の照合中も温度の事実を保持するが、新規要求の生成へ進めない。同じ試料から二つの制御要求を出さない。
+
+運転観測の必須性は段階別とする候補。warmingの待機期限未満はprocess/接続/algorithm/hashrateが未準備でも待機を維持し、過熱・必要温度不明の優先規則は省略しない。それ以外ではprocess_aliveを必須とし、falseの確証がある停止中は接続/algorithm/hashrateを開始前の必須条件にしない。process_alive=trueの稼働確認には後三観測も必須。warming期限到達後の未起動は既知障害として継続時間へ、必須観測の取得不能は下表のunknownへ区分する。停止中の未取得hashrateを起動禁止へ、取得不能processを未起動の確証へ変換しない。
 
 | 対象状態・条件 | 次状態と制御 |
 |---|---|
@@ -177,6 +183,7 @@ observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/ep
 | 全状態、未確定controlあり | 新しい制御はnone。過熱の事実と必要な保護を保持し、既存要求/実状態を照合する。同じengineへ二重のstop/startを発行しない |
 | 全状態、有効温度が停止値以上 | thermal_stop、稼働中ならstop、停止確認済みならnone。プロセス状態も不明ならunknown/noneとして無確認の制御をしない |
 | 全状態、必要温度がunknown | unknown、none。停止要否の安全判断は担当ポリシー確定まで保留 |
+| 全状態、当該段階で必須の運転観測がunknown | unknown、none。連続時間を無効化し、回数/停止保持を維持。確認不能を障害確証としてrestartしない |
 | stop_latched=true | 起動/restart提案なし。別の温度状態へ移っても保持を解除しない |
 | stopped、明示した新規開始が未承認 | stopped、none。正常試料だけでは再開しない |
 | unknown、有効試料を再取得 | unknown、none。再同定・明示復旧の確認待ち |
@@ -185,6 +192,7 @@ observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/ep
 | warming、待機期限到達 | 全必須観測が正常ならrunning、それ以外は障害継続の計測へ |
 | running、障害継続が停止判定時間未満 | running、none。healthy_since_msは無効化 |
 | running/warming、障害継続が停止判定時間以上 | retry_wait、none。待機開始時刻を固定 |
+| retry_wait、全必須観測が正常・保持なし・未確定要求なし・起動不要 | running、none。待機期限到達だけを理由にrestartしない |
 | retry_wait、待機未完了 | retry_wait、none。観測ごとに待機開始を更新しない |
 | retry_wait、待機完了・許可あり・残り回数あり | restart提案。受理結果まではretry_wait |
 | retry_wait、回数上限 | stop_latched=true、stopped、stop提案。停止確認不能はunknownでも保持は維持 |
@@ -300,6 +308,10 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 | `A07-27` | 旧minerはあるが旧設定なし、CPU更新計画へGPU変更、運転retry残りあり | 復元/対象照合で停止。retry残量を更新再投入へ転用せず、元更新失敗を保持 |
 | `A07-28` | 同じ提案だがrequestの設定hash相違、accepted=falseかつstarted=true | MONITOR_RECEIPTで状態不変。提案だけの照合で別要求のreceiptを消費しない |
 | `A07-29` | retry_limit=0、初回明示開始/障害再開、ms差分overflow/冷却閾値ちょうど | 初回と自動復旧を分離。自動開始0回、演算失敗はunknown、境界は指定どおり判定 |
+| `A07-30` | noneのreceipt、要求試料より前のreceipt時刻、stop開始だけ確認、拒否済みIDの再配送 | 不正receiptを拒否し、停止完了/warmingを捏造しない。拒否でも処理済みIDを保持し二重発行・回数消費なし |
+| `A07-31` | observed_atだけ更新、bootだけ変更、新epochへ回数0/保持falseを補完 | 時刻だけは同一性を保ち、boot変化は再同定。新世代でも保存回数/保持を消さず、取得不能で制御しない |
+| `A07-32` | retry_waitで自然正常化、別入力でrunning/process=true/hashrate=null、TargetEvidenceの証拠数を型と照合 | 正常化は起動不要を確認してrunning/none。稼働中の不明はunknown/none、六証拠と時刻を区別し再試行・保持解除なし |
+| `A07-33` | preparingでprocess=false/hashrate=null、warming期限内は接続未準備、runningでprocess=true/hashrate=null | 開始前に未生成の運転値を要求せず、待機内はwarming/none、稼働中の必須不明はunknown/none。温度保護を待機で免除しない |
 
 ## 未決事項と成立判定
 

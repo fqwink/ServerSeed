@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B6`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B7`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB6）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB7）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -85,7 +85,7 @@ read/verify/writeの候補参照はCommandSpecの固定テンプレートと期�
 | 型 | 全キー・値域の候補 |
 |---|---|
 | RecipeInput | schema_version: 1、architecture: 既存CPU値、base_ref: MaterialRef、tools_ref: MaterialRef[]、environment: P01-ENVのEnvironmentBinding、binary_sha256・binary_manifest_sha256: string、recipe_revision: 1以上integer、ram_required_bytes・ram_reserve_bytes: 正整数。MaterialRefは[型の詳細](#型とapiの詳細案)で定義 |
-| MediaSelection | action: install・adopt・update・backup・recover、target: TargetEvidence、selection: P02-STATEのSelectionまたはnull、backup_destination: stringまたはnull、confirmation: stringまたはnull |
+| MediaSelection | action: install・adopt・update・backup・recover、target: TargetEvidence、selection: P02-STATEのSelectionまたはnull、backup_destination: stringまたはnull、confirmation: ConfirmationInputまたはnull |
 | HandoffRecord | schema_version: 1、media_operation_id・target_operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、binary_sha256: string、stage: 下記段階、target_receipt: OperationReceiptまたはnull |
 | RemovalResult | media_operation_id: OperationId、writes_complete・sync_complete・target_stopped・media_unmounted: booleanまたはnull、removable: boolean、checks: Check[] |
 | FirmwareResult | item_id: string、status: success・failed・unsupported・unknown、before・after: stringまたはnull、reboot_required: booleanまたはnull、evidence_ref: stringまたはnull |
@@ -209,18 +209,24 @@ ISOは固定資材/生成/起動、MEDIAは選択/導入入力、HANDOFFは段�
 
 P05-MEDIAの入力をMediaRequestとして閉じる候補。対象OSへ渡す導入値は[InstallPayload](PHASE_10.md#型とapiの詳細案)を参照し、物理経路用にstorage/network/user/bootの第二定義を作らない。
 
+共通payloadの検証は[InstallEntry](PHASE_10.md#入力と保存形式の詳細案)をMediaへ束縛して呼び、物理PCにCloud用の再接続先・台帳登録を要求しない。導入資材と実行能力は媒体のrecipeから照合し、Cloud用のinstaller選定を媒体へ流用しない。
+
 | 型 | 全キーと制約 |
 |---|---|
 | MediaRequest | schema_version: 1、media_id: hex32string、action: MediaSelectionのaction、target: TargetEvidence、selection: Selectionまたはnull、install: InstallPayloadまたはnull、plan: Plan、backup: BackupSetまたはnull、confirmation: Confirmationまたはnull |
-| Confirmation | plan_id: PlanId、target_disk_id: string、shown_digest: hex64string、response: string、confirmed_at: UtcMillis。消去の確認文字列は基本仕様を参照し、別の短縮確認へ変えない |
-| HandoffRecordの補完 | 既存キーにrequest_sha256: hex64string、recipe_sha256: hex64string、target_boot_id: stringまたはnull、removal: RemovalResultまたはnull、last_confirmed_stage: 通常経路のHandoffStageを追加する案 |
+| Confirmation | plan_id: PlanId、target_disk_id: string、shown_digest: hex64string、plan_response: string、erase_response: stringまたはnull、confirmed_at: UtcMillis。入力二値はConfirmationInputと同じ名前で、下記の計画確認と追加消去確認を区別 |
+| HandoffRecordの補完 | 既存キーにmedia_id: MediaRequestの識別子、request_sha256: hex64string、recipe_sha256: hex64string、target_boot_id: stringまたはnull、removal: RemovalResultまたはnull、last_confirmed_stage: 通常経路のHandoffStageを追加する案 |
 | 受渡し保存先 | 媒体側・対象側に同じmedia_id/plan_idのレコードを置き、対象側は候補/var/lib/serverseed/media-handoff.json。書込み先は外部requestから受け取らず固定生成する |
 
 installはaction=installだけ非null、既存OSへのadopt/update/backup/recoverではnull。selectionはinstall/adoptだけ必須、継続管理のupdate/backup/recoverはnullとして保存済み構成とplan.profileの一致を要求する。非nullのselectionはplan/target/profileがplanと一致する必要がある。backupが必要な操作は保全計画参照を省略できず、action=backupはbackup非null。確認は利用者の当該計画への応答で、USB接続や--yesで生成しない。MediaSelectionは画面入力、MediaRequestは検証後の配送値とし、確認文字列の収集結果を検証済みConfirmationに変換してから渡す。
 
 MediaRequestの検証候補順序は形式/版→actionごとのnull条件→target/Plan/Selectionの同一性→保存構成→必須の保全/確認→InstallPayload→操作前提とする。install/adoptはsetup計画、update/backup/recoverはそれぞれ当該操作の計画へだけ結合し、adoptにpartition工程を含めない。Confirmationのshown_digestはPlan.digestと完全一致、target_disk_idは再同定した対象、confirmed_atは計画作成以降かつ期限内を要求する。確認文字列の一致だけで別action・別計画への同意へ転用しない。失敗はMEDIA_INPUTまたはMEDIA_BINDING、選択不足は共通CLIの停止へ対応付け、Subiquity・保存・対象変更を呼ばない。
 
+確認入力の具体候補ConfirmationInputはplan_responseとerase_responseの二キーだけ。短い確認コードは当該Plan.digestの先頭12桁とし、plan_responseは表示したAPPLYとspace一つとコードの完全一致を要求する。消去を含むPlanだけ追加でERASEとspace一つと同じコードをerase_responseへ入力させ、消去なしはnull。コードは[基本仕様の許す生成確認コード](../BASIC_SPEC.md#ディスク消去の確認表示)の具体化候補であり、シリアル等の必須表示は省略しない。大文字小文字変換・trim・--yes・媒体接続から応答を生成しない。Planが変われば両確認を失効させ、コード一致だけを計画の同一性・認証の証明にしない。
+
 last_confirmed_stageは同期済みの直前の通常段階を保持する候補で、failed/unknownを入れない。stageが通常段階なら同値、failed/unknownでは到達済み位置を残す。応答欠損時にpreparedへ戻して同じsetupを再実行しない。復旧計画は固定request hash・対象・実適用位置を照合して未実施の検証と記録確定だけへ接続し、元の失敗/不明記録を通常成功へ無条件上書きしない。
+
+request_sha256はMediaRequestの全キーをP02-CLIのJSON順/escape・末尾LFなしで固定したbyte列、recipe_sha256はRecipeInput全体の同じ表現へのSHA-256とする候補。どちらも媒体file全体のhashやPlan.digestと代用しない。継続情報はmedia_id・両operation_id・plan_id・二hash・対象の固定識別を一組で照合する。既存media-handoff.jsonが別の未完了操作を指す場合はMEDIA_PENDINGで新規操作を停止し、単一保存先へ上書きしない。完了済みでも履歴との対応を保全してから新しい計画の保存を判断し、fileがあるだけで再開処理を起動しない。
 
 ISO recipeのtools_refはMaterialRefの識別集合を重複なしで固定し、baseと全実行物、同梱本体の実hashをrecipeへ結合する。RAM起動を第一候補とし、採用版で測定した必要量と予約量のchecked合計が観測した使用可能RAM以下の場合だけ起動条件を通す。測定根拠なし・取得不能・overflowは起動保留。boot後のlatest取得や、ツール参照名toolsへの別名置換は行わない。容量条件の成功だけで媒体参照解消を認定しない。
 
@@ -272,6 +278,8 @@ P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はReci
 | `A05-29` | 媒体preboot後/内蔵guard再取得前、SSH accepted後/running前、OS partition.started片側のみ | 各担当記録と実状態を照合し、新しい変更開始0回。媒体・SSH・一時環境のguardを相互コピーしない |
 | `A05-30` | target_verified後の応答欠損、last_confirmed_stageはtarget_verified | 到達済み位置を保持してunknown。同じsetupをpreparedから再実行しない |
 | `A05-31` | 同じboot_idで二回のサービス検証、preboot子は終了したがloop参照あり | 再起動確認/媒体解除は未成立。一部証拠でcomplete/removableへ進めない |
+| `A05-32` | 消去ありでAPPLYだけ、ERASEだけ、旧Planの同じ短いコード | 二確認不足または全Plan照合不一致で変更0件。生成確認コードを表示義務・計画全体の照合の代用にしない |
+| `A05-33` | 同じplan_idでmedia_id/recipeだけ変更、既存handoffは別の未完了操作 | 対応不一致またはMEDIA_PENDINGで停止。継続処理の誤起動・既存記録上書き・再setupなし |
 
 ## 未決事項と成立判定
 

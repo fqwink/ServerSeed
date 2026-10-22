@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B6`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B7`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB6）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB7）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -94,6 +94,8 @@ FeatureReadinessの候補集約は、必須failが一件でもあればstatus=fa
 
 configured/applied/verifiedは工程の検証済み事実で、verified=trueならapplied/configuredもtrue、applied=trueならconfigured=trueを要求する候補。矛盾するboolの組はREADINESS_INPUTで拒否し、unknownへ丸めて正常入力にしない。boolが全trueでも担当必須Checkのfailを優先し、status/readyは集計器が再算定する。呼出元からのready=trueをそのまま採用しない。
 
+純粋集計API候補はmaster_readiness(registry: &TargetRegistry, features: Vec<FeatureReadiness>) -> Result<MasterReadiness, ContractError>。machine_id/target_countは検証済み台帳から求め、別の入力値で対象数を偽装しない。三機能集合の欠損/重複・上記bool矛盾はREADINESS_INPUT。資源四条件のCheck.idはP08-COHOST/resources.total、resources.minimum、resources.measured、resources.enforced（後三つにも同じ接頭辞）とし、全必須passのときだけresources.boundedをpassにする。欠損はunknown、確定failはfail、元の各根拠は消さない。各機能の他の必須集合は担当契約へ参照し、未知集合を空の成功へしない。
+
 資源配分の評価候補は、`cpu_reserved + cpu_server + cpu_mining <= cpu_total`と、bytes単位で同形のメモリー式の両方が成立すること。整数加算はchecked arithmetic、計算不能・観測不足は失敗。予約・割当の入力の生成方法、最低必要量、検出CPUとスケジューラ制限の対応、systemdへの適用方法は`D08-02`の採用事項で、ゼロ予約を既定値として通さない。式の成立だけで実負荷時の管理経路やアプリ性能を保証しない。
 
 マスター保全では、台帳版・master_machine_id・保全時点の未確認要求を同じ保全物へ対応付ける候補。失われたマスターの識別継承と旧マスターの制御権失効を確認できない場合、readinessがreadyでも遠隔変更を再開しない。切替の具体手段と秘密情報の復旧は`D08-03`およびセキュリティポリシーの決定待ちである。
@@ -144,16 +146,20 @@ pub struct RegistryEntry {
 pub struct TargetRegistry {
     schema_version: u32, master_machine_id: MachineId, targets: Vec<RegistryEntry>,
 }
+pub struct RegistrySnapshot {
+    registry: TargetRegistry, source_bytes: Vec<u8>, sha256: String, verification_ref: String,
+}
 pub enum RegistryEdit { Register(RegistryEntry), Remove(TargetId) }
 pub struct RegistryChange {
     before_sha256: String, after: TargetRegistry, affected: Vec<TargetId>,
 }
 pub fn validate_registry(input: &Value) -> Result<TargetRegistry, ContractError>;
-pub fn registry_change(current: &TargetRegistry, edit: RegistryEdit, pending: &[TargetId])
+pub fn registry_change(current: &RegistrySnapshot, edit: RegistryEdit, pending: &[TargetId],
+    known_machines: &std::collections::BTreeMap<String, MachineId>)
     -> Result<RegistryChange, ContractError>;
 ```
 
-validate_registry・registry_changeはI/Oなし。後者はpendingに含まれる対象の解除・同じIDの置換を拒否し、同じ対象への別名登録も既知の同一性証拠があれば拒否する。未確認のホストを名前だけで別機器と認定しない。before_sha256は保存前の再照合へ使い、台帳保存・対象側操作は別の実行契約とする。
+validate_registry・registry_changeはI/Oなし。RegistrySnapshotは収集器が読んだ元byte列・その検証済みhash・同じbyte列を解析した台帳と検証参照を保持し、任意hexだけで構築しない。registry_changeはそのsha256をbefore_sha256へ保持し、自身でhash実行物を起動しない。known_machinesは検証済みのtarget_id→MachineIdの観測集合で、台帳/今回登録のID以外を拒否する。expected_machine_idと観測済みIDのいずれからも同一実体の別名登録を検出する。pending対象の解除・同じIDの置換を拒否し、未確認のhostを名前だけで別機器と認定しない。台帳保存・対象側操作は別の実行契約とする。
 
 マスターCLIの具体候補は`serverseed master targets list`、`serverseed master targets add`、`serverseed master targets remove`、`serverseed master run`、`serverseed master reconcile`の5入口。add/remove/runは対話入力・必要確認を要求し、--yesで対象・操作・構成を補完しない。list/reconcileは照合だけ。新構文の採用・全オプションと結果の確定は`D08-01`で行い、共通CLIが今すでに受理するとは扱わない。
 
@@ -266,6 +272,8 @@ P08-MASTERは台帳/対象選択、COHOSTは三機能の集約、BACKUPは管理
 | `A08-25` | 二対象の失効証拠を逆順、old/new ID同一、未確認要求一件残存 | MASTER_TRANSFERで保留。別対象の証拠・新構築成功を制御権移行の代用にしない |
 | `A08-26` | 別target_idで同endpoint、別DNS名だが同じ検証済みMachineId | 登録/配送前にREGISTRY_DUPLICATE。登録検査から暗黙接続・既存台帳書換えなし |
 | `A08-27` | verified=true/applied=false、全bool trueだが必須Check fail | 前者READINESS_INPUT、後者failed。入力のready/status自己申告で通過しない |
+| `A08-28` | DNS名は別だがknown_machinesが同じ実体、Snapshotのbyte列とhash証拠が不一致 | 重複登録/スナップショット不成立で保存0件。純粋編集器の暗黙接続・hash実行・任意hash採用なし |
+| `A08-29` | 台帳は二対象なのに結果は0件、resources.minimumだけ欠損、bounded自己申告pass | 台帳から対象数2を算定し資源判定はunknown。集合/根拠を再計算し偽のreadyを受理しない |
 
 ## 未決事項と成立判定
 

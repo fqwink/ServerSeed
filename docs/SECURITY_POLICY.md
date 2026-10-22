@@ -282,4 +282,4 @@ ISOを含む正式リリースでは、手動VM試験の成功を必須とし、
 
 候補の保護審査は、[ReadOnly/Changeの実行文脈](complete/PHASE_02.md#p02-exec)、[preboot/内蔵継続の切替](complete/PHASE_05.md#実行と復旧の確定候補)、[対象別の旧主体失効](complete/PHASE_08.md#p08-backup)、[初回搬入とQuery](complete/PHASE_09.md#p09-ssh)、[新OSの信頼照合](complete/PHASE_10.md#p10-recover)へ対応付ける。型・ID・guardの照合を、認証・権限・秘密情報保護の成立根拠と混同しない。特にQueryの非変更性、内蔵側の独立した実行主体、旧制御権失効の実効性は未採用方式のまま確認を要し、文書整理を現行保護条件の免除にしない。
 
-[取得のredirect比較案](complete/PHASE_04.md#依存と受入の確定候補)は、移動先・認証情報・一時URL/応答headerの非公開情報を本書の秘密情報/通信条件へ照合して審査する。固定hostの確認だけでTLS・署名・対象内容の検証を代用せず、未審査の移動先へ認証情報を配送しない。[外部実行結果](complete/PHASE_02.md#p02-exec)の生出力と[監視要求の対応](complete/PHASE_07.md#型とapiの詳細案)も、同じ保護条件と許可範囲へ照合する。これらの候補を、鍵方式・暗号形式・実機試験境界の採用済み情報として扱わない。
+[取得のredirect比較案](complete/PHASE_04.md#依存と受入の確定候補)、[実行の環境/cwd](complete/PHASE_02.md#p02-exec)、[監視要求](complete/PHASE_07.md#型とapiの詳細案)、[遠隔セッション/取消](complete/PHASE_09.md#型とapiの詳細案)、[証拠収集](complete/PHASE_11.md#入力と保存形式の詳細案)を、本書の秘密情報・通信・権限条件へ照合して審査する。型・hash・短い確認コード・証拠参照の存在は、主体の認証・権限・実体の保護を証明しない。固定hostだけでTLS/署名/内容検証を代用せず、生出力や一時URL等の非公開情報を公開診断へ転記しない。候補作成を鍵方式・暗号形式・実機試験境界の採用済み情報として扱わない。

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B6`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B7`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB6）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB7）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -32,7 +32,7 @@
 
 ## P03-FS
 
-観測は、対象内の論理パス、対象ルートと機器識別の組で行う。採用案ではNUL、`..`、空成分、重複区切り、末尾の不要な区切りを拒否し、シンボリックリンクを辿らない。対象ルート自体の識別に失敗したら全体を停止する。
+観測は、対象内の論理パス、対象ルートと機器識別の組で行う。採用案の資源pathは/から始まるUTF-8文字列で、NUL・制御文字・.・..の成分、空成分、重複区切り、末尾の区切りを拒否する。rootの/自体はRootBindingの対象であり管理資源にしない。trim・相対path補完・Unicode正規化・.の除去で入力を修復せず、シンボリックリンクを辿らない。対象ルート自体の識別に失敗したら全体を停止する。
 
 通常ファイル・ディレクトリ以外、読み取り不能、所有情報不明を資源不在として返さない。観測結果は`present`・`absent`・`unknown`と理由を持つ。file内容・属性と親ディレクトリの識別情報を記録し、実行環境の同名パスを検査しない。
 
@@ -141,10 +141,11 @@ pub struct ResourceObservation {
     attributes: Option<ResourceAttributes>, identity: Option<String>, reason: Option<String>,
 }
 pub struct ContentBlob { reference: ContentRef, bytes: Vec<u8>, sha256: String }
-pub fn resolve_content(reference: &ContentRef) -> Result<ContentBlob, ContractError>;
+pub fn resolve_content<'a>(reference: &ContentRef, available: &'a [ContentBlob])
+    -> Result<&'a ContentBlob, ContractError>;
 ```
 
-resolve_contentの参照集合は組込み資材・検証済み保全物へ限定し、呼出元がURLや任意パスを登録する入口は作らない。返すbyte列は所有し、長さ・ハッシュと固定参照を照合した後だけ比較・適用へ使う。資源のkindはenumの分岐から一意に求め、kindとattributesの不一致を構築時に拒否する。uid/gidはu32、modeは検証済みu16、外部の8進stringとの変換時にも正確な桁・許可ビットを検証する。実ファイルの固定方法をこの型で代替しない。
+resolve_contentは収集器が所有する検証済みContentBlob集合を借用する純粋な参照解決器候補。集合は組込み資材・検証済み保全物へ限定し、URL・任意path・未取得資材を登録しない。返却参照は集合より長生きできず、解決器は取得・hashコマンド・暗黙コピーを行わない。対応が0件または複数ならCONTENT_REFERENCE、長さ/hash不一致ならCONTENT_MISMATCH。資源のkindはenumから一意に求め、kindとattributesの不一致を構築時に拒否する。uid/gidはu32、modeは検証済みu16、外部の8進stringとの変換でも正確な桁・許可ビットを検証する。実ファイルの固定をこの型で代替しない。
 
 解析入力はvalidate_resourcesだけでValueから変換し、内部ではResourceSet・ResourceObservationを使う。型変換失敗時に観測・計画・適用を呼ばない。Planの形式・digest・全step payloadの採用判断はD03-03へ対応付ける。
 
@@ -200,9 +201,11 @@ P03-PLANの固定形式を以下の候補へ具体化する。Resourceの既存�
 |---|---|
 | Plan | schema_version: 1、plan_id: PlanId、created_at: UtcMillis、command: 既存操作名string、target_state: 既存総合状態、requires_confirmation・requires_reboot: bool、definition_revision: u32、target: TargetEvidence、profile: 構成enumまたはself単独時null、contracts: ContractRef[]、resources: Resource[]、observations: ResourceObservation[]、steps: PlanStep[]、blocked_by: Diagnostic[]、digest: hex64string |
 | PlanStep | id・title: string、destructive・requires_network・required: bool、contract: ContractRef、depends_on: step IDのstring[]、resource_change: ResourceChangeまたはnull、payload: 担当契約で型を固定したobjectまたはnull。資源stepはpayload=null、非資源stepはresource_change=nullとし、非資源payloadの型はcontractで一意に識別する。未定義のstepは実行不可 |
-| ContentRef | 組込み資材はembedded:に続く資材ID、保全物はbackup:に続く検証済みIDと内部entry ID。参照表にないID、URL、絶対パス、親への逸脱を拒否 |
+| ContentRef | 組込み資材はembedded:資材ID、保全物はbackup:OperationId:entry_id。資材ID/entry_idはresource_idの文字・長さ制約。参照表にないID、追加のcolon、URL、絶対パス、親への逸脱を拒否 |
 
 resourcesとobservationsはresource_idで一対一、各資源差分はresource_changeへ一回だけ結合する。非資源stepも固有idで追跡し、P04のStepReceipt.step_idはそのidと一致する。contracts内のcontract_idの重複と同じpathの異なる資源を拒否する。各step.contractはcontractsの一件へ完全一致させ、複数stepが同じ契約を使うことと契約一覧の二重登録を区別する。差分属性・depends_onはASCII順、stepsは依存を満たす安定トポロジカル順で、同順位はstep idのASCII順。blockedが一つでもあれば全体を適用不可にする。
+
+Planを封印する前の候補正規順はresources/observationsをresource_id、contractsをcontract_id、各blocked_byをP02-CLIの診断順とする。資源のdepends_onと変更属性も既定順へ揃え、重複は並替え前に拒否する。意味に順序がある担当payload内の配列は担当正本の順を保存する。digest計算器で配列を追加整列するのではなく、PlanDraft生成時にこの形へ固定する。同じ入力集合の列挙順だけが違う場合に、別digest・別計画を生成しない。
 
 計画順序の候補は、全ID一意/全依存先存在→自己辺拒否→入次数0のstep IDをASCII昇順で一件選択→後続辺を除去して反復、の順。未出力stepが残り入次数0が空ならPLAN_CYCLE、実行可能な先頭部分だけを返さない。資源の順序は対応するstepを生成してこの順序へ結合し、resource_id順とstep ID順の二つの実行列を保存しない。計画同一性はこの確定順の全step・停止理由・全前提で比較し、入力objectの掲載順で変わらない。
 
@@ -254,6 +257,9 @@ PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資
 | `A03-25` | step a/bが同順位、cはa/bへ依存。入力順逆転、次にb/cの循環を追加 | 正常順はa,b,cで一定。循環はPLAN_CYCLEで全体blocked、先頭aだけの適用なし |
 | `A03-26` | resource ID順と対応step ID順が逆、非資源stepも同順位 | 全stepの単一トポロジカル順だけを使用。別の資源実行列を生成しない |
 | `A03-27` | 未封印PlanDraft、別byte列のdigest証拠、payload両方null | 配送/適用不可またはseal/形式拒否。空digestの仮Planを成功扱いにしない |
+| `A03-28` | resources/observations/contractsの列挙順だけ逆転、担当payloadは順序あり | 前三集合は同じ固定順・digest入力。意味のあるpayload順は保持し、重複を整列で消さない |
+| `A03-29` | 資源pathが/、/a/./b、/a//b、末尾slash、制御文字 | 資源validatorで拒否し観測/変更0件。正規化して別pathへ管理範囲を変更しない |
+| `A03-30` | 同じContentRefが0件/2件、byte数相違、未登録のbackup参照 | CONTENT_REFERENCE/CONTENT_MISMATCH。純粋解決器は取得せず、借用集合の外へ参照を持ち出さない |
 
 ## 未決事項と成立判定
 

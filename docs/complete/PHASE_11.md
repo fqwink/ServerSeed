@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B6`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B7`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB6）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB7）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -96,7 +96,7 @@ ReleaseEvidence.artifactsの期待集合は[既存成果物名](../BASIC_SPEC.md
 
 publishable=trueの候補条件は、全必須成果物の一致、必要な実行・VM受入のcomplete、各許諾・例外・署名鍵・公開設定の担当条件の成立を所有者が確認できること。未確定の担当条件はfalseとし、チェック数の多数決で成功にしない。公開可否の評価関数と実際の公開操作は分離し、評価成功だけでタグ作成・署名・uploadを開始しない。
 
-純粋検証の候補APIは`verify_release(scope: &AcceptanceScope, set: &ReleaseSet, evidence: &ReleaseEvidence) -> Result<ReleaseCheck, ContractError>`。ReleaseCheckはchecks（Check[]）とpublishable（bool）を所有し、入力側のpublishable=trueは信用せず上記条件から算定する。形式/識別不一致はErr、正しく識別できた対象の条件不足はchecksに根拠を残したpublishable=falseとする。検証と実際の公開adapterを別に保ち、API応答欠損時の実配置は読取り照合へ戻す。
+純粋検証の候補APIは`verify_release(scope: &AcceptanceScope, set: &ReleaseSet, evidence: &ReleaseEvidence, catalog: &[VerifiedEvidence]) -> Result<ReleaseCheck, ContractError>`。ReleaseCheckはchecks（Check[]）とpublishable（bool）を所有し、入力側のpublishable=trueは信用せず上記条件から算定する。形式/識別不一致はErr、正しく識別できた対象の条件不足はchecksに根拠を残したpublishable=falseとする。検証と実際の公開adapterを別に保ち、API応答欠損時の実配置は読取り照合へ戻す。
 
 受入集合の全列挙、証拠の保存・改変検出、集計用Rust型と公開APIの版・権限の実証は`D11-01`〜`D11-03`の未達に残す。文書だけの改善でこれらの証拠が存在した扱いにはしない。
 
@@ -154,7 +154,9 @@ pub struct ActualCase {
     artifact_sha256: String, result: String, actual_ref: Option<String>, reason: Option<String>,
     evidence: Vec<EvidenceRef>,
 }
-pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>)
+pub struct VerifiedEvidence { reference: EvidenceRef, verification_ref: String }
+pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>,
+    catalog: &[VerifiedEvidence])
     -> Result<AcceptanceMatrix, ContractError>;
 ```
 
@@ -205,14 +207,14 @@ resultの許容値は[受入行](#データ契約の具体化案)へ参照する
 | 入力 | 各「入力と保存形式の詳細案」にキー/型/条件を具体化。設定/記録の採用・版の対応、機器別値域とOS生成契約はD02-03・D06-01・D07-02・D10-02等が残る |
 | 既定値と検証 | P02-CLI/PARSEと担当validator。ポリシーfalse・全形式の検証順序の採用判断が残る |
 | 出力 | P02-CLI、各receipt/遠隔payloadと検査集合の候補あり。担当機器/アプリの観測ID・全エラー対応・実装可能な保存方式の採用はD02-02等が残る |
-| 実行と状態 | 各「実行と復旧の確定候補」に対象worker/引渡し/取消/部分確定を記載。内部入口・親停止時の監督・導入方式の完全な実現契約が残る |
+| 実行と状態 | 各「実行と復旧の確定候補」に対象worker/引渡し/取消/部分確定を記載。P02の停止予約、P05の二確認/媒体識別、P09の論理セッション/最終確認位置は候補あり。内部入口・親停止時の監督・導入方式の完全な実現契約が残る |
 | 副作用と保護 | P02-STORE/EXEC・P03-FS・各操作。root固定・排他引継ぎ・媒体解除方式が残る |
 | 失敗と復旧 | ChangeFailure、資源journal、各中断表で実位置と記録不一致を具体化。OS固有の確定/停止成立性・復旧可能範囲の採用はD02-05・D04-04・D09-02・D10-03等が残る |
-| 判定と数値 | 各候補の境界と算定。機器値域・復元期限・同居の最低資源等が未確定 |
+| 判定と数値 | 各候補の境界と算定、TTLの秒/ms、HTTPの全応答量、IPv4/MACの字句は担当本文に候補あり。機器値域・データ方法別の復元期限・同居の最低資源等が未確定 |
 | 非機能の検証 | 各受入・上限・依存表。製品共通の目標/測定/合否、OS方式の成立性確認が残る |
 | 保存と互換性 | 共通記録/構成設定/遠隔/媒体/証拠の形式候補あり。版の採用、旧形式/三構成の実移行行・主体切替は未確定 |
 | 依存と外部契約 | 各依存表と例外台帳。全個別固定版・全引数・許諾・承認根拠が未完了 |
-| 受入条件 | 各A01〜A11の設計。方式未確定のケース、全組合せの固定集合と採用判断が残る |
+| 受入条件 | 各A01〜A11の設計とVerifiedEvidenceを使う純粋集計の境界。方式未確定のケース、全組合せの固定集合と採用判断が残る |
 
 | ケースID | 区分・固定入力 | 期待結果と確認 |
 |---|---|---|
@@ -239,6 +241,8 @@ relative_pathは証拠ルート内に限定し、absolute・親逸脱・symlink�
 
 EvidenceRef.scope_idは固定したscope識別子であり、scope自身のdigestを内部へ埋める循環形式を作らない。scope全byte列のhashは外部の固定入力資料へ保存して照合する。期待証拠のcommitはspecification_commit、実出力のcommitはimplementation_commitへ照合し、受入行のexpected_refは検証済みEvidenceRefのevidence_idへ対応付ける。上記structに出てくるEvidenceRef/ExpectedArtifactは本表の検証済み値を保持する非公開フィールド型とする。
 
+VerifiedEvidenceは収集器が証拠root内の実体・byte数・実hash・commit/環境/scopeへの対応を確認した後だけ生成する候補。verification_refはその確認資料の参照で、任意のEvidenceRefからの無検査変換を設けない。純粋集計器はcatalogのevidence_idを一意に解決し、全フィールド一致を照合するだけで、file読取り・hash実行・ダウンロードを行わない。欠損/重複/別対象の証拠はACCEPT_EVIDENCE。大容量ISO等のbyte列を全てRAMに保持せず、収集器が固定実体を有界読取りで検証した資料へ結合する。実体が変わればVerifiedEvidenceを失効させ再収集する。
+
 必須成果物名の全集合は[初期リリース](../BASIC_SPEC.md#リリース)を一度だけ参照し、ReleaseSet.artifactsと一対一照合する。公開用証拠に秘密値を含めない検査はSECURITY_POLICYが担当する。署名対象byte列は再整形せず、配布本体・ISO内本体・マニフェストの実hashを対応付ける。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -260,6 +264,8 @@ P11-RELEASEの公開操作候補は、固定したReleaseSet→draft作成/照�
 | 公開後に誤り発見 | 新版または所有者承認の保護措置へ。タグ付替え・同名asset差替えを自動実行しない |
 
 公開先の候補識別ReleaseDestinationはowner・repository・tag・target_commit・release_id・asset_idsを全キーとし、release_idだけ新規作成前null、asset_idsは成果物名→asset IDのobjectとする。owner/repository/tagは固定入力、APIの応答から別リポジトリへ切り替えない。403/404/timeoutだけで未配置を断定せず、権限と実配置の照合が成立するまで再作成しない。draft閲覧は[公式APIの権限説明](https://docs.github.com/en/rest/releases/releases#list-releases)へ対応付け、実リポジトリの閲覧確認を別に行う。
+
+asset照合の候補ではrelease IDを固定して列挙の終端まで確認し、第一pageだけで全集合を確定しない。必要集合より一件でも多い・同名重複・同ID重複・未確認の次pageがある状態ではRELEASE_SET。次pageの取得は同じAPI origin/固定release/宣言済み認証/親予算の範囲だけとし、不明な外部URLへ認証を継承しない。staged以後のasset_idsは必須成果物名と一対一で、実配置のID/名前/量と取得後の実hashを別々に照合する。配置途中の部分mapは進捗として保持してもstagedにしない。照合前後でtag/commit/release/draft/asset集合が変わったらRELEASE_CHANGEDで停止し、二回一致だけを同時変更の排除証明にしない。
 
 本書の300秒は一つの署名/搬入/公開工程の親予算で、API呼出しはその内側の一回60秒・再試行0回。asset取得はP04の取得上限とReleaseSetのサイズへ制限する候補。ISO生成・VM/実機試験は各専用予算を採用してから実行し、通常検査30分へ隠れて延長しない。全体予算・API固定版・認証方式はD11の審査へ残る。
 
@@ -295,6 +301,8 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | `A11-25` | 全契約の案・全受入設計が存在するが一判断IDの採用/成立根拠が不足 | 文書案の検査結果と不足を保持。全フェーズ成立・実装着手可能・製品試験成功へ昇格しない |
 | `A11-26` | 同じ結合キーでexpected_ref/requiredだけ改変、入力行順だけ逆転 | 改変を拒否、順序変更だけなら同じ安定順の結果。scope縮小・期待値差替えなし |
 | `A11-27` | 文書URLの版だけ固定、実APIヘッダー版なし、asset取得が302 | 公開条件未成立。URLや200だけの実装で取得成功/固定API採用を認定しない |
+| `A11-28` | catalogに証拠欠損/同ID重複、参照は同じだが収集後の実体変更 | ACCEPT_EVIDENCEまたは証拠失効で集計/公開不可。純粋関数の暗黙I/O・参照だけの実測認定なし |
+| `A11-29` | 第一pageだけ一致し次page未確認、途中uploadの部分map、取得中にrelease ID変更 | RELEASE_SET/RELEASE_CHANGEDで公開停止。部分列挙・名前一致・二回観測を完全配置や排他の証明にしない |
 
 ## 未決事項と成立判定
 

@@ -32,7 +32,7 @@ CPU・GPUのサービス分離は[マイニングの実行基盤](../PRINCIPLES.
 
 設定全項目・予備pool・許可/時間帯は[入力の詳細](../complete/PHASE_07.md#入力と保存形式の詳細案)、監視保存/同一制御の照合は[復旧候補](../complete/PHASE_07.md#実行と復旧の確定候補)、機器能力と複数機器の観測集約は[依存/受入候補](../complete/PHASE_07.md#依存と受入の確定候補)が定義先。温度取得不能時の候補値は[担当安全審査](../SECURITY_POLICY.md#完全仕様化に伴う審査候補)の決定待ちであり、設定が存在するだけで実機の停止/再開を許可しない。
 
-候補の能力範囲/単位/刻みは[DeviceCapability](../complete/PHASE_07.md#依存と受入の確定候補)、保存対象/設定と要求・receiptの一回性は[監視API](../complete/PHASE_07.md#型とapiの詳細案)、時間境界は[実行と復旧](../complete/PHASE_07.md#実行と復旧の確定候補)、更新前後の資材・設定は[MiningUpdateBinding](../complete/PHASE_07.md#p07-update)へ参照する。実機の値・外部API・復旧方式の採用は未決のまま維持し、型の具体化を実採掘・機器制御の実施許可へ拡張しない。
+候補の能力範囲/単位/刻みは[DeviceCapability](../complete/PHASE_07.md#依存と受入の確定候補)、対象/epoch/receiptの束縛は[監視API](../complete/PHASE_07.md#型とapiの詳細案)、必須観測不明と自然解消の優先順は[単一状態表](../complete/PHASE_07.md#状態と中断の詳細案)、更新前後の資材/設定は[MiningUpdateBinding](../complete/PHASE_07.md#p07-update)を参照する。型や状態を複製せず、候補の具体化を実機の値・外部API・復旧方式の採用や実機制御の許可へ拡張しない。
 
 自動化対象、採掘成功の判定、再試行と温度制御の条件は[マイニングの運転監視](../POLICIES.md#マイニングの運転監視)を参照する。
 

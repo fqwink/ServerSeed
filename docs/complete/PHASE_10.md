@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B6`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B7`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB6）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB7）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -150,11 +150,12 @@ pub struct NetworkInput {
     gateway: Option<String>, dns: Vec<String>, mac_address: String, mtu: u32,
 }
 pub struct UserInput { name: String, public_keys: Vec<String>, privilege_method: String }
-pub struct BootInput { mode: String, loader_material: MaterialRef, next_endpoint: String }
+pub enum InstallEntry { Media, SshBootstrap }
+pub struct BootInput { mode: String, loader_material: MaterialRef, next_endpoint: Option<String> }
 pub struct InstallPayload {
     storage: StorageInput, network: NetworkInput, user: UserInput, boot: BootInput,
 }
-pub fn validate_install_payload(input: &Value, capability: &BootstrapCapability)
+pub fn validate_install_payload(input: &Value, capability: &BootstrapCapability, entry: InstallEntry)
     -> Result<InstallPayload, ContractError>;
 ```
 
@@ -218,13 +219,17 @@ P10-OSのInstallPayloadについて、先述の型に対応するレイアウト
 | root容量 | 候補最小20 GiB。実OS・三構成・保全領域の必要容量を別に満たすこと。rootの最小値だけでmaster適合としない |
 | NetworkInput | 七キーの宣言を使用し、mac_addressは小文字colon区切り6octet、mtuは1280〜9000。interface_idだけで再同定せずMACと対応 |
 | static | 初期候補はIPv4のみ。addressは1件のCIDR、gatewayは同一subnetの単一IPv4、dnsは1〜3件の一意IPv4。network/broadcast/unspecified/multicastを拒否。IPv6は方式別仕様待ち |
-| BootInput | modeとloader_materialとnext_endpointの既存集合を維持。next_endpointは登録済みRegistryEntry参照だけ。任意shell・loader設定断片を受理しない |
+| BootInput | modeとloader_materialとnext_endpointの三キー。next_endpointはSSH導入では登録済みRegistryEntry参照、媒体ではnull。任意shell・loader設定断片を受理しない |
 
 レイアウト検査の候補計算はA=1,048,576 bytes、末端E=floor(expected_bytes/A)*A-A、UEFIのroot開始S=513*A、BIOSはS=3*A、root寸法=E-S。partition番号/順序はESPまたはbios_bootを1、rootを2とし、purpose/filesystem/mountpointは表の組だけを許容する。E<=S・算定overflow・寸法不一致を拒否する。UserInput.public_keysは制御文字/複数行/空/重複を拒否し、受理鍵形式と昇格方式の安全条件は担当ポリシーの採用待ち。自由なauthorized_keysオプションやshell断片を受けない。
 
 layoutに対応する二partitionの完全一致を要求する候補で、任意の第三partition・番号の入替え・mountpointの重複を拒否する。sector_bytesでstart/sizeを割り切れること、容量算定が正かつ最小root条件を満たすことをchecked演算で検証する。丸めは全容量からEを求める一回だけで、入力partitionの不正寸法を丸めて修復しない。staticのIPv4 prefixは1〜30を候補とし、/31・/32の別接続方式は未対応として消去前停止する。address/gatewayはnetwork/broadcast以外、gatewayと対象addressは別値を要求する。これらの対応範囲の採用はD10-02の審査対象であり、既存環境を自動変更しない。
 
+IPv4字句の候補はASCII十進4octet、各0〜255、0以外の先頭zero・符号・空白・短縮表記・hexを拒否する。prefixも先頭zeroなしの十進。networkはaddressとprefix maskのbit積、broadcastはnetworkと反転maskのbit和で求め、gatewayとのsubnet一致/自己address不一致を検証する。DNSの重複はこの解析済み32bit値で判定する。MACは6octetの完全一致に加え、全zero・broadcast・multicastを拒否し、観測済みinterfaceのunicast MACへ結合する。表示名・並び順・同じinterface_idだけから別機器のMACを補完しない。
+
 InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致→layout/boot.mode一致→sectorと全partition算定→network→user/公開鍵契約→loader/次endpointの順。NetworkInputはinterface_id/method/addresses/gateway/dns/mac_address/mtuの七項目だけで、八つ目を補完しない。dhcpの値集合とstaticの値集合は相互排他とし、staticのCIDRは一つのIPv4とprefix、gateway/dnsはCIDRを持たないIPv4へ照合する。複数アドレス・未知method・未確認MAC・必須の鍵/昇格方式未定義はINSTALL_PAYLOADで消去前停止。installerが後で補正することを成功条件にしない。
+
+entryは検証器を呼ぶ入口が指定する候補で、payloadから自己申告させない。Mediaではnext_endpoint=nullを要求し、物理PCの導入にマスター台帳への登録やSSH再接続を追加しない。SshBootstrapでは登録済み参照が必須で、nullはINSTALL_PAYLOAD。同じstorage/network/user/loaderの共通検証を再利用し、起動後の確認先だけを媒体の内蔵表示/記録とCloudのP09再接続へ分ける。
 
 これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
 
@@ -280,6 +285,8 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-25` | 再接続は成功だがroot不一致、別途root取得不能、修復計画にformat混入 | BOOT_MISMATCH/BOOT_UNKNOWN/再導入別確認へ分離。構成変更・再formatの自動続行なし |
 | `A10-26` | 第三partition、同一address/gateway、/31または/32、入力寸法の丸めが必要 | payload拒否で消去0回。未対応方式へのfallback・自動補正なし |
 | `A10-27` | prepared双方同期後、partition.startedの片側同期だけ成功 | 消去開始0回。再開時は可能性と実diskを照合し、未消去/消去済みのどちらも記録だけで断定しない |
+| `A10-28` | MediaとSshBootstrapへnext_endpoint=nullを別々に指定、payloadで入口を偽装 | 媒体だけnull条件を通過、Cloudは拒否。入口は呼出元が束縛し、物理導入へ遠隔台帳登録を強制しない |
+| `A10-29` | IPv4の先頭zero/短縮表記、gatewayが同じaddress、multicast MAC、解析後DNS重複 | INSTALL_PAYLOADで消去0回。別表記の黙認・同名interfaceへの推測結合なし |
 
 ## 未決事項と成立判定
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B6`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B7`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB6の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB7の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -36,7 +36,7 @@
 
 ID生成の純粋境界候補は`encode_id(kind: IdKind, entropy: &[u8; 16], existing: &[String]) -> Result<String, ContractError>`。IdKindはPlan/Operation/Machineで、表記は上表だけを使用する。入力entropyを保存・出力せず、生成後のIDだけを返す。既存集合の取得不能を空集合に置換せず、衝突では一度でMODEL_ID_COLLISION。OS取得器と表記器を分離する案を推奨し、時刻/PIDの連結を乱数の代替にする案は採らない。プロセスの照合キー候補はboot_id・pid・process_start_ticksの三つで、同一採取前後にキーが変わればMODEL_CHANGED、読めない場合はMODEL_UNREADABLE。PIDだけの一致を根拠にしない。
 
-プロセス情報の取得候補は[Linux proc資料](https://www.kernel.org/doc/html/latest/filesystems/proc.html)の起動後の開始tickと、[kernelのboot_id](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html)を別の値として照合する。PIDの存在/不在と読み取り不能を区別し、別PID namespace・procの差替え・起動世代不明を同一主体にしない。収集前後でboot/PID/startが一致して初めてその観測を採用する。tickをUTC秒へ換算して照合する方式ではない。実取得path/解析全契約・乱数源と期限・対象環境での検証はD02-01のままとし、一次資料確認を実測の代わりにしない。
+プロセス取得の候補元は、同じ対象起動世代の/proc/sys/kernel/random/boot_idと/proc/PID/stat。[Linux proc資料](https://www.kernel.org/doc/html/latest/filesystems/proc.html)と[kernelのboot_id](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html)へ照合する。boot_idはUUIDの小文字hex8-4-4-4-12と末尾LF一つ、statは最大4 KiBの元byte列として読む候補。statは先頭pidと括弧付きcommを区別し、最後の閉じ括弧の後を第3フィールド以降として数え、第22フィールドstarttimeを非負十進u64へ検証する。commの空白/閉じ括弧/非UTF-8を通常の空白区切りで誤解析しない。PID不一致・欠損・上限超過はMODEL_UNREADABLE。PIDの存在/不在と読み取り不能を区別し、別PID namespace・procの差替え・起動世代不明を同一主体にしない。収集前後でboot/PID/startが一致して初めて採用する。tickをUTC秒へ換算して照合する方式ではない。乱数源・取得期限・対象環境での成立確認はD02-01に残す。
 
 ### 共通参照型の候補
 
@@ -233,7 +233,9 @@ CommandResponseの構築候補では、担当dataの検証→Checkの全必須�
 
 ### 調査成果物案
 
-圧縮境界の推奨候補は、秘匿化済みの固定member集合を圧縮adapterへ渡す方式。member名は固定採取IDに拡張子を付けた単一相対名だけで、重複・絶対path・区切り・親逸脱・link・deviceを拒否する。生成前に全memberのbytes/hashと採取結果を固定し、生成後の復号検査でmember集合・内容の完全一致と余分なentry不在を要求する。暗号化・任意archive抽出は対象外。内製圧縮形式案は相互運用検証の負担が増えるため第二候補とし、OS実行物案も個別採用前は実行しない。HTTPSの取得契約はP04-SELFだけで定義する。
+圧縮境界の推奨候補は、秘匿化済みの固定member集合を圧縮adapterへ渡す方式。member名は固定採取IDに拡張子を付けた単一相対名だけで、重複・絶対path・区切り・親逸脱・link・deviceを拒否する。生成前に全memberのbytes/hashと採取結果を固定し、生成後の展開検査でmember集合・内容の完全一致と余分なentry不在を要求する。これは復号ではなく非暗号アーカイブの展開照合。暗号化・任意archive抽出は対象外。内製圧縮形式案は相互運用検証の負担が増えるため第二候補とし、OS実行物案も個別採用前は実行しない。HTTPSの取得契約はP04-SELFだけで定義する。
+
+bundle検証の候補では、生成tar.gz自体を17 MiB以下、展開時の通常file合計を採取上限以下へ制限し、各memberの宣言量と実量を生成前の集合へ一致させる。展開は保護された検証用領域だけで行い、入力名を任意pathへ解決しない。圧縮物の切詰め・破損・余分なgzipストリーム・未登録の拡張entry・展開量超過はBUNDLE_ARCHIVEで正式保存しない。採取・生成・検証・確定の全工程を既存の30秒へ算入する。正確なtar/gzip版・全argv・形式の相互運用契約はD02-06で採用審査し、上限の追記だけで実行可能とはしない。
 
 `support-bundle`の`--output`は既存の保存先ディレクトリを指定する候補を維持し、その直下の[既存ファイル名形式](../BASIC_SPEC.md#support-bundle)へ一つのtar.gzを保存する。保存先ディレクトリ自体を新規成果物と取り違えず、生成するアーカイブのパスが既存なら停止する。ファイル名の識別子はP02-MODELのMachineId、時刻はUTCの`YYYYMMDDTHHMMSSmmmZ`。MachineId・時刻が確認不能なら代用値を作らず停止する。
 
@@ -518,11 +520,15 @@ required_recordsは呼出元が成功条件を減らす入力ではなく、親P
 | 再試行 | 共通実行器は自動再試行0回。呼出元だけが回数・待機・再照合を定義できる |
 | 取消 | 起動前は起動しない。起動後は対象契約の保全・停止へ移り、単に接続を閉じたことを終了とみなさない |
 
-候補APIは`run_command(spec: &CommandSpec, context: CommandContext<'_>) -> Result<CommandOutput, ContractError>`へ一本化する。CommandSpecの全項目はmaterial（CommandMaterial）、executable（PathBuf）、args（Vec<OsString>）、environment（BTreeMap<OsString, OsString>）、stdin（Vec<u8>）、timeout_ms/grace_ms（u32）。CommandMaterialはExternal(MaterialRef)またはRelease(ReleaseArtifactRef)のenum候補で、個別例外実行物と検証済み同一本体の起動を区別する。値域は本節の表とstdin契約へ照合する。CommandContextはReadOnly（対象証拠と期限を借用）またはChange（ExecutionContextを借用）のenumとし、前者は個別の非変更実行契約だけを許可する。読取りのためにguardや管理記録を新規作成しない。
+候補APIは`run_command(spec: &CommandSpec, context: CommandContext<'_>) -> Result<CommandOutput, ContractError>`へ一本化する。CommandSpecの全項目はmaterial（CommandMaterial）、executable・working_directory（PathBuf）、args（Vec<OsString>）、environment（BTreeMap<OsString, OsString>）、stdin（Vec<u8>）、timeout_ms/grace_ms（u32）。CommandMaterialはExternal(MaterialRef)またはRelease(ReleaseArtifactRef)のenum候補で、個別例外実行物と検証済み同一本体の起動を区別する。値域は本節の表とstdin契約へ照合する。CommandContextはReadOnly（対象証拠と期限を借用）またはChange（ExecutionContextを借用）のenumとし、前者は個別の非変更実行契約だけを許可する。読取りのためにguardや管理記録を新規作成しない。
+
+起動前検証の候補順序は資材/実行物の固定対応→引数テンプレート→作業directory→環境集合→stdin量→期限/実行文脈。working_directoryは当該実行契約が指定する既存の絶対directoryだけで、CLI起動場所を継承しない。環境はenv_clear後に宣言集合だけ設定し、PATHによる実行物探索・HOMEのユーザー設定・proxy・loader変数を暗黙継承しない。実行物/引数/環境名/値のNUL、環境名の空と=を拒否する。引数の許可集合・個数・量は担当実行契約へ完全一致させ、CLIの引数上限を別用途の共通実行器へ無言で転用しない。不足はEXEC_SPECでspawn前に返す。
 
 CommandOutputの全項目はoutcome（CommandOutcome）、stdout/stderr（Vec<u8>）。起動前の検証失敗だけErrを返し、起動試行後のspawn_failed・timeout・出力超過・停止不明もOk内の観測結果として保持する。Okをコマンド成功とは解釈せず、終了0・必要出力・停止確認を担当処理が別に照合する。入力1 MiB、出力各1 MiBの上限は解除しない。子孫停止・ブロッキングI/Oの中断と親停止時の保全はD02-04に残し、Child::kill・新しい外部ツール・FFIで補完済みとはしない。
 
 CommandOutcomeの候補優先順は、起動不成立ならspawn_failed、起動後に全停止を確認不能ならstop_unknown、それ以外は最初の取消/timeout/出力超過/I/O失敗、最後に通常終了またはsignalとする。同時検出ではcancelled→timed_out→output_limit→io_failedの順とし、追加原因は担当Checkへ保持する。停止要求後にexit_code=0を得ても元原因をexitedへ戻さない。stdout/stderrの生byte列は一時メモリーの観測値で、公開診断・ログ・bundleへそのまま転記しない。秘匿化は担当セキュリティポリシーを適用する。
+
+期限算定の候補起点はrun_command受付時。timeout_msは通常処理と停止/回収を含む全予算、grace_msはその内側の停止予約とし、timeout_ms<=grace_msはEXEC_SPEC。外側の期限と受付時+timeoutの早い方を最終期限、そこからgraceをchecked減算した時点を通常処理の期限にする。起動前に通常処理の残量がなければspawnしない。通常期限以後は新しいstdin配送/処理を開始せず停止・回収へ移り、停止のため親期限を延長しない。elapsed_msは受付から最後に観測した位置までの経過を切り捨てた整数msで、応答不能中の終了値を生成しない。OSが処理を戻さない場合の外部観測/保全はD02-04の成立条件に残す。
 
 ## データ契約の具体化案
 
@@ -540,6 +546,8 @@ CommandOutcomeの候補優先順は、起動不成立ならspawn_failed、起動
 証拠のabsentは取得に成功して不在を確認した場合だけで、OS情報が未取得の場合はunknown。EvidenceFieldのreason候補は`MODEL_NOT_PRESENT`・`MODEL_UNREADABLE`・`MODEL_UNSUPPORTED`・`MODEL_CHANGED`。StateDecision.ruleは[既存判定順](../BASIC_SPEC.md#状態判定の優先順位)の最初の該当番号とし、stateと一致しない組を拒否する。MANAGEDのprofile=nullや、未選択値をmaster/serverへ補完する結果を生成しない。Selectionは権限証明でも永続的な承認トークンでもなく、再検査で対象・計画が変われば破棄する。
 
 TargetEvidenceの全フィールドがobservedであることを状態判定の一律前提にしない。空ディスクではrootやOSの不在をabsentとして証明する必要があり、unknownと区別したうえで既存判定順の各条件へ照合する。観測世代の一致だけで未取得の値を補完せず、disk_id等の取得・必須性が未確定なら対応する判断IDを残す。
+
+TargetEvidenceの比較では、元の証拠を保存する完全比較と、観測時刻を除いた対象同一性比較を分ける候補。後者の比較対象は担当契約が定める必須証拠集合であり、呼出元が欠損項目を任意除外しない。observedは値の完全一致、unknownは一致未確認、absentはその工程が不在を許す場合だけ不在事実として照合する。observed_atの相違だけで別対象にせず、逆に同時刻だけで同一対象にしない。boot/実行環境/rootの予定変化は媒体/OS導入の引渡し契約で別に証明し、この比較の対象集合を減らして通さない。
 
 識別子のparseは長さ・接頭辞・小文字hexを完全一致で確認し、空白除去や大文字変換をしない。生成側は候補と照合できる既存IDの集合を受け、衝突時は`MODEL_ID_COLLISION`として停止する。無限に乱数を引き直さず、乱数源の成立性・照合範囲が不足する限り`D02-01`は未解消。時刻の候補表現は`YYYY-MM-DDTHH:MM:SS.mmmZ`、年1970〜9999、有効な暦日、秒0〜59。過剰な小数桁を受理して丸めず、生成時だけナノ秒をミリ秒へ切り捨てる。経過時間はInstantで別に評価する。
 
@@ -709,6 +717,8 @@ P02-PARSEの後段へ渡すスキーマ登録を以下の候補へ固定する�
 
 versionのlast_successful_operationと時刻は両方nullまたは両方非nullだけを許す候補。成功確定時だけ同じoperation/finished_atへ更新し、失敗・中断では直前の成功値を保持する。operation_id/updated_atは現在の版記録を更新した操作/時刻であり、最後の成功を常に意味するわけではない。初回成功前の架空ID・時刻を生成せず、last-successと不一致なら記録照合へ戻す。
 
+operationの候補検証ではstatus=runningだけfinished_at=null、終端三状態はUtcMillisを必須とし、開始/終了時刻の読取り不能を現在時刻で埋めない。historyの同じoperation_id・command・target・profile・result・開始/終了時刻を照合し、operationのstatusとhistoryのresultの名前の違いを別結果としない。last-resultのhistory_sha256は保存済みの当該一行とLFへ結合し、history全fileのhashを入れない。時計補正で壁時計が後退した場合も経過時間を差算せず、実行期限の根拠は単調時計へ分離する。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A02-79` | managed.profileとconfigが不一致、operationに未知キー、last-successの履歴hash不一致 | 構文成功後も整合検査失敗。キャッシュ補完・不在扱い・成功記録なし |
@@ -770,6 +780,12 @@ planと変更操作は適用可能な八検査と担当step検査を要求する
 | `A02-98` | timeout後exit=0、出力超過後停止未確認、取消とtimeout同時 | 順にtimed_out/stop_unknown/cancelled。後から得た通常終了で失敗原因を消さない |
 | `A02-99` | 一時file同期後に最終名が先に出現、link成功後の親同期失敗 | 既存宛先不変、後者は作成済み/未同期として保存失敗。上書きrename・無確認削除なし |
 | `A02-100` | versionの最後の成功二値が片方null、失敗操作で両値を更新 | 形式/照合失敗。直前の成功参照を消さず、版更新操作と成功操作を混同しない |
+| `A02-101` | statのcommに空白と閉じ括弧、別PID、starttime欠損、boot_id前後不一致 | 第22フィールドを正しく特定し、別PID/欠損/世代変化は不採用。commを表示せず時刻/PIDだけで主体を認定しない |
+| `A02-102` | runningに終了時刻、failedにnull、last-resultへhistory全fileのhash | 記録形式または同一操作の照合で拒否。終端時刻・一行hashを推測で補完しない |
+| `A02-103` | 実行物は固定だがcwd未指定、環境名に=、親のproxy/loader変数だけ存在 | 前二件はEXEC_SPECで起動0回。親変数を継承せず宣言集合だけ渡し、PATH探索・shell補完なし |
+| `A02-104` | timeout=grace、親残量が停止予約以下、通常期限到達後のstdin未配送 | 起動前停止または停止/回収へ移行。猶予の外付け延長・期限後の新規配送・未観測の終了捏造なし |
+| `A02-105` | 生成bundleへ余剰gzipストリーム、link entry、宣言量より長いmember | BUNDLE_ARCHIVEで正式保存なし。展開量を制限し、アーカイブ検証を復号・任意pathへの復元と混同しない |
+| `A02-106` | 観測時刻だけ相違、必須disk証拠unknown、起動後rootの予定変化 | 時刻だけは別対象にせず、未知diskは一致未確認。予定変化は担当引渡しで検証し、必須集合縮小で通さない |
 
 ## 未決事項と成立判定
 

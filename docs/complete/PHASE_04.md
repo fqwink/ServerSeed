@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B6`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B7`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB6）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB7）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -75,6 +75,8 @@ MigrationRuleの候補照合はsourceの三値（構成/config/migration）と�
 5. 途中失敗では依存する後続を停止し、適用済み・未適用・確認不能を照合して復旧計画を返す。
 
 1資源の上限は30秒、限定資源全体の上限は300秒、再試行なしを候補とする。復元は資源の逆依存順を候補とするが、他機能の変更と競合する場合は自動復元しない。既存ファイルの内容・mode・所有権すべてを復元できることを先に確認する。
+
+属性適用の候補順は内容の準備→uid/gid→mode→内容/全属性の再観測→file同期→確定/親同期。[Rustのchown](https://doc.rust-lang.org/std/os/unix/fs/fn.chown.html)では所有者変更がsetuid/setgid等へ影響し得るため、modeを先に確定したまま成功としない。[fchown](https://doc.rust-lang.org/std/os/unix/fs/fn.fchown.html)とFileの権限設定で、採用済みRootBindingが固定した同じ実体へ適用する。属性だけを変える通常fileでも複数hard linkが判明した場合は共有inodeを直接変更せず、別entryへの影響を解消する計画がなければAPPLY_SHAREDで停止する。ACL/capability等の未管理属性を保持/復元できる根拠がなければ置換を開始しない。標準APIの存在でroot固定D03-02を解消したとはしない。
 
 資源別記録の採用案は、親のplan_id・operation_id、resource_id、処理位置、変更前後の識別情報、保全元、再観測結果を持つ別レコード。既存の本体専用トランザクションへ混在させない。具体的な配置・版・同期順序は`D04-04`の未決事項とする。
 
@@ -172,7 +174,8 @@ pub struct RestoreRequest {
     source: BackupReceipt, destination: TargetEvidence, method: ContractRef,
 }
 pub struct BackupProgress {
-    operation_id: OperationId, stage: String, temporary_evidence: Vec<String>,
+    operation_id: OperationId, stage: String, last_confirmed_stage: String,
+    temporary_evidence: Vec<String>,
     receipt: Option<BackupReceipt>,
 }
 pub fn apply_self(ctx: &mut ExecutionContext, prepared: &PreparedSelf)
@@ -190,6 +193,8 @@ BackupRequest.profileは構成選択済みのデータ保全だけを対象と�
 ## 状態と中断の詳細案
 
 BackupProgress.stageの候補全集合はpreparing・capturing・saved・restore_checked・complete・failed・unknown。receiptはcompleteだけでSomeとし、途中失敗では一時物の参照・確認済み位置とerrorを保持する。savedはハッシュ一致までで復元可能性を意味しない。取得対象の整合性確保に失敗したらcapturingへ進まない。
+
+BackupProgress.last_confirmed_stageはpreparing/capturing/saved/restore_checked/completeのいずれかで、stageが通常段階なら同値、failed/unknownなら最後に証拠を確認した段階を保持する候補。capturingは開始の確証であり全entry取得済みの意味ではない。receipt=Noneのfailedでもsavedまで到達した事実を保持し、失敗した保存物を未作成として再取得しない。stageだけをcompleteへ変更せず、対象固有の復元確認と保存物の検証記録の確定後に正式receiptを結合する。親update内ではこの子のreceiptを親へ返した後、全stepを照合して親がfinishする。子receiptの生成条件に親のfinish完了を要求して循環させず、子のcompleteを親操作の成功とも扱わない。
 
 | 中断・失敗位置 | 停止と復旧候補 |
 |---|---|
@@ -245,11 +250,13 @@ P04-BACKUPの保存単位をBackupSetとする候補。既存BackupReceiptは検
 
 BackupRequestは検証済みBackupSetのsourceをtargetへ対応付け、残る同名の値をそのまま所有する内部型とする。BackupEntryは本表の検証済み各値を非公開フィールドに持つstruct。pathの外部表現はUTF-8絶対パス、内部はPathBufとし、保存先の同一性を文字列だけで認定しない。
 
-restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測既定値を作らない。valid_untilは確認時刻にTTLをchecked加算して求め、overflow・時計後退・方法の変更は無効。候補保存先は利用者が選んだローカルのmount済みFSだけ。ネットワーク転送・暗号方式の未選定を、平文保存や任意tar実行の許可にしない。
+restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測既定値を作らない。valid_untilはverified_atをUTCミリ秒へ変換し、TTLを1,000倍してchecked加算し、UtcMillisの暦日範囲へ戻して求める候補。秒をmsへ無変換で足さず、演算overflow・表現範囲外・時計後退・方法の変更は無効。更新前判定では同じ保全物・方法・対象版を照合したうえでverified_at <= now < valid_untilを一度の確認時刻へ評価する。nowが確認時刻より前、時刻取得不能、判定から適用までの前提変化は再確認待ち。候補保存先は利用者が選んだローカルのmount済みFSだけ。ネットワーク転送・暗号方式の未選定を、平文保存や任意tar実行の許可にしない。
 
 BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各pathは空でない相対成分列で、directory自身のbytes=0・sha256=null、fileは実byte数/hashを必須とする。親directoryを含むことを未列挙の子の取得許可にしない。復元時は全entryと保全物の版/暗号/方法を先に検証し、全pathの出力先を固定してから変更する。復元確認が失敗した保存物は参照と検証失敗をBackupProgressへ残すが、正式BackupReceiptは生成しない。verified=falseの途中結果は成功receiptではなく検査証拠として扱い、更新前提にも保持期限による削除根拠にも使用しない。
 
 BackupEntryの親子検証候補は、pathの成分列を比較して重複を拒否し、列挙したfileの配下へ別entryが存在する場合も拒否する。列挙directory配下は明示したentryだけを取得し、再帰探索で未管理データを追加しない。検査から取得までに種別・同一性・内容が変わったらBACKUP_CHANGED。総量はfileのbytesのchecked合計に形式/暗号/作業領域を加えてFS別に計算し、暗号形式の上限が未確定なら容量検査を成功にしない。
+
+保存先名の候補はartifact_nameをbackup_idの表記そのものへ固定し、拡張子・任意の利用者名・path成分を追加しない。形式の識別は保存内容の採用版/方法で行い、名前から暗号方式を推測しない。保存先directoryと取得する全entryについて実device/FSを照合し、sourceの取得範囲内へ解決する保存先、同じ消去予定disk上の保存先、同一性不明をBACKUP_DESTINATIONで拒否する。expected_available_bytesは観測証拠であって実容量の保証ではなく、書込み前の再測定と実書込み時の失敗を検出する。既存同名を新しい保全物で上書きしない。
 
 互換表は旧二択形式→三構成形式を自動変換不可、三構成形式→同じ採用版を検証後のみ可、未知revisionを不可とする候補。server/miningからmasterへの変更も単なるprofile書換えでは不可。対象revisionの実値・移行方法・切戻し可能範囲を所有者が決定するまで更新計画をblockedにする。
 
@@ -313,6 +320,11 @@ lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障
 | `A04-31` | file entry aとa/b、directory aと未列挙のa/c、暗号overhead未定義 | 前者拒否、未列挙の取得0件、容量判定は未成立。再帰取得・平文代替なし |
 | `A04-32` | redirect比較案でHTTPS三段/四段、別originの認証要求、最終200が別hash | 四段・認証転送・内容不一致を拒否。採用前は比較案を実取得へ使用しない |
 | `A04-33` | 親update内でアプリ一件とselfが各完了、履歴/終了記録は未確定 | 子stepのverifiedだけ保持。親finishは一回、子が履歴を個別確定・ロック解放しない |
+| `A04-34` | mode設定後に所有者変更、属性変更対象fileに別hard link、未管理ACL保持不能 | 属性再照合またはAPPLY_SHARED/保全不成立で停止。別entryの権限変更・modeの成功偽装なし |
+| `A04-35` | TTL=1秒、verified_at末尾.500、期限直前/同時、年範囲を超える加算 | 期限は正確に1,000ms後。直前だけ有効、同時/表現範囲外は無効で更新停止、保持物の削除なし |
+| `A04-36` | 保存先が取得元の子directory、消去予定disk上、artifact_nameが別operation | BACKUP_DESTINATION/名前不一致で保存開始0回。空き容量の入力値だけで安全性・保存成功を認定しない |
+| `A04-37` | saved後に隔離復元失敗、stage=failed/receipt=None | last_confirmed_stage=savedと保存物参照を保持。未作成扱い・再取得・正式receipt生成なし |
+| `A04-38` | 親updateが子backupのreceipt待ち、子の保存/復元確認は成功、親finish未実施 | 子receiptを返して親の残step/finishへ接続。互いの完了待ち・子だけで親成功・履歴の二重確定なし |
 
 ## 未決事項と成立判定
 

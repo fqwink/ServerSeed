@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B6`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B7`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB6）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB7）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -80,6 +80,8 @@ ComposeEvidence候補の全項目はname・compose_sha256・service_names・imag
 | AppResult | name: string、receipt: OperationReceipt、health: HealthResult、data_verified: booleanまたはnull |
 
 HealthInputはkindに対応する片方だけを非nullとし、期待状態コードは空・重複を拒否する。初回検査をattempts=1として数え、失敗した検査の終了後からinterval_seconds待って次の検査を行う。最終回後の待機・勝手な方式変更・無限再試行をしない。各試行はアプリ全体と親操作の残期限にも制限され、次の試行の予算がなければ開始しない。body_limit_bytesは受信する本文の厳密上限。0は空本文だけを許容し、本文を読まずに成功とする指定ではない。上限超過は失敗、最終応答の完了と期待status一致を両方要求する。
+
+CommandInputの候補は構造化された呼出しパラメーターであり、任意実行の許可ではない。executable/argsをApplicationDataMethodまたはhealthの承認済み実行契約の全テンプレートへ一致させ、P02-EXECのmaterial・working_directory・environment・stdin・停止予約をその契約から束縛して初めてCommandSpecを生成する。契約にない引数、実行物の別名、NUL、暗黙shell、未固定のcwd/環境があればAPP_COMMANDで起動しない。timeout_secondsは正整数、healthではHttpInputと同じ時間範囲、取得/復元では当該操作の上限以下。msへのchecked変換後にも親の残期限と停止予約を照合する。
 
 HTTP URL・HTTPS・応答の解析・redirect・成功条件の外部契約は`D06-02`で正式資料と照合するまで未達。この表の値域をHTTP実装・取得基盤の採用と扱わない。command方式の非ゼロ・timeout・取得不能はP02-EXECの結果を保持し、自動修復は行わない。
 
@@ -179,6 +181,8 @@ read-only確認の可否が不明なcommandは、verify時にはunknownで実行
 
 HTTPの第一候補は固定GET、redirectなし、userinfo/fragmentなし、明示した接続先だけへの要求。最終応答と取得完了を必要とし、1xxだけ・ヘッダーだけの到着を成功にしない。これは製品側の制限案で、HTTP標準自体の制限という意味ではない。TLS/URL/転送実装と全応答上限は`D06-02`で未達のまま、inspectには通信を追加しない。
 
+応答量の候補では全status/header/trailerの元byte合計を64 KiB以内、暫定1xxは16応答以内とし、どちらも最終応答前から累積する。本文量はHTTPの転送フレーミングを除いた受信内容byteで計数する。Accept-Encodingはidentityを要求し、Content-Encodingが未指定/identity以外ならHEALTH_ENCODINGで失敗、自動展開しない。[RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html)の表現符号化と転送完了の区別へ照合する候補で、HTTP全実装の選定ではない。Content-Lengthだけを実量の証明にせず、終了不正・途中EOF・矛盾したframing・trailer量超過もHEALTH_RESPONSE。生header/bodyは診断へ転記せず、全条件を満たした最終応答だけ期待statusへ照合する。
+
 新設・差し替えの比較では空アプリ・多サービス・部分失敗・保全/復元失敗を同じ入力で照合する。マスターからも同じモジュールを呼び、別のDocker制御を複製しない。
 
 ## 受入条件の充足照合案
@@ -257,6 +261,8 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 | `A06-25` | captureとrestoreが別方法行、二サービス中一方のstop失敗、隔離参照が本番DBへ解決 | 方法不一致/取得前停止/DATA_ISOLATIONを区別。capture・本番復元を実行せず元失敗を保持 |
 | `A06-26` | Compose全三サービスのうちPlanは二件、未計画サービスが同projectに存在 | 計画不成立/対象外不変。共有projectを理由に停止・削除対象を拡張しない |
 | `A06-27` | attempts=3で初回pass、別入力では初回停止不明、全三回は確定fail | 順に一回でpass/一回でunknown/三回でfail。余分な試行・重複実行なし |
+| `A06-28` | 正しい絶対実行pathに未承認引数、cwd契約なし、health時間が範囲外 | APP_COMMAND/値域検査で起動0回。構造化配列というだけで任意実行・環境継承を許可しない |
+| `A06-29` | 1xxを17件、累積header量超過、gzip本文、期待2xxだが途中EOF | 応答上限/HEALTH_ENCODING/HEALTH_RESPONSEで失敗。本文だけの上限・status一致でpassにしない |
 
 ## 未決事項と成立判定
 
