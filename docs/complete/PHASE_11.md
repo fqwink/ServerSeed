@@ -66,14 +66,14 @@
 
 ## 検査の入出力・内製単位案
 
-統合受入の集計・成果物間の対応照合は内製候補とする。既存の`ci/`・`release/`という配置境界を維持し、Rustで所有する判断処理と薄い実行ラッパーの役割を分ける。具体的な補助実行体の構成はD11-01で決定するまで追加しない。
+統合受入の集計・成果物間の対応照合は内製候補とする。実装言語と適用範囲は[憲章第8条](../CHARTER.md#検証コードの実装言語)を参照し、既存の`ci/`・`release/`という配置境界を維持する。証拠収集、入力照合、集計、公開可否の評価と実際の公開操作を分離する。シェルによる実行・受渡し・保存の具体方式はD11-01で決定するまで追加しない。
 
 | 宣言案 | 入出力・副作用 |
 |---|---|
-| 受入集計 | [collect_acceptanceの型付き宣言](#型とapiの詳細案)だけを使用。全期待行・実結果・未達を照合 |
-| リリース検証 | [verify_releaseの型付き宣言](#データ契約の具体化案)だけを使用。純粋検証で自動公開なし |
+| 受入集計 | [collect_acceptanceの入出力契約](#型とapiの詳細案)だけを使用。全期待行・実結果・未達を照合 |
+| リリース検証 | [verify_releaseの入出力契約](#データ契約の具体化案)だけを使用。評価から自動公開なし |
 
-共通型はP02-MODEL。受入行・証拠・成果物集合の完全スキーマ、許容する版、結果と実行上限の対応はD11-01に残る。難易度は集計が中、正式公開との統合が高。新設案で旧実装なし。将来の差し替えは同じ固定成果物と欠損・改変fixtureで検証し、署名済みバイト列や公開済みタグを移行目的で書換えない。
+識別・診断等の共通データの意味はP02-MODELへ照合し、Rustの検証専用型・関数を共有する契約にはしない。受入行・証拠・成果物集合の完全スキーマ、許容する版、結果と実行上限およびシェルの具体方式の対応はD11-01に残る。難易度は集計が中、正式公開との統合が高。新設案で旧実装なし。将来の差し替えは同じ固定成果物と欠損・改変fixtureで検証し、署名済みバイト列や公開済みタグを移行目的で書換えない。
 
 ## データ契約の具体化案
 
@@ -96,9 +96,9 @@ ReleaseEvidence.artifactsの期待集合は[既存成果物名](../BASIC_SPEC.md
 
 publishable=trueの候補条件は、全必須成果物の一致、必要な実行・VM受入のcomplete、各許諾・例外・署名鍵・公開設定の担当条件の成立を所有者が確認できること。未確定の担当条件はfalseとし、チェック数の多数決で成功にしない。公開可否の評価関数と実際の公開操作は分離し、評価成功だけでタグ作成・署名・uploadを開始しない。
 
-純粋検証の候補APIは`verify_release(scope: &AcceptanceScope, set: &ReleaseSet, evidence: &ReleaseEvidence, catalog: &[VerifiedEvidence]) -> Result<ReleaseCheck, ContractError>`。ReleaseCheckはchecks（Check[]）とpublishable（bool）を所有し、入力側のpublishable=trueは信用せず上記条件から算定する。形式/識別不一致はErr、正しく識別できた対象の条件不足はchecksに根拠を残したpublishable=falseとする。検証と実際の公開adapterを別に保ち、API応答欠損時の実配置は読取り照合へ戻す。
+検証処理verify_releaseの候補入力は、照合済みAcceptanceScope・ReleaseSet・ReleaseEvidenceとVerifiedEvidenceの集合。出力ReleaseCheckの全キーはchecks（Check相当データの配列）とpublishable（boolean）とし、入力側のpublishable=trueは信用せず上記条件から算定する。形式/識別不一致は固定診断、正しく識別できた対象の条件不足はchecksに根拠を残したpublishable=falseとする。これはシェルの入出力契約案で、呼出し構文・受渡し・解析・終了区分はD11-01の未達。検証と実際の公開adapterを別に保ち、API応答欠損時の実配置は読取り照合へ戻す。
 
-受入集合の全列挙、証拠の保存・改変検出、集計用Rust型と公開APIの版・権限の実証は`D11-01`〜`D11-03`の未達に残す。文書だけの改善でこれらの証拠が存在した扱いにはしない。
+受入集合の全列挙、証拠の保存・改変検出、シェルの集計・解析・計測方式と公開APIの版・権限の実証は`D11-01`〜`D11-03`の未達に残す。文書だけの改善でこれらの証拠が存在した扱いにはしない。
 
 ## 接続と責務の照合
 
@@ -137,64 +137,16 @@ ReleaseEvidenceは「同じ本体をISOに収録した」証拠と、手動VM試
 
 ## 型とAPIの詳細案
 
-`P11-ACCEPT`は要求される行の集合を実結果から作らない候補。ScopeとExpectedCaseを先に固定し、実結果の欠損・余分な結果を検出する。
+`P11-ACCEPT`は要求される行の集合を実結果から作らない候補。ScopeとExpectedCaseを先に固定し、実結果の欠損・余分な結果を検出する。データ形式は[受入行](#データ契約の具体化案)、[入力と保存形式](#入力と保存形式の詳細案)、公開先は[ReleaseDestination](#実行と復旧の確定候補)に集約し、Rustの型・関数宣言を検証の実装契約にしない。
 
-```rust
-pub struct ExpectedCase {
-    requirement_id: String, contract: ContractRef, case_id: String,
-    architecture: String, profile: Option<Profile>, entry: String,
-    execution_class: CaseExecutionClass, expected_ref: EvidenceRef,
-    artifact_ref: EvidenceRef, environment_ref: String, required: bool,
-}
-pub struct AcceptanceScope {
-    schema_version: u32, scope_id: String, specification_commit: String,
-    implementation_commit: String, cases: Vec<ExpectedCase>, artifacts: Vec<ExpectedArtifact>,
-}
-pub struct ActualCase {
-    key: ExpectedCase, implementation_commit: String, environment_ref: String,
-    artifact_sha256: String, result: String, actual_ref: Option<String>, reason: Option<String>,
-    evidence: Vec<EvidenceRef>,
-}
-pub struct VerifiedEvidence { reference: EvidenceRef, verification_ref: String }
-pub struct EvidenceRef {
-    evidence_id: String, relative_path: String, sha256: String, bytes: u64,
-    commit: String, environment_id: String, scope_id: String,
-}
-pub struct ExpectedArtifact {
-    name: String, architecture: Option<String>, producer_contract: ContractRef, required: bool,
-}
-pub struct AcceptanceRow {
-    requirement_id: String, contract: ContractRef, case_id: String, architecture: String,
-    profile: Option<Profile>, entry: String, execution_class: CaseExecutionClass,
-    environment_ref: String, artifact_sha256: String,
-    expected_ref: String, result: String, actual_ref: Option<String>, reason: Option<String>,
-}
-pub struct AcceptanceMatrix {
-    schema_version: u32, implementation_commit: String, rows: Vec<AcceptanceRow>, complete: bool,
-}
-pub struct ArtifactEvidence {
-    name: String, sha256: String, bytes: u64, producer_ref: String, verification_refs: Vec<String>,
-}
-pub struct ReleaseEvidence {
-    schema_version: u32, tag: String, commit: String, build_environment_ref: String,
-    artifacts: Vec<ArtifactEvidence>, acceptance: AcceptanceMatrix, publishable: bool,
-}
-pub struct ReleaseSet {
-    schema_version: u32, tag: String, commit: String, manifest: EvidenceRef,
-    artifacts: Vec<EvidenceRef>, acceptance_scope: EvidenceRef, acceptance_result: EvidenceRef,
-    draft_release_id: Option<u64>,
-}
-pub struct ReleaseCheck { checks: Vec<Check>, publishable: bool }
-pub struct ReleaseDestination {
-    owner: String, repository: String, tag: String, target_commit: String,
-    release_id: Option<u64>, asset_ids: std::collections::BTreeMap<String, u64>,
-}
-pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>,
-    catalog: &[VerifiedEvidence])
-    -> Result<AcceptanceMatrix, ContractError>;
-```
+| データ | 全キー・型の候補 |
+|---|---|
+| ActualCase | key: ExpectedCase、implementation_commit・environment_ref・artifact_sha256・result: string、actual_ref・reason: stringまたはnull、evidence: EvidenceRef[] |
+| VerifiedEvidence | reference: EvidenceRef、verification_ref: string。証拠収集・照合の完了を別に必要とし、任意の参照から無検査で生成しない |
 
-resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseのkeyに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。戻り値のcompleteは関数が算出し、呼出元のtrueを信頼しない。
+集計処理collect_acceptanceの入力は、照合済みAcceptanceScope、ActualCaseの集合、VerifiedEvidenceのcatalog。出力はAcceptanceMatrixまたは固定診断とし、証拠取得・試験実行・保存を行わない。呼出し構文・データ受渡し・解析・診断の符号化はD11-01で確定する。
+
+resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseの結合キーに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。出力のcompleteは集計処理が算出し、入力のtrueを信頼しない。
 
 結合の候補順はrequirement_id・contract.contract_id・case_id・architecture・profile・entry・execution_class・environment_refのUTF-8バイト辞書順で、profile=nullはstringより前とする。残るContractRef全項目・expected_ref・artifact_ref・requiredも固定scopeと完全一致させ、同じ結合キーで内容だけ変えた行を受理しない。Scopeのcase_id集合は担当本文の全受入設計へ照合し、同一ケースの全直積を自動生成しない。各ケースの適用行/拒否行が未決ならscope未成立とし、集計器の成功と分ける。
 
@@ -204,7 +156,7 @@ ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_ref
 |---|---|---|
 | `A11-33` | expected_refのIDだけ一致しhash違い、not_runへ架空の実hash、publishable入力true | ACCEPT_EVIDENCEまたは公開不可。参照名・入力bool・未実施データの捏造による完了なし |
 
-集計内部は上記collect_acceptanceだけを使用し、別のValue返却APIを実装しない。verify_releaseも純粋評価に分離する。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
+集計内部は上記collect_acceptanceの入出力契約だけを使用し、別形式の集計結果を正本にしない。verify_releaseも実公開から分離した評価とする。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
 
 ## 状態と中断の詳細案
 
@@ -234,7 +186,7 @@ ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_ref
 | 許諾 | 独自成果物と第三者資材の対象・条文・再配布条件を別々に確認。公開目的を利用許諾へ変換しない |
 | 結果再利用 | 同じcommit・環境・入力・成果物・期待契約への適用根拠を確認。変更した軸の試験は再実施 |
 
-リリース確認器をcrateへ抽出する場合も公開操作は別責務に維持し、検査器の単体試験から実upload/署名を呼ばない。成果物集合・相互参照・欠損/改変・未実施結果への判定を同じfixtureで比較する。公開済み資材をテスト用の書換え対象にしない。
+リリース確認処理を分割・差し替える場合もシェルの検証処理として扱い、公開操作は別責務に維持する。検査器の単体試験から実upload/署名を呼ばない。成果物集合・相互参照・欠損/改変・未実施結果への判定を同じfixtureで比較する。公開済み資材をテスト用の書換え対象にしない。
 
 ## 受入条件の充足照合案
 
@@ -278,12 +230,12 @@ P11-ACCEPTの証拠参照を以下の候補へ閉じる。所有者の判定資�
 | ExpectedCase | requirement_id・contract・case_id・architecture・profile・entry・execution_classは受入行と同じ型、environment_ref: string、required: bool、expected_ref・artifact_ref: EvidenceRef |
 | AcceptanceScope | schema_version: 1、scope_id: string、specification_commit・implementation_commit: Git完全ID、cases: ExpectedCase[]、artifacts: ExpectedArtifact[] |
 | ExpectedArtifact | name: 必須成果物名、architecture: 既存CPUまたは全体用null、producer_contract: ContractRef、required: bool |
-| ActualCaseの補完 | 既存結果にevidence: EvidenceRef[]を結合。passは期待参照と実観測の対応が必要、not_runは実出力を捏造しない |
+| ActualCase | 全キーは[集計の入力](#型とapiの詳細案)を参照。passは期待参照と実観測の対応が必要、not_runは実出力を捏造しない |
 | ReleaseSet | schema_version: 1、tag: string、commit: Git完全ID、manifest: EvidenceRef、artifacts: EvidenceRef[]、acceptance_scope: EvidenceRef、acceptance_result: EvidenceRef、draft_release_id: u64またはnull |
 
 relative_pathは証拠ルート内に限定し、absolute・親逸脱・symlinkを拒否する。証拠本文はbyte列を読み込んで長さ/hashを確認し、参照文字列の存在だけで実行済みとしない。ExpectedCaseは受入行の識別組とenvironment_refで一意とする。必須ケースの欠損・余剰・目的違い・別commitを集計前に拒否する。ExpectedCase.requiredは対象scopeの固定要求であり、実結果のnot_applicableだけでfalseへ変更しない。非適用は担当正本の根拠とscopeの対応が一致する場合だけ受理する。推奨は期待集合を先に固定する純粋集計器で、実行できた行からのscope生成は採らない。
 
-EvidenceRef.scope_idは固定したscope識別子であり、scope自身のdigestを内部へ埋める循環形式を作らない。scope全byte列のhashは外部の固定入力資料へ保存して照合する。期待証拠のcommitはspecification_commit、実出力のcommitはimplementation_commitへ照合し、受入行のexpected_refは検証済みEvidenceRefのevidence_idへ対応付ける。上記structに出てくるEvidenceRef/ExpectedArtifactは本表の検証済み値を保持する非公開フィールド型とする。
+EvidenceRef.scope_idは固定したscope識別子であり、scope自身のdigestを内部へ埋める循環形式を作らない。scope全byte列のhashは外部の固定入力資料へ保存して照合する。期待証拠のcommitはspecification_commit、実出力のcommitはimplementation_commitへ照合し、受入行のexpected_refは検証済みEvidenceRefのevidence_idへ対応付ける。EvidenceRef/ExpectedArtifactは未検証入力と照合済み記録を区別し、形式だけ正しい値を実証済みの証拠として生成・書換えしない。
 
 VerifiedEvidenceは収集器が証拠root内の実体・byte数・実hash・commit/環境/scopeへの対応を確認した後だけ生成する候補。verification_refはその確認資料の参照で、任意のEvidenceRefからの無検査変換を設けない。純粋集計器はcatalogのevidence_idを一意に解決し、全フィールド一致を照合するだけで、file読取り・hash実行・ダウンロードを行わない。欠損/重複/別対象の証拠はACCEPT_EVIDENCE。大容量ISO等のbyte列を全てRAMに保持せず、収集器が固定実体を有界読取りで検証した資料へ結合する。実体が変わればVerifiedEvidenceを失効させ再収集する。
 
@@ -332,7 +284,7 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | P11-RELEASE/set.identical | 固定した全必須配布物、ISO内本体、署名/metadata/再取得結果 |
 | P11-RELEASE/publication.allowed | 許諾・個別例外・正式鍵・閲覧範囲・所有者の公開判断 |
 
-集計器差替えは欠損/余剰/重複/別commit/非適用の各fixtureで同じ受入行・診断・complete/publishableを要求する。公開adapter変更ではAPI応答だけでなく実asset再取得と閲覧確認を再検証する。将来のcrate抽出で公開操作を純粋集計器へ移さない。
+集計器差替えは欠損/余剰/重複/別commit/非適用の各fixtureで同じ受入行・診断・complete/publishableを要求する。公開adapter変更ではAPI応答だけでなく実asset再取得と閲覧確認を再検証する。シェル処理の分割を理由に公開操作を集計処理へ移さず、検証器をRustのcrateへ抽出する案にはしない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -356,41 +308,24 @@ ExpectedCase.artifact_refは当該行が検証する一つの固定成果物を�
 |---|---|---|
 | `A11-34` | 仕様証拠だけ存在し成果物参照なし、別commitのartifact、not_runで実行証拠なし | 前二件はScope構築拒否。第三は実在する期待成果物への参照だけ保持し、未実施を実測passへ変換しない |
 
-ExpectedCaseDraftの生成入力候補をCaseBindingの固定集合とする。全キーはcase_id・source（ContractRef）・requirement_ids（既存要件IDの空でない一意配列）・contracts（検証対象ContractRefの空でない一意配列）・lanes・expected_ref。lanesの各要素はarchitecture/profile/entry/environment_ref/execution_class/required/applicability_refの七キー。execution_classはdocument/pure/adapter/vm/hardwareの一つで、CPU・構成・入口は本書の対応表へ照合する。applicability_refは適用/拒否/非適用を区別する固定根拠であり、能力未確認や未実施を非適用へ変換しない。
+ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合とする。execution_classの値型CaseExecutionClassはdocument/pure/adapter/vm/hardwareの一つで、CPU・構成・入口は本書の対応表へ照合する。applicability_refは適用/拒否/非適用を区別する固定根拠であり、能力未確認や未実施を非適用へ変換しない。
 
-```rust
-pub enum CaseExecutionClass { Document, Pure, Adapter, Vm, Hardware }
-pub struct CaseLane {
-    architecture: String, profile: Option<Profile>, entry: String,
-    environment_ref: String, execution_class: CaseExecutionClass,
-    required: bool, applicability_ref: ContractRef,
-}
-pub struct CaseBinding {
-    case_id: String, source: ContractRef, requirement_ids: Vec<String>,
-    contracts: Vec<ContractRef>,
-    lanes: Vec<CaseLane>, expected_ref: EvidenceRef,
-}
-pub struct CaseCatalog { schema_version: u32, specification_commit: String, bindings: Vec<CaseBinding> }
-pub struct ExpectedCaseDraft {
-    requirement_id: String, contract: ContractRef, case_id: String, lane: CaseLane,
-    expected_ref: EvidenceRef,
-}
-pub fn validate_case_catalog(input: &Value, sources: &[ContractRef])
-    -> Result<CaseCatalog, ContractError>;
-pub fn expand_expected_cases(catalog: &CaseCatalog)
-    -> Result<Vec<ExpectedCaseDraft>, ContractError>;
-pub fn bind_acceptance_scope(drafts: Vec<ExpectedCaseDraft>, artifacts: &[VerifiedEvidence],
-    environments: &[VerifiedEnvironment], identity: ScopeIdentity)
-    -> Result<AcceptanceScope, ContractError>;
-pub struct VerifiedEnvironment {
-    environment_id: String, architecture: String, entry: String,
-    profiles: Vec<Option<Profile>>, execution_classes: Vec<CaseExecutionClass>,
-    evidence: EvidenceRef, verification_ref: String,
-}
-pub struct ScopeIdentity { scope_id: String, specification_commit: String, implementation_commit: String }
-```
+| データ | 全キー・型の候補 |
+|---|---|
+| CaseLane | architecture・entry・environment_ref: string、profile: 構成値またはnull、execution_class: CaseExecutionClass、required: boolean、applicability_ref: ContractRef。値域は本書の対応表へ照合 |
+| CaseBinding | case_id: string、source: ContractRef、requirement_ids: 既存要件IDの空でない一意配列、contracts: 検証対象ContractRefの空でない一意配列、lanes: CaseLane[]、expected_ref: EvidenceRef |
+| CaseCatalog | schema_version: 1、specification_commit: 完全Git ID、bindings: CaseBinding[] |
+| ExpectedCaseDraft | requirement_id・case_id: string、contract: ContractRef、lane: CaseLane、expected_ref: EvidenceRef |
+| VerifiedEnvironment | environment_id・architecture・entry: string、profiles: 構成値またはnullの配列、execution_classes: CaseExecutionClass[]、evidence: EvidenceRef、verification_ref: string |
+| ScopeIdentity | scope_id・specification_commit・implementation_commit: string。commitは完全Git ID |
 
-CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindings。検証/展開/束縛のAPIは検証済み参照と入力値だけを扱う純粋処理で、ファイル取得・時計取得・実試験を開始しない。sourceは担当受入行を含む節の固定参照、expected_refは期待内容の資料であり実結果ではない。lanesは空不可、同じ七値の重複を拒否し、同じ結合キーで根拠/requiredだけ違う行も競合とする。意味を未確認のままケース名の単語からclass/laneを自動認定しない。
+| 処理識別子 | 入力と出力の候補 |
+|---|---|
+| validate_case_catalog | 未検証入力と担当sourceのContractRef集合を受け、照合済みCaseCatalogまたは固定診断を返す |
+| expand_expected_cases | 照合済みCaseCatalogを受け、ExpectedCaseDraftの集合または固定診断を返す |
+| bind_acceptance_scope | ExpectedCaseDraft集合、照合済み成果物のVerifiedEvidence集合、VerifiedEnvironment集合、ScopeIdentityを受け、AcceptanceScopeまたは固定診断を返す |
+
+上表はシェルのデータ・入出力契約案であり、Rustの型・関数を検証用に実装する宣言ではない。検証/展開/束縛は検証済み参照と入力値だけを扱い、ファイル取得・時計取得・実試験を開始しない。sourceは担当受入行を含む節の固定参照、expected_refは期待内容の資料であり実結果ではない。lanesは空不可、同じ七値の重複を拒否し、同じ結合キーで根拠/requiredだけ違う行も競合とする。意味を未確認のままケース名の単語からclass/laneを自動認定しない。シェル手続の呼出し・受渡し・解析・終了区分と有界実行の成立根拠はD11-01の未達に残す。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -400,7 +335,7 @@ CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindi
 
 仕様にケースを追加したときは、case_idをカタログへ追加してlane/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、展開後ExpectedCase 100,000行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
 
-専用入力は[P02-PARSEのparse_acceptance_json](PHASE_02.md#解析の入力と上限)へ一回だけ渡し、次に選択済みのCatalog/Scope validatorへ対応付ける。rootの自己申告で一般設定の用途を切り替えない。構文解析後の展開も同じ15秒の外側予算へ含め、行生成前のchecked乗算/加算で100,000行と論理512 MiBを検査する。入力byte/ノード/展開行の全上限を独立に満たす必要があり、100,000行が常に16 MiBへ収まるという保証ではない。超過時は部分scopeを返さない。
+専用入力はシェルの検証処理が一回だけ解析し、次に選択済みのCatalog/Scope照合へ対応付ける。製品Rustの受入専用解析APIを呼び出さず、通常JSONの構文・深さ・文字列・位置・checked演算と計数規則の意味だけを[P02-PARSE](PHASE_02.md#解析の入力と上限)へ照合する。専用上限の候補は入力16 MiB、ノード2,000,000、同じM式による論理512 MiB、成功直前の経過15秒未満とする。rootの自己申告で一般設定の用途を切り替えない。構文解析後の展開も同じ15秒の外側予算へ含め、行生成前のchecked乗算/加算で100,000行と論理512 MiBを検査する。入力byte/ノード/展開行の全上限を独立に満たす必要があり、100,000行が常に16 MiBへ収まるという保証ではない。超過時は部分scopeを返さない。構造解析・計数・計測・割当失敗時の保全をシェルで実現する方式はD11-01の未達とし、論理予算をRSSや強制返却期限の保証にしない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -505,7 +440,7 @@ expand_expected_casesの返却はExpectedCaseDraftだけで、artifact/実環境
 
 同じ環境がpure/adapterの両方を実行できても、execution_classはExpectedCase/ActualCase.key/AcceptanceRowへ無変更で保持し、別行として照合する。VerifiedEnvironmentのCPU/入口/構成/実行区分は実環境の確認資料へ束縛し、呼出元が許可集合を自己申告して作らない。別classのpassを転用せず、各実行で出力/副作用と担当期待条件を検証する。この保持もA11-35の合否へ含める。
 
-解析/validator/展開/束縛の予算は専用profile受付時から一つの15秒deadlineへ接続する。純粋処理の公開APIは時計を直接取得せず、実行wrapperが入口/返却前と内部4,096処理単位の計数点へ試験時計を注入する。製品CLIで予算変更は不可。展開完了後に新たな15秒を足さず、100,000行/論理512 MiBも全段階で累計する。未束縛の案行を製品Scope/試験結果へ出さない。
+解析/照合/展開/束縛の予算は専用profile受付時から一つの15秒deadlineへ接続する。集計・照合自体は時計を直接取得せず、実行wrapperが入口/返却前と内部4,096処理単位の計数点へ試験時計を注入する設計候補とする。シェルでの計数・単調時計・注入/観測と停止方式はD11-01の未達で、検証専用Rust処理による補完はしない。製品CLIで予算変更は不可。展開完了後に新たな15秒を足さず、100,000行/論理512 MiBも全段階で累計する。未束縛の案行を製品Scope/試験結果へ出さない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -513,7 +448,7 @@ expand_expected_casesの返却はExpectedCaseDraftだけで、artifact/実環境
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|
-| `D11-01` | [受入カタログ](#受入カタログの閉包と更新)と[全ケース割当](#全ケースの実行割当案)に設計案あり。[Scope束縛](#設計行から実行scopeへの束縛)の実環境/成果物/採用済み期待資料、検査実行体/予算の成立根拠と採用判断が残る | 仕様充足・統合受入 |
+| `D11-01` | [受入カタログ](#受入カタログの閉包と更新)と[全ケース割当](#全ケースの実行割当案)に設計案あり。[Scope束縛](#設計行から実行scopeへの束縛)の実環境/成果物/採用済み期待資料と、シェル処理系/版・全コマンド/引数・受渡し/構造解析/集計・時計/停止/保存方式の成立根拠・採用判断は未達 | 仕様充足・統合受入 |
 | `D11-02` | ReleaseDestinationと全asset照合に案あり。固定HTTP API版・全操作/権限・draft閲覧条件と公開予算の成立根拠が残る | 配布・公開 |
 | `D11-03` | 六審査区分の対応案あり。正式許諾・個別採用情報・鍵/実機条件は担当正本で所有者が別途決定。本文作成承認を公開許可にしない | 正式署名・公開 |
 

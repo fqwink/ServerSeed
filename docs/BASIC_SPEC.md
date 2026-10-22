@@ -291,9 +291,10 @@ serverseed/
 │   ├── usb/
 │   └── cloud/
 ├── tests/
-│   ├── cli_contract.rs
-│   ├── binary_install.rs
-│   ├── integration.rs
+│   ├── cli_contract.sh
+│   ├── binary_install.sh
+│   ├── unit.sh
+│   ├── integration.sh
 │   └── fixtures/
 ├── packaging/
 │   └── iso/
@@ -1831,8 +1832,8 @@ workflowごとの処理は次の定義に従う。
 |---|---|
 | `format` | `cargo fmt --all -- --check`およびMarkdown整形確認 |
 | `lint` | `cargo clippy --all-targets --locked -- -D warnings`、危険な外部コマンド実行と[依存関係](#依存関係の検査)の検査 |
-| `test-unit` | `cargo test --lib --locked`によるunit test |
-| `test-integration` | `cargo test --tests --locked`によるUbuntu 24.04 LTS上のCLI契約と、使い捨てコンテナ内での本体管理の検査 |
+| `test-unit` | `ci/run-unit`から[テスト体系](#テスト体系)の単体検証を実行 |
+| `test-integration` | `ci/run-integration`からUbuntu 24.04 LTS上のCLI契約と、使い捨てコンテナ内での本体管理を検査 |
 | `build` | `cargo build --release --locked --target TARGET`による`serverseed`バイナリ作成。`TARGET`は[配布ターゲット](#配布バイナリのターゲットとリンク)に従う |
 | `package-iso` | 検証済みビルド成果物を使うUSB用ISOの作成と内容検査 |
 | `spec-check` | [仕様充足](#仕様充足の検査)、[文書索引の製品仕様](DOCUMENT_INDEX.md#製品仕様)と実装上の固定値の矛盾、[受入条件とテストの対応](#仕様とテストの対応)の検査 |
@@ -1855,6 +1856,8 @@ ci/run-all
 ```
 
 各CIコマンドはローカル開発環境でも実行できるようにし、workflowから共通利用する。
+
+検査入口と呼び出し先の実装言語は[憲章第8条](CHARTER.md#検証コードの実装言語)へ照合する。各シェル処理系・版、使用コマンド・引数、構造化入力の解析・結果照合、時間・停止・保存方式の具体契約は[P01-CHECK](complete/PHASE_01.md#型とapiの詳細案)で確定する。入口名だけで実行方式が成立したものとせず、未達のジョブを合格用の空処理に置き換えない。
 
 #### GitHubの役割
 
@@ -2099,7 +2102,9 @@ CI成果物は一時保管とし、リリース成果物と区別する。
 | vm | ディスク、ブート、復旧、破壊的操作を含む検証 |
 | fixture | `/etc/os-release`、lsblk、systemctlなどの実行結果サンプル |
 
-unit testは対象モジュール内の`#[cfg(test)]`で定義し、integration testの入口は`tests/*.rs`に配置する。fixtureは`tests/fixtures/`に保存する。実行コマンドは[CIジョブ](#cicd)に従う。
+検証コードの言語・適用範囲は[憲章第8条](CHARTER.md#検証コードの実装言語)を参照する。単体検証の入口は`tests/unit.sh`、CLI契約は`tests/cli_contract.sh`、本体管理は`tests/binary_install.sh`、統合検証は`tests/integration.sh`とし、[CIジョブ](#cicd)の各入口から呼び出す。fixtureのデータは`tests/fixtures/`に保存し、実行される補助コードとは区別する。
+
+単体検証の対象は上表の内部契約を維持する。入力の注入、内部結果・副作用の観測と期待結果との照合をシェルから行う具体的な方法が未定義のケースは未達とし、CLIの一部成功を内部契約の試験へ読み替えない。検証専用のRust実行体や製品内の試験専用処理を追加して補完せず、[P01-CHECK](complete/PHASE_01.md#型とapiの詳細案)と各担当フェーズで方法を確定するまで依存する実装着手・受入完了の判定を保留する。テスト・fixture・CI定義は未作成であり、本節は今回それらを作成する指示ではない。
 
 構成選択に既定値がないこと、`--yes`・cloud-initが初回選択を代行しないこと、保存構成の継承、不整合時の停止、[選択構成に対応する機能](POLICIES.md#構成の分離)だけを適用することをunit・integrationで検証する。マイニングの採掘停止、通信断、温度異常および更新失敗はfixture・模擬サービスで検証し、実採掘の制約は[検証環境の制約](SECURITY_POLICY.md#検証環境の制約)に従う。GPU・BIOS・復電起動は別の実機検証として結果を記録する。
 

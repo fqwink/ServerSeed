@@ -10,6 +10,8 @@
 
 フェーズ共通の契約は担当ファイルで一度だけ具体化し、参照側では契約ID・節・上記の現在の案版を指定する。`B11`間の参照は設計上の接続であり、憲章第4条が要求する承認済み版への参照はまだ成立していない。基本仕様・構成別仕様の確定本文の移動・削除、製品契約の切替、基本要求の変更は今回行わない。フェーズ本文内の競合する候補定義は同じ担当契約へ集約し、別定義を残さない。
 
+検証コードの言語と製品処理との区分は[憲章第8条の改定案](../CHARTER.md#検証コードの実装言語)へ照合し、検証基盤・受入集計の具体化先は本書のP01-CHECKとP11-ACCEPT/P11-RELEASEとする。上記照合元の製品契約を維持することと、検証専用Rust実行体を採用することは別である。改定案の発効は[第12条](../CHARTER.md#発効条件)に従い、現行の適用憲章や過去の検証方法を遡って変更しない。
+
 ## 要件と境界
 
 担当は`REQ-003`・`REQ-004`・`REQ-006`・`REQ-010`・`REQ-011`・`REQ-012`。要求の本文は[受入と追跡](../BASIC_SPEC.md#受入と追跡)を参照する。Phase 0は[文書整理工程](../ROADMAP.md#phase-0-基本仕様文書体系要件の対応整理)のまま維持し、別の製品実装フェーズにしない。
@@ -33,7 +35,7 @@
 | manifest・lockfile | 欠損、解析不能、禁止依存または解決差分で停止。検査中に再生成しない |
 | 対象CPUの実行検証環境 | ビルド環境と分けて記録。クロスビルドだけなら実行試験は未実施 |
 
-通常検査の開始からの上限は30分、外部コマンドの制御は`P02-EXEC`・B11へ接続する。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
+通常検査の開始からの上限は30分。外部コマンドの上限・停止・結果保全の要求は`P02-EXEC`・B11の契約条件へ照合するが、製品のRust実行器を検証用の補助実行体として呼び出す方式にはしない。シェルによる実現方式はD01-02の未達に含める。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
 
 P01-ENVが照合する固定環境の審査入力をEnvironmentBindingとして具体化する候補。全キーはexception_ids: string[]、image_digest: string、tool_versions: 実行物ID→版のobject、targets: string[]、approval_refs: string[]。例外IDから個別採用情報を参照し、版・digestを本書に複製しない。対象CPUの実行証拠は別に要求する。台帳の状態が未確定、同一実行物の欠損/二重登録、イメージ内の実版との不一致、承認参照不在のいずれかで環境検査を失敗にする。推奨は固定イメージ方式で、浮動runnerだけを採用根拠にする案は除外する。
 
@@ -72,7 +74,7 @@ Request::Masterも振分けの必須枝とし、[P08のMasterInvocation](PHASE_0
 
 ## P01-CHECK
 
-検査名と実行入口は[CI/CD](../BASIC_SPEC.md#cicd)に従う。採用案では各入口が対象コミット、環境識別、対象契約、実行コマンド、成否、未実施・適用外の理由を返す。検査結果の保存先は実行者の明示指定とし、製品の管理ファイルを保存先に使わない。
+検査名と実行入口は[CI/CD](../BASIC_SPEC.md#cicd)、実装言語と確認は[憲章第8条](../CHARTER.md#検証コードの実装言語)と[作業ルール](../../AGENTS.md#検証コードの確認)を参照する。採用案では各入口が対象コミット、環境識別、対象契約、実行コマンド、成否、未実施・適用外の理由を返す。検査結果の保存先は実行者の明示指定とし、製品の管理ファイルを保存先に使わない。
 
 `run-all`は選択した検査を順に実行し、最初の失敗で後続を未実施として列挙する。まだ実装していない検査入口は終了0の代用品を置かず、検査失敗として扱う。Phase 1で不要なISO生成・VM試験を実行済みと表示しない。全初期ジョブの成立確認は`P11-ACCEPT`へ接続する。
 
@@ -102,7 +104,7 @@ JobResultのcommandsは実行物と引数の配列を実行順に保持し、再
 
 ジョブ要求の候補集合は基本仕様のジョブ名だけとし、environmentをjobsへ指定する入力はCHECK_INPUT。個別入口は対応する一ジョブ、run-allは指定集合を基本仕様の掲載順へ並べてから実行する。結果のnameはその要求順と完全一致させる。environmentがnot_runの場合も全要求ジョブをnot_runにし、complete=false。failのcommandsが空でも、起動前検査の失敗証拠があれば受理するが、未実行の外部コマンドをcommandsへ記載しない。
 
-検証順序は要求形式、対象コミット、検査目的、環境、依存、各ジョブ、結果集合の完全性。環境失敗なら全ジョブをnot_runとし、環境検査自体の失敗をreasonへ対応付ける。各ジョブの予算と親の残り予算の小さい方を使用する案で、最初のfail後は後続をnot_runとする。集計器の宣言は[型付きAPI](#型とapiの詳細案)に集約する。検査の実行・保存を行わない純粋処理とする。
+検証順序は要求形式、対象コミット、検査目的、環境、依存、各ジョブ、結果集合の完全性。環境失敗なら全ジョブをnot_runとし、環境検査自体の失敗をreasonへ対応付ける。各ジョブの予算と親の残り予算の小さい方を使用する案で、最初のfail後は後続をnot_runとする。集計の入出力は[担当契約](#型とapiの詳細案)に集約する。集計自体はジョブ実行・証拠保存を行わない処理とする。
 
 TOML・Markdownの内製解析範囲、全検査項目の機械判定可能範囲、実行ラッパーへの引数受渡しは`D01-02`に残る。このデータ契約だけで検査器を実装可能としない。
 
@@ -121,6 +123,8 @@ TOML・Markdownの内製解析範囲、全検査項目の機械判定可能範�
 | SSH・TLS・暗号・圧縮 | `net`等の基本APIだけで各プロトコル・検証済み形式を充足したとは認定しない | `D02-06`、`D04-02`、`D09-01`の調査・例外境界へ対応 |
 
 既存内製コードは現在存在しないため、再利用実装の評価対象なし。再利用するのは本案内の共通契約であり、実装済み機能とは区別する。JSON・YAMLの資料照合は[P02-PARSE・B11](PHASE_02.md#解析の範囲と一次資料)、限定TOML・Markdownの資料対応は[入力集合](#入力と保存形式の詳細案)を参照する。資料対応の記載と、採用版での境界ケースの実行試験を区別し、後者は未実施とする。
+
+上記のRust標準機能調査は製品本体の実装判断に対する資料であり、シェルの検証器が実現可能である根拠にしない。検査用の解析・収集・比較・集計の実現方式と使用コマンドはD01-02で別に確定する。
 
 ## 接続と責務の照合
 
@@ -157,41 +161,22 @@ SuiteResultは[P11-ACCEPT](PHASE_11.md#データ契約の具体化案)の証拠�
 
 ## 型とAPIの詳細案
 
-`P01-CHECK`のValueによる未検証入力と、検証後の検査要求・結果を分ける候補。以下は宣言案で、実行体ではない。共通のContractRef・ContractErrorは`P02-MODEL`を使用する。
+`P01-CHECK`は未検証の構造データと、照合後の検査要求・結果を分ける候補。SuiteRequest・SuiteResult・JobResultの全キーと値域は[データ契約](#データ契約の具体化案)、EnvironmentBindingは[P01-ENV](#p01-env)の定義だけを使用する。ContractRefと診断分類の意味はP02-MODELを参照するが、検査専用のRust型・関数・crateを実装する契約にはしない。
 
-```rust
-pub enum CheckPurpose { DocumentDraft, ImplementationGate, ProductAcceptance }
-pub enum CheckTarget { Document, RustTarget(String) }
-pub struct EnvironmentBinding {
-    exception_ids: Vec<String>, image_digest: String,
-    tool_versions: std::collections::BTreeMap<String, String>,
-    targets: Vec<String>, approval_refs: Vec<String>,
-}
-pub enum JobStatus { Pass, Fail, NotRun }
-pub struct SuiteRequest {
-    schema_version: u32, commit: String, purpose: CheckPurpose,
-    target: CheckTarget, jobs: Vec<String>, contracts: Vec<ContractRef>,
-}
-pub struct JobResult {
-    name: String, status: JobStatus, commands: Vec<Vec<String>>,
-    evidence: Vec<String>, reason: Option<String>,
-}
-pub struct SuiteResult {
-    schema_version: u32, commit: String, purpose: CheckPurpose,
-    target: CheckTarget, environment: JobResult, jobs: Vec<JobResult>, complete: bool,
-}
-pub fn validate_suite(input: &Value) -> Result<SuiteRequest, ContractError>;
-pub fn aggregate_suite(input: &SuiteRequest, environment: JobResult, jobs: Vec<JobResult>)
-    -> Result<SuiteResult, ContractError>;
-```
+| 処理識別子 | 入力・出力と副作用の候補 |
+|---|---|
+| validate_suite | 未検証のSuiteRequest相当データを受け、形式・組合せを照合した要求または固定診断を返す。ファイル・Git・環境の収集なし |
+| aggregate_suite | 照合済みSuiteRequest、environment一件、要求順のJobResult集合を受け、SuiteResultまたは固定診断を返す。ジョブ実行・証拠保存なし |
 
-validate_suiteは形式と組合せを検証し、ファイル・Git・環境を読まない。commitの実在・ツリー一致は実行前の環境検査で照合し、形式の成功を実在確認にしない。aggregate_suiteはenvironmentとjobsを所有し、環境の一件性・先行成功と、要求jobsの順序・件数・証拠の対応を検証する。環境失敗時のjobsはすべてnot_runとし、環境の成功を要求jobの結果へ複製しない。入力と異なるpurpose/targetへ変更するAPIを設けない。フィールドは非公開で、検証なしの構築・completeだけの書換えを許可しない候補とする。
+commitの実在・ツリー一致は実行前の環境検査で照合し、形式の成功を実在確認にしない。aggregate_suiteは環境の一件性・先行成功と、要求jobsの順序・件数・証拠の対応を検証する。環境失敗時のjobsはすべてnot_runとし、環境の成功を要求jobの結果へ複製しない。入力と異なるpurpose/targetへの変更、無検査の要求構築、completeだけの書換えを認めない。
+
+表はシェルによる処理の入出力契約案であり、製品CLIの追加構文ではない。シェル処理系・版、手続間の受渡し形式と引数、構造化データの解析・直列化、内部契約への入力注入・観測、使用コマンドと全引数、終了区分、単調時計・子孫停止・排他・同期保存の実現方式はD01-02で確定する。本文中の内部処理名・値の集合や上限だけでは、シェルで実装可能な完全仕様と判定しない。
 
 ## 状態と中断の詳細案
 
-EnvironmentBindingはP01-ENVの五キーだけを所有する型候補。外部入力のvalidatorと実環境の収集器を分け、前者の成功から実行物の存在・版・採用状態を生成しない。RecipeInputからも同じ型を参照し、ISO専用の環境型を別に作らない。A01-22では型のキー欠損/未知キーと実版不一致を別入力で照合する。
+EnvironmentBindingはP01-ENVの五キーだけを持つ構造データ契約案。外部入力の照合と実環境の収集を分け、前者の成功から実行物の存在・版・採用状態を生成しない。製品側のRecipeInputからも同じデータ契約を参照し、ISO専用の環境定義や検証器と共有するRustライブラリを作らない。A01-22ではキー欠損/未知キーと実版不一致を別入力で照合する。
 
-`P01-CHECK`の検査実行について、実行器の内部位置を次の候補へ固定する。JobStatusとは別の工程位置であり、製品状態名ではない。
+`P01-CHECK`の検査実行について、実行器の内部位置を次の候補へ固定する。JobResult.statusとは別の工程位置であり、製品状態名ではない。
 
 | 現在位置・事象 | 次の位置・結果 |
 |---|---|
@@ -208,7 +193,7 @@ EnvironmentBindingはP01-ENVの五キーだけを所有する型候補。外部�
 
 ## 依存と互換性の詳細案
 
-`P01-ENV`・`P01-CHECK`の依存候補を次へ限定する。検査用Ruby等をこの文書審査で使うことと、将来の製品・CI実行体の採用は別である。
+`P01-ENV`・`P01-CHECK`の依存候補を次へ限定する。文書審査と製品・CIの検証を問わず、実行言語は[憲章第8条](../CHARTER.md#検証コードの実装言語)へ照合する。
 
 | 責務 | 再利用・内製・外部境界 | 差し替え前の照合 |
 |---|---|---|
@@ -218,7 +203,7 @@ EnvironmentBindingはP01-ENVの五キーだけを所有する型候補。外部�
 | ビルドと静的検査 | EX-007の採用版ツールを使用 | 版・target・lockfile・終了結果を固定 |
 | CI・VM・ISO実行基盤 | EX-008・EX-009の個別情報が必須 | 実行環境・権限・資材・公開範囲の一致 |
 
-Markdown/TOMLの全標準互換を宣言せず、実際に管理する構文集合・不正時出力・fixturesを`D01-02`で確定する。自動検査の意味判定限界は所有者確認へ残すが、機械判定できないことを成功と表記する方式は採用しない。初期は同一パッケージ内に置き、crate抽出時はSuiteRequest/ResultとP02-CLIの双方を同じ契約テストで比較し、呼出元・lockfile切替と旧コード除去を段階分離する候補とする。
+Markdown/TOMLの全標準互換を宣言せず、実際に管理する構文集合・不正時出力・fixturesとシェルによる実現方式を`D01-02`で確定する。自動検査の意味判定限界は所有者確認へ残すが、機械判定できないことを成功と表記する方式は採用しない。検査処理の差し替えはSuiteRequest/Resultと各検査の同じ契約テストで比較し、製品CLIのparse_args/dispatchの差し替えとは区別する。検証器をCargoパッケージのmoduleやcrateへ抽出する案は持たない。
 
 検査器の結果をScanResult候補へ閉じる。全キーはentries・diagnostics・unresolvedで、entriesは検証済み依存辺または解決済み文書参照の配列、diagnosticsはcode/path/byte_offsetの配列、unresolvedは機械判定対象外のpath/理由の配列。空のunresolvedだけを自動合格の必要条件とし、非空なら所有者確認待ちでcomplete=false。例えば未対応の複数行TOML文字列を含むmanifestはCHECK_INPUT、`[target.'cfg(unix)'.build-dependencies]`のgit宣言はCHECK_DEPENDENCY、閉じたfence内の架空リンクは文書参照集合へ加えない。限定言語の残る全字句・escapeの確定はD01-02に維持し、この三例だけで文法完成とはしない。
 
@@ -226,24 +211,16 @@ ScanResultの安定順候補はentriesを入力path・対象ID・参照先、dia
 
 純粋検査器へ渡すファイル集合の候補キーは、区切りを/にしたUTF-8のリポジトリ相対path。空・絶対path・空成分・.・..・制御文字・同じ正規形の重複をCHECK_INPUTで拒否する。本文は元byte列を保持し、byte_offsetは当該本文の0始まり位置、EOFは本文長。収集器が別に得た実体/リンク/所有元の証拠を依存検査へ渡し、map内のpathだけでpath依存の実体が安全とは判定しない。欠損本文を空文字へ補完せず、検査器からファイル取得を開始しない。
 
-検査結果の閉じた型候補を次へ固定する。pathとoffsetは上記の入力位置であり、依存辺と文書リンクを同じ自由文字列として返さない。
+検査結果の各要素の候補を次へ固定する。pathとoffsetは上記の入力位置であり、依存辺と文書リンクを同じ自由文字列として返さない。Rust型の宣言ではなく、シェル処理間で保持するデータ項目とする。具体的な区分の符号化・受渡しはD01-02の確定対象に含める。
 
-```rust
-pub enum ScanEntry {
-    Dependency { path: String, byte_offset: u64, section: String,
-        package: String, resolved_manifest: String },
-    Document { path: String, byte_offset: u64,
-        target_path: String, target_anchor: Option<String> },
-}
-pub struct ScanDiagnostic { code: String, path: String, byte_offset: u64 }
-pub struct UnresolvedScan { path: String, reason: String }
-pub struct ScanResult {
-    entries: Vec<ScanEntry>, diagnostics: Vec<ScanDiagnostic>,
-    unresolved: Vec<UnresolvedScan>,
-}
-```
+| 要素 | 全データ項目と型の候補 |
+|---|---|
+| 依存辺 | path・section・package・resolved_manifest: string、byte_offset: 非負integer |
+| 文書参照 | path・target_path: string、byte_offset: 非負integer、target_anchor: stringまたはnull |
+| ScanDiagnostic | code・path: string、byte_offset: 非負integer |
+| UnresolvedScan | path・reason: string |
 
-sectionは解析木上の完全なtable名、packageはrename後でない依存の実package名、resolved_manifestは照合済み実体のリポジトリ相対pathとする。未解決辺はentriesへ入れずdiagnosticsまたはunresolvedへ残す。DocumentのanchorなしだけNone、空anchorは不正。安定順の対象IDは依存のsection/package、文書のtarget_path/target_anchorとし、残る同値はbyte_offset順。同じ参照でも位置が違えば保持する。
+sectionは解析木上の完全なtable名、packageはrename後でない依存の実package名、resolved_manifestは照合済み実体のリポジトリ相対pathとする。未解決辺はentriesへ入れずdiagnosticsまたはunresolvedへ残す。文書のanchorなしだけnull、空anchorは不正。安定順の対象IDは依存のsection/package、文書のtarget_path/target_anchorとし、残る同値はbyte_offset順。同じ参照でも位置が違えば保持する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -275,7 +252,7 @@ P01-CHECKの解析器は次の限定言語を採用候補とする。未対応�
 
 SuiteRequest.commitは40桁の小文字hexを候補とし、SHA-256形式のGitリポジトリは未対応で拒否する。結果のevidenceは所有者指定の証拠ルートに対する相対参照だけとし、絶対パス・親への逸脱・外部URL・symlinkを拒否する。参照先のdigestと対象commitを照合する情報はPhase 11のEvidenceRefへ結合し、単なる文字列の存在でpassにしない。
 
-限定TOMLの字句候補は[TOML 1.0.0](https://toml.io/en/v1.0.0)の該当生成規則を参照する。bare/単行basic/単行literal key、単行basic/literal string、bool、符号付き64bit整数、array、inline table、table、array-of-tableだけを受理し、整数の基数・underscore・escape・dotted keyの意味は同版へ一致させる。float・日時・複数行stringはCHECK_INPUT。BOM・不正UTF-8・多重定義・不正escapeを拒否する。arrayの改行/末尾commaは同版どおり、inline table内の改行/末尾commaは拒否する。暗黙tableと明示tableの結合も同版の再定義条件で評価し、文字列検索で依存節を探さない。文書上限・深さ・要素数・文字列長・時間/論理予算はP02-PARSEを再利用し、TOMLの専用検査器がJSON/YAMLの受理範囲を変更することはない。
+限定TOMLの字句候補は[TOML 1.0.0](https://toml.io/en/v1.0.0)の該当生成規則を参照する。bare/単行basic/単行literal key、単行basic/literal string、bool、符号付き64bit整数、array、inline table、table、array-of-tableだけを受理し、整数の基数・underscore・escape・dotted keyの意味は同版へ一致させる。float・日時・複数行stringはCHECK_INPUT。BOM・不正UTF-8・多重定義・不正escapeを拒否する。arrayの改行/末尾commaは同版どおり、inline table内の改行/末尾commaは拒否する。暗黙tableと明示tableの結合も同版の再定義条件で評価し、文字列検索で依存節を探さない。文書上限・深さ・要素数・文字列長・時間/論理予算の要求はP02-PARSEの通常profileへ照合するが、Rustの解析器を呼び出す意味ではない。シェルでの計数・計測方式はD01-02の未達に残し、製品JSON/YAMLの受理範囲を変更しない。
 
 Markdown候補は[GFM](https://github.github.com/gfm/)のblock/inline構造を先に識別する。fenceは先頭0〜3space、backtickまたはtildeが3個以上、終端は同じ文字で開始長以上とし、閉じていないfenceをCHECK_INPUTにする。code span・fence内のリンク文字列は参照外。リンク先の括弧・escape・reference labelの対応は同仕様の規則を使い、raw HTML・独自アンカー・解釈不能な見出しをunresolvedへ残す。参照pathは文書所在から解決し、percent escapeの不正・リポジトリ外への逸脱を拒否する。GitHubの節IDはGFM文法そのものとは別のホスティング契約として照合し、Unicodeや重複見出しの未確認を推測で通さない。
 
@@ -287,7 +264,7 @@ Markdown候補は[GFM](https://github.github.com/gfm/)のblock/inline構造を�
 
 P01-CHECKの30分予算は要求受付時に開始し、環境確認・解析・ジョブ・証拠保存・集計を含める。各ジョブの開始前に親の残期限からP02-EXECの停止待ちと結果保存の予算を予約し、残量不足ならnot_runで停止する候補。ジョブ自身が指定した上限を親の追加時間として扱わない。
 
-保存手順は明示された出力先と同じFSにcreate_newで一時物を作り、全結果を検証・同期してから新規の最終名へ確定する。既存結果を上書きしない。途中出力はcomplete=falseの診断資料として区別し、正式SuiteResultへ昇格しない。保存操作もP02-STOREの対象同一性・同期契約へ従い、通常のrenameに上書き防止を期待しない。
+保存手順は明示された出力先と同じFSに排他的な新規作成で一時物を作り、全結果を検証・同期してから新規の最終名へ確定する。既存結果を上書きしない。途中出力はcomplete=falseの診断資料として区別し、正式SuiteResultへ昇格しない。保存の要求はP02-STOREの対象同一性・同期契約へ照合するが、製品Rustの保存処理を検証用の補助実行体として呼び出さない。シェルの具体的な保存方式はD01-02の未達とし、通常のrenameに上書き防止を期待しない。
 
 再実行では同じcommitでもrun単位の新しい証拠を生成する。前回のpassをコピーして後続だけ実行する方式は初期対象外とする。取消後にジョブの子孫停止を確認できなければCHECK_EXECUTION、後続は全not_run。操作終了と証拠の保存完了を別に確認する。
 
@@ -303,9 +280,9 @@ P01-CHECKの内製境界をdependency_scanとdocument_scanの二つの純粋処�
 |---|---|
 | dependency_scan | 入力は相対path→UTF-8本文のmap、結果はmember/依存辺/禁止根拠の集合。構文未対応はCHECK_INPUT、辺やsource不一致はCHECK_DEPENDENCY。pathと理由を安定順で比較 |
 | document_scan | 入力は同mapと文書索引path、結果は文書/見出し/解決済み参照/機械判定対象外項目。未解決はCHECK_INPUT、機械判定対象外を自動充足にしない |
-| 実行wrapper | P02-EXECだけを使用。環境指紋とコマンド列/終了結果をJobResultへ結合し、純粋検査器の成功をジョブ実行に変換しない |
+| 実行wrapper | シェルの実現方式はD01-02で確定。P02-EXECの上限・停止・保全条件へ照合し、環境指紋とコマンド列/終了結果をJobResultへ結合。検査器の成功をジョブ実行に変換しない |
 
-初期は同一package内の別module。抽出候補は上記二処理のみで、CLI・OS実行器をまとめてcrate化しない。抽出の受入では同じfixturesに対する辺集合/順序/失敗位置/出力を完全一致させ、全呼出元を切り替えた後だけ旧moduleを除去する。manifest/lockの変化は別の承認対象とし、旧実装が存在しない今回に比較成功を記録しない。
+検査処理の配置は既存のci/・tests/・release/の担当境界へ対応付け、シェル内の分割・受渡し方法はD01-02で確定する。差し替えの受入では同じfixturesに対する辺集合/順序/失敗位置/出力を完全一致させ、全呼出元を切り替えた後だけ旧検査処理を除去する。製品のCLI・OS実行器のcrate化やmanifest/lock変更は別の承認対象とし、旧実装が存在しない今回に比較成功を記録しない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -335,7 +312,7 @@ P01-CHECKの内製境界をdependency_scanとdocument_scanの二つの純粋処�
 |---|---|---|
 | `A01-36` | 同commitの参照だが一文書だけ作業treeから取得、LFS pointerを本文扱い、検査後に提出tree変更 | 入力不成立/未取得/再検証へ分離。文書snapshotの成功を確定版や別treeへ再利用しない |
 
-P01-CHECKの実行候補では、要求受付のInstantをt0、最終期限をt0+1,800秒とする。各ジョブの開始前に結果検査/保存用5秒とP02-EXECのgraceを残し、ジョブへ渡す最終期限は親期限-5秒、通常処理期限はさらにgraceを引いた値とする。減算不能または通常処理の残量0以下ではそのジョブと後続をnot_runにする。集計・保存中に親期限へ到達した場合もcompleteを返さず、終了時刻を架空に生成しない。OS停止不能の観測限界はP02-EXECへ引き継ぐ。
+P01-CHECKの実行候補では、要求受付の単調時計の時点をt0、最終期限をt0+1,800秒とする。各ジョブの開始前に結果検査/保存用5秒とP02-EXECのgraceを残し、ジョブへ渡す最終期限は親期限-5秒、通常処理期限はさらにgraceを引いた値とする。減算不能または通常処理の残量0以下ではそのジョブと後続をnot_runにする。集計・保存中に親期限へ到達した場合もcompleteを返さず、終了時刻を架空に生成しない。OS停止不能の観測限界はP02-EXECへ照合する。単調時計の取得・期限照合・子孫停止をシェルから行う実現方式はD01-02の未達であり、RustのInstantや実行器を検証用に呼び出して補完しない。
 
 contractsの期待集合は、要求した担当契約から共通参照を再帰的に辿った閉包とする。参照の検証キーはcontract_id/file/anchor/draft/commit/adoptedの全組、同一contract_idの異なる組はCHECK_INPUT。訪問済み集合で巡回を検出し、未解決参照を省略しない。文書案目的では未採用の閉包を検査できるが、実装目的は閉包の全採用根拠を必要とする。ジョブ名から将来フェーズの全機能を暗黙に実装対象へ加えない。
 
@@ -352,9 +329,9 @@ contractsの期待集合は、要求した担当契約から共通参照を再�
 | 判断ID | 必要な判断・根拠 | 依存範囲 |
 |---|---|---|
 | `D01-01` | [検査要求の予算と参照閉包](#検査要求の予算と参照閉包)とP02単一CLIに具体案あり。残りは参照版・親予算・受入設計の採用判断 | CLI骨格・全検査 |
-| `D01-02` | 限定TOML/GFMと安定診断に案あり。未対応構文停止・節ID対応の根拠と意味判定対象外を確認して採用判断 | 文書・依存・仕様の検査 |
+| `D01-02` | 限定TOML/GFM・検査要求/結果と安定診断にデータ契約案あり。シェル処理系/版・全コマンド/引数・受渡し/構造解析・内部契約の入力注入/観測・時計/停止/保存方式の確定、節ID対応と計数/計測の成立根拠・採用判断は未達 | 全検査・文書・依存・仕様の検査 |
 | `D01-03` | EnvironmentBindingに案あり。固定イメージ/両CPU実行環境とEX-007〜009の個別採用情報は未確定 | ビルド・検査・配布 |
 
-難易度の判断方法は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)、新設・抽出・差し替え・更新の工程は[実施手順](../../AGENTS.md#内製化と差し替えの実施手順)へ照合する。初回は新設案のため旧実装・新旧比較結果は存在しない。将来の抽出候補も、担当契約と呼び出し元・移行・契約テストを先に確定し、今回はcrate名・版を確定しない。
+難易度の判断方法は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)、新設・抽出・差し替え・更新の工程は[実施手順](../../AGENTS.md#内製化と差し替えの実施手順)へ照合する。初回は新設案のため旧実装・新旧比較結果は存在しない。製品本体の将来の抽出候補も、担当契約と呼び出し元・移行・契約テストを先に確定し、今回はcrate名・版を確定しない。
 
 本文案・受入設計は作成済みだが、各判断ID、`P02-CLI`の使用部分、例外採用情報と非機能要求の不足が残る。完全仕様の採用承認・仕様充足は未成立。製品実装・受入試験は未着手・未実施とする。
