@@ -33,11 +33,14 @@ OS・CIイメージなどの集合は、具体化時に使用パッケージ、�
 |---|---|
 | HTTPS取得用OS実行物、EX-001 | curl等の比較、取得先・TLS・redirect・容量/時間・全引数・実行時依存。現時点で実行物の採用なし |
 | tar.gz生成、EX-001/EX-008 | [tar/gzip生成と内製の一member検査](complete/PHASE_02.md#bundle生成adapterの比較契約)を照合。生成実行物の個別版と内製検査器の契約を区別し、内製検査を第三者crateの採用へ転用しない。bundle生成以外の抽出権限を追加しない |
-| バックアップ暗号化、EX-008 | 第一候補GnuPGの[形式とargv](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補)、[鍵用途の分離](SECURITY_POLICY.md#鍵用途ごとの保護審査)、暗号後の容量上界/復元確認を個別審査。署名検証用gpgvの用途承認だけでは代用不可 |
+| バックアップ暗号化、EX-001/EX-008 | OS実行時と検証/配布時の用途を分け、GnuPGの[形式とargv](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補)、[比較profile/容量](complete/PHASE_04.md#暗号profileと容量の閉じた比較案)、[鍵用途](SECURITY_POLICY.md#鍵用途ごとの保護審査)を個別審査。開発ツールまたはgpgvの用途承認だけで対象OSの暗号化を許可しない |
 | 一時実行環境・監督/パス操作、EX-001 | rescue OS・CPU・必要コマンド、セッション切断後の寿命・対象排他・安全なroot固定。OS標準という名称だけで包括許可しない |
 | ISOのRAM実行と継続unit、EX-002/EX-008 | 対応ベース版のブート設定、RAM容量・参照解除・媒体取外し・内蔵OS引渡しの実証 |
 | Cloud導入機構A、EX-001/EX-002 | 第一候補Canonical Curtinの[adapter比較入力](complete/PHASE_10.md#curtin-adapterの比較入力)を審査。固定版・rootfs形式・Python/FS/loader等の推移依存と全設定を個別化し、媒体用Subiquityとの同一視や包括許可をしない |
 | 個別コマンド候補の資料対応、EX-001/EX-009 | [実行環境と期限](complete/PHASE_02.md#p02-exec)、[監督unit](complete/PHASE_02.md#実行と復旧の確定候補)、[取得argv/量](complete/PHASE_04.md#依存と受入の確定候補)、[OpenSSH](complete/PHASE_09.md#実行と復旧の確定候補)、[Release API](complete/PHASE_11.md#実行と復旧の確定候補)へ対応。cwd・環境・stdin・停止予約を含む全実行契約と版/例外情報を照合し、資料確認を実行成功としない |
+| 初回搬入/昇格、EX-001 | [SFTPと初回入口](complete/PHASE_09.md#ssh起動と初回搬入の分離)のclient/server/subsystem、sudoとpolicy plugin、root実体の固定方式を個別化。OpenSSH client採用だけでSFTP server能力・sudo権限・fd実行の成立を認定しない |
+| 新OS準備、EX-001/EX-002 | [target-prepare](complete/PHASE_10.md#新os信頼根拠の引渡し)で使うuseradd/visudo/sshd、対象内実行adapterとPAM/NSS/loader等の実依存を固定。内部helperの名称を未採用OSツールの包括許可にしない |
+| 非保存署名検証、EX-001/EX-008 | [匿名pipe検証](complete/PHASE_04.md#匿名pipeによるdetached検証)に対応するgpgvのfd/status/logger option、鍵方式/期限/失効を独立照合。Rustのpipe APIと外部検証実行物を別に評価 |
 
 候補の手順・キー・引数は各担当本文だけへ置き、本書は採用情報とその参照を管理する。監督方式の採用はsystemd全機能の包括許可ではなく、curlの候補はTLS/redirect/大容量保存方式の実証不足を解消しない。未選定の暗号・loader・機器コマンドは、別実行物を実装時に自由選択できる余地として扱わない。
 

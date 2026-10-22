@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B9`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B10`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB9）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB10）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -148,7 +148,7 @@ pub struct RemoteSession {
 }
 pub struct QueryRequest { request_id: OperationId, target_id: TargetId }
 pub struct CancelRequest { request_id: OperationId, target_id: TargetId, plan_id: PlanId }
-pub enum RemoteMessage { Submit(RemoteRequest), Query(QueryRequest), Cancel(CancelRequest) }
+pub enum RemoteMessage { Submit(RemoteRequest), Query(QueryRequest), Cancel(CancelRequest), QueryIndex(IndexRequest) }
 pub enum DeliveryStage { Accepted, Started, ResultReady, Unknown }
 pub struct PlanReference {
     plan: Plan, plan_sha256: String, selection: Option<Selection>,
@@ -191,7 +191,7 @@ pub fn cancel_change(session: &mut RemoteSession, request: &CancelRequest)
     -> Result<CancelResult, RemoteFailure>;
 ```
 
-各メッセージのschema_version候補は1、kindはsubmit/query/cancelで、kindとpayloadは一つだけ対応させる。QueryRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
+各メッセージのschema_version候補は1、kindはsubmit/query/cancel/indexで、kindとpayloadは一つだけ対応させる。QueryRequestとIndexRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
 
 last_confirmed_statusのSome(Unknown)は型上表現可能でもvalidatorで拒否する。status=Unknownだけが直前の通常段階またはNoneを保持し、statusが通常段階なら同値を要求する。OperationReceiptを含む全子型も担当validatorへ照合し、再帰的なPlan/Request/CommandDataをreceiptへ内包しない。これらは外部全キー表のRust表現であって第二の配送形式ではない。
 
@@ -321,6 +321,18 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 
 ### SSH起動と初回搬入の分離
 
+初回転送の具体候補はOpenSSH SFTPのbatchモードとする。SSHと同じ固定config/鍵/host検証、-b -、-B 32768、-R 1、-Pの固定portを使い、転送指示だけをstdinで渡す。destinationは検証済みuser/hostから生成し、pathや任意SSH設定を付加しない。圧縮・再開・再帰転送・失敗無視・ローカルshell escapeを使わない。[公式SFTP](https://man.openbsd.org/sftp)のbatch失敗停止と、転送完了/同期/真正性の別判定へ照合する。
+
+staging候補は対象の/var/tmp/serverseed-bootstrap一件。新規mkdirが失敗したら既存領域を再利用/削除せず、所有者・種別・未完了初回要求を照合する。新規成功後にmode=0700を確認し、四資材をserverseed/manifest.json/manifest.asc/build.jsonの固定名だけへputする。実行候補serverseedだけに固定chmod 0700を行い、データ三件は0600として種別/所有者/実modeを確認する。ローカル元名も保護領域内の同じ固定名としてglob/空白/引用の解釈を不要にする。put完了後の再取得/hash一致は転送の検証であってroot実行の許可ではない。転送上限300秒と各資材量を維持し、途中失敗の再開/上書き0回。
+
+root確定の比較候補は、既存OS側の信頼済みプロビジョニング入口が四資材をroot専用領域へ固定し再検証する方式と、独立承認済みdigest付きsudo実行契約で同一バイナリの初回内部入口を呼ぶ方式の二つ。後者でも[sudoersのdigest/fdexec](https://www.sudo.ws/docs/man/1.9.14/sudoers.man.pdf)だけを、開いたinodeへの同時書込み・動的loader・親の保護の全証明にしない。対象実体の固定/書込み排除・環境/昇格・信頼を別に成立させる必要がある。
+
+どちらも通常のserverseed-remote-entryの存在を前提にせず、事前に存在するOS能力と所有者が認めた権限からだけ開始する。入口・実版・権限が未指定ならSSH_BOOTSTRAPで停止する。SSH認証成功からroot権限を生成する方式はなく、SSHだけを外部入口とすることと、内部の必要能力が何も不要であることは同義にしない。新しいsudoers設定/初回権限の付与は採用前に実施しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-37` | staging既存/途中put、四資材一致だが昇格入口なし、fdexecだけ確認し同時writerあり | 再利用/自動再開/worker開始を行わない。未設置wrapperへの依存循環・転送成功だけのroot実行・digestだけの対象固定認定なし |
+
 通常配送のargv候補は`ssh -F /dev/null -T -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o VerifyHostKeyDNS=no -o UserKnownHostsFile=<固定known_hosts> -o GlobalKnownHostsFile=/dev/null -o ConnectionAttempts=1 -o ConnectTimeout=30 -o ControlMaster=no -o ControlPath=none -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes -o PermitLocalCommand=no -o ProxyCommand=none -o ProxyJump=none -i <固定identity> -p <port> -l <user> -- <host> <固定入口>`とする。各空白区切りは独立した引数で、山括弧部分は検証済み参照の解決値だけ。host/user/portの文法は台帳の正本へ照合し、hostをoptionとして扱わない。cwdはマスターの固定作業領域、環境はLANG/LC_ALLと必要な固定PATHだけを新規構成し、SSH_AUTH_SOCK・SSH_ASKPASS・DISPLAYを継承しない。秘密鍵の保護条件はセキュリティポリシーで審査する。
 
 固定入口の候補は`/usr/bin/sudo -n -- /usr/local/libexec/serverseed-remote-entry`という変更不能な文字列一つ。構造化stdin以外からactionやpathを取らず、wrapperは所有者・mode・hashと許可された呼出主体を確認し、同一本体の内部入口だけへ引き渡す。root-ownedであることだけでは許可主体を証明しない。初回にwrapperがない対象へ、この通常配送を呼び出してはならない。
@@ -334,6 +346,30 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 | `A09-31` | ユーザーconfigへProxyCommand、agent設定、初回対象にwrapperなし、未対応optionを各注入 | 継承0件または起動前停止。任意shellへのfallback・初回準備済み扱い・秘密値のargv混入なし |
 
 ### 両側の配送保存と容量上限
+
+旧マスターの保全後に発行された要求も照合するため、非変更のindexメッセージ候補を追加する。通常のQueryは既知一要求の照合、indexは認証済みの回復主体に許された旧master_idの全要求識別を取得する。master_idの自己申告だけで閲覧権限を与えず、回復資格の安全条件が未採用なら実行しない。公開CLIの追加構文ではなく、P08の復元照合から使う内部契約である。
+
+```rust
+pub struct IndexRequest { master_machine_id: MachineId, offset: u32, generation: Option<String> }
+pub struct IndexEntry {
+    request_id: OperationId, plan_id: PlanId, request_sha256: String,
+    operation_id: Option<OperationId>, status: DeliveryStage,
+}
+pub struct IndexResult {
+    master_machine_id: MachineId, generation: String, total: u32,
+    offset: u32, entries: Vec<IndexEntry>, next_offset: Option<u32>,
+}
+pub fn query_index(session: &mut RemoteSession, request: &IndexRequest)
+    -> Result<IndexResult, RemoteFailure>;
+```
+
+一pageはrequest_idのASCII順で最大128件。totalは既存上限内の全件数、generationは同じ主体の全IndexEntryを固定順/JSONで結合した元byte列のhash。初回offset=0/generation=None、続きは返却generationとnext_offsetだけを使う。既存共通lockを新規作成せず非待機shared取得して読み、競合ならREMOTE_BUSYで変更/記録修復0件。active workerがexclusive所有中は索引を完結できたとしない。ページ間で世代が変われば最初から再照合し、部分集合を全件成功にしない。
+
+各pageは通常のbyte/深さ/ノード制限内、全列挙/検証はP09再接続の同じ残予算内で行う。最終pageの後に同じgeneration/totalを照合し、件数/ID重複/不足を検出する。ここで得た各IDへ通常Queryを対応付け、一覧のstatusだけで実状態/記録の整合を認定しない。索引や回復のための管理file作成・Submit・Cancelは0件。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-38` | 129要求の二page、間で新要求、旧masterの未保全要求、回復権限不明 | 全page/世代不一致/追加IDのQuery/権限停止を照合。128件での打切り・旧保全物だけの全件認定・索引からの変更なし |
 
 マスター側の送信記録候補は`/var/lib/serverseed/master/remote/<request_id>/request.json`一つへ集約し、delivery.json/observations.jsonという第二の正本を作らない。対象側のRemoteRequestRecordは`/var/lib/serverseed/remote/<request_id>/request.json`へ集約する。前者の全キーはschema_version=1・request_sha256・request・sent_bytes・last_delivery・observation_refs、後者の全キーは既存のRemoteRequestRecordを参照し、別の受理形式を作らない。last_deliveryはDeliveryRecordまたは未取得時null、observation_refsは所有者管理下の検証済み証拠IDの一意配列で、外部URL/任意path/未保存の資料を受けない。sent_bytesは確認できた送信byte数で、0であっても送信開始後の未確認を未配送の確証にしない。
 
@@ -364,6 +400,18 @@ byte数に加え、wrapper・両側保存記録・応答の完成した各文書
 | `A09-32` | マスター送信記録だけ確定、対象accepted直後保存失敗、1,001件目または64 MiB超過 | 到達可能性を保持し変更再送0回。容量超過は受理前停止、自動削除・Queryによる記録修復なし |
 
 ## 未決事項と成立判定
+
+### 配送結果の事前上界
+
+受理前の計算候補ResultBoundはbytes/nodes/depth/logical_bytesの四つの非負整数。型の全variantと必須/失敗枝を展開し、固定済みID/参照/時刻/文字列は実直列化長、未固定stringは担当契約のUTF-8長上限mに対する6*m+2、integerは20bytes、boolは5、nullは4を上界に使う。object/arrayの区切り・キー・末尾LFと、P02のキー込みノード数/深さ/Mを加算する。配列数は親Planの全step/固定Check集合/記録参照集合の最大件数で、実行成功時だけの短い枝へ限定しない。
+
+各型の有限集合を再帰的に辿り、同じ型の再帰内包、未知の出力variant、string/配列の上限不明、checked演算失敗はREMOTE_CAPACITY。DeliveryRecord.receiptの全step、失敗Diagnostic、CancelResultと両側の保存wrapperを別々に合成する。delivery/cancel各64 KiB、request保存1 MiB、応答1 MiB、および通常解析profileの全制限を独立に照合する。小さい上界を選ぶため検査を削らず、上限内のPlanだけを配送可能にする。
+
+出力の動的集合/文字列が担当契約で固定されていなければ、この計算は不成立のまま。実出力も同じ型/集合/量へ再検証し、想定外超過はunknownと既存証拠を保持する。上界の成功は容量条件だけで、実行可能性/製品機能の検証成功ではない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-39` | 正常結果は64 KiB内だが失敗枝は超過、escapeで6倍、上限なし診断、array件数overflow | 受理前REMOTE_CAPACITY。成功枝だけの見積・byteだけの検査・receipt切詰めによる完了なし |
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|

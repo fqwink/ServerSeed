@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B9`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B10`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB9）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB10）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -314,6 +314,16 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 
 ### Curtin adapterの比較入力
 
+一回のCurtin実行と十工程記録の対応候補を次へ限定する。target_recheck/preserveは外側で完了し、partition/filesystem/os_expand/boot_configure/management_configureの五工程を一つの不可分な実行群として先に両側へstarted同期する。全五件の同期確認後だけinstallerを一回起動する。startedは変更開始の許可記録であって、各資源を変更済みという証拠ではない。内部のpartition/format間にマスターのack待ちがあると仮定しない。
+
+成功後は実テーブル/FS、固定資材からの展開結果、loader/起動設定、ユーザー/鍵/ネットワークの各担当検査を独立に照合して五工程をverifiedにする。installer終了0だけで全件verifiedにせず、検査不能の工程はunknown。途中失敗では実適用の可能性がある五工程をnot_startedへ戻さず、実状態の証拠で確定できた範囲以外はunknownを保持する。boot_verify/reconnect/handoffはinstaller後に別の根拠で進める。
+
+この対応を採る場合、installerの実行契約は五工程の全変更集合・副作用・停止/保全を一組で固定し、個別工程の独立再実行を認めない。工程ごとの停止点を保証する別adapterを採用するなら、その固定版/APIと両側同期の別仕様が必要。既存の単一installコマンドを十回呼び出す代案はない。実設定/採用の未達は維持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-34` | 五工程の一件だけ同期失敗、installer中断、終了0だがloader検査不能 | 起動0回/群の実位置照合/該当unknown。存在しない工程間ack・後段未実行の推測・同installer再投入なし |
+
 導入機構Aの具体候補をCanonical Curtinとし、InstallerBindingのadapterを`curtin`、execution_contractを採用版・実行環境ごとのContractRefへ束縛する。候補argvは`curtin --config <固定設定path> --log-file <固定log path> install`、cwdは専用作業領域、stdinは空、環境は固定LANG/LC_ALL/PATHのみ。自動依存導入のoption、自由なshell command、外部URLを設定へ追加しない。実際の絶対path・版・Python/partition/FS/loader等の推移依存は例外台帳への個別登録が必要で、Rust crateに分類しない。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -342,6 +352,24 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-30` | Curtin v1でoffset入力、未登録Python/loader依存、RAMのみのjournal、既定disk自動選択 | adapter不成立で消去0回。v2相当の位置保証・依存採用・永続性を推測しない |
 
 ### 新OS信頼根拠の引渡し
+
+新OSのユーザー準備候補を、同一バイナリの内部処理target-prepareへ限定する。入力は検証済みInstallPayloadとRootBinding、固定実行物集合。既存ユーザー/鍵/昇格設定がある場合は新規生成せず所有範囲を照合する。root shell断片・利用者提供script・未設置のremote-entryを準備の前提にしない。
+
+| 対象 | 固定生成/呼出しの比較候補 |
+|---|---|
+| ユーザー | 対象内の固定useraddへ--create-home、--user-group、--shell、/bin/bash、--password、!、--、検証済みnameを渡す。sudo等の汎用管理groupへ追加しない。対象内実行の固定adapterを使用し、実行側OSのアカウントを作らない |
+| authorized_keys | /home/name/.ssh配下の一ファイル。UserInputの検証済み公開鍵だけを一鍵一行で生成し、親/所有UID/GID/種別/既存物の扱いを照合する。認証許可条件はSECURITY_POLICYが正本 |
+| remote入口 | 検証済み共通本体の固定内部処理だけへ接続するroot管理の入口。別agentを取得しない。全byte/hash/所有権/非置換性と呼出主体の照合が必要 |
+| sudoers | 固定ファイル候補/etc/sudoers.d/serverseed-remoteに、一ユーザーから上記一入口・引数なしだけのNOPASSWD規則を生成。visudoの固定pathへ-c/-f/候補pathを渡し全体との衝突も検査。自由なcommand/ALL実行権限を与えない |
+| SSH検査 | 対象sshdの固定pathへ-t/-f/対象の固定設定を渡す。設定構文・鍵の配置と、再接続後の実認証/昇格を別々に検証する |
+
+passwordの!は秘密のpassword/hashではなくロック指定の候補である。採用PAM/OpenSSH版でこの状態の公開鍵認証が成立する根拠がなければhelperは不成立とし、平文password生成へfallbackしない。公開host key生成/回収と秘密鍵の保護も担当安全審査の別条件とする。全実行物/argv・対象内実行adapter・設定の許可は未採用で、単にuseraddがある環境を対応済みとしない。
+
+物理経路のlate-commandsとCloudのmanagement_configureはこの同じ入力生成/対象内準備契約を参照する。late入口の起動元・本体hash・対象rootを再検査し、初回の昇格権限をhelper自身が勝手に作ったことにしない。ユーザー/SSH/sudoの成立検証に一件でも不足があれば再起動/引渡し前に停止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-35` | 対象内でなくLive側のuseradd、sudoers構文成功だが他規則と衝突、!で鍵認証不能 | 生成/引渡しを拒否。汎用sudo権限・秘密password・未設置wrapper・構文だけの認証成功へ代替しない |
 
 BootExpectationへ結合する証拠候補は、request_id/plan_id/target_id、観測したdisk/rootの識別、導入したOS/CPU、本体/installer/資材hash、新OS公開host keyの全byteとそのfingerprint、回収経路、独立照合の承認参照を一組にする。公開鍵の受理方式・昇格・秘密鍵の保護は[SSH鍵受理候補](../SECURITY_POLICY.md#導入時のssh鍵受理候補)だけを参照し、本書に安全規則を複製しない。
 

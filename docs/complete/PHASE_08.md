@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B9`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B10`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB9）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB10）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -367,6 +367,23 @@ CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの
 | `A08-31` | CPUピーク1,001 millicpu、memory測定欠損、割当集合重複、四回成功/一回応答上限超過 | CPU候補は2、他は未成立/失敗を保持。平均値でピーク隠蔽・ゼロ予約・未測定機器の資源保証なし |
 
 ### 単一制御主体の移行候補
+
+マスター固有の保全方法候補master-v1を次の一組へ固定する。P04の暗号container/保存/隔離復元を再利用し、configuration-v1へ固有データを混入しない。
+
+| 項目 | master-v1の候補契約 |
+|---|---|
+| 対象 | TargetRegistryの元byte列/hash、公開の信頼資料、資格の安全な参照IDと用途、全remote要求の元byte列/確認済み配送位置、対応する操作別intent/snapshot/照合証拠 |
+| 除外 | 秘密鍵/token/passphrase、OSのPID/lock/監督unit、現在の実行権限。旧MachineIdは証拠として保持し、新マスターのIDへ上書きしない |
+| 取得 | 共通guard下で新規台帳編集/Submit/Cancel送信を停止し、採取集合を列挙・固定する。進行中の対象処理が同時点のsnapshotになったとは保証せず、最後の確認位置とunknownを保持する |
+| 隔離検証 | 全byte/hash/IDの対応、台帳validator、remote記録validator、参照の閉包、秘密値不在を検査。対象接続/Submit/失効/新主体登録は0回 |
+| 復元確認TTL | 候補3,600秒。形式/参照/暗号/鍵/台帳hash変化で無効。TTLは復元可能な形式の確認期限であり、対象の最新状態・制御再開の許可ではない |
+| 実復元 | 新物理マスターの隔離された証拠領域へ読み取り資料として配置し、通常のoperation/lock/ActiveControllerへコピーしない。対象全件の要求索引を照合してからControlTransferへ進む |
+
+バックアップ時点より後の要求が保存物にない可能性を前提にし、既知pendingだけでなく各対象の旧master_idに束縛された要求索引を読み取る。索引取得/全件照合が不能なら当該対象の変更は保留する。失われた資格は独立した回復資格で扱い、保全物から架空の秘密値を復元しない。構成検証と制御権移行を別工程に保つ。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-35` | 保存後の追加要求が対象に存在、保全物に旧PID/秘密鍵、復元TTL内だが失効不明 | 全件索引照合/保全形式拒否/制御再開保留。既知pendingだけの照合・旧実行権限コピー・鍵の架空復元なし |
 
 喪失時復旧の第一比較候補は、対象側の固定入口がActiveControllerを一件だけ照合する方式。全キーはschema_version: 1、master_machine_id: MachineId、credential_fingerprint: string、generation: 正整数、transfer_id: OperationIdまたは初期時null、target_machine_id: MachineId。対象側のroot管理領域に保持し、SSHで認証された資格のfingerprintと主体IDの双方を確認する。要求内のmaster_machine_idだけで権限を決めない。初回enrollment/更新の権限は担当安全ポリシーの別の所有者管理資格へ照合する候補。
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B9`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B10`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB9の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB10の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -503,7 +503,7 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 | 宣言案 | 制約 |
 |---|---|
 | `acquire(target: &TargetEvidence) -> Result<OperationGuard, ContractError>` | guardはClone不可、対象・所有プロセスと結合。取得失敗後の変更なし |
-| `begin<'g>(guard: &'g OperationGuard, plan: &Plan) -> Result<ExecutionContext<'g>, ContractError>` | 対象・期限・前提を再照合し、既存の操作状態を記録できた場合のみ返す。contextはguardより長生きできない |
+| `begin<'g>(guard: &'g OperationGuard, plan: &Plan, start: OperationStart) -> Result<ExecutionContext<'g>, BeginFailure>` | 事前生成済みIDと対象・期限・前提を再照合し、intent→running→beginイベントの同期後だけ返す。contextはguardより長生きできない |
 | `finish(ctx: &mut ExecutionContext, result: &OperationCompletion) -> ChangeResult<RecordReceipt>` | 必須記録の確定に失敗したら確認済み段階のRecordReceiptをpartialへ保持。失敗記録も書けなければstderrと残存証拠を使い復旧待ち |
 
 OperationCompletion候補の全項目はstatus（success/failed/interrupted）、finished_at（UtcMillis）、steps（StepReceipt[]）、required_records（固定保存先IDの重複なし集合）。finishは全stepと計画の一対一対応・statusの妥当性→必要記録集合→事前直列化→履歴→終了記録→補助記録の順で照合する。successは全必須stepのverifiedが必要。同じoperationの完結行が既存ならbyte完全一致だけ再追加なしで照合し、一文字でも違えばSTORE_CONFLICTとして元行を保持する。履歴は論理追記のまま、改行未完結の末尾を切除して続行しない。
@@ -675,6 +675,22 @@ pub struct ExecutionContext<'g> {
     guard: &'g OperationGuard, plan_id: PlanId, operation_id: OperationId,
     deadline: std::time::Instant, cancelled: bool,
 }
+pub struct OperationStart {
+    operation_id: OperationId, plan_id: PlanId, target: TargetEvidence, started_at: UtcMillis,
+}
+pub enum BeginStage { Validated, IntentSynced, RunningSynced, EventSynced, Unknown }
+pub struct BeginFailure {
+    error: ContractError, operation_id: OperationId, stage: BeginStage,
+    last_confirmed_stage: BeginStage, persisted_evidence: Vec<String>,
+}
+pub struct StartEvidence {
+    target: TargetEvidence, existing_operation_ids: Vec<OperationId>,
+    previous_operation: Option<OperationRecord>, inventory_complete: bool,
+    verification_ref: String,
+}
+pub fn prepare_start(guard: &OperationGuard, plan: &Plan,
+    operation_id: OperationId, started_at: UtcMillis, evidence: &StartEvidence)
+    -> Result<OperationStart, ContractError>;
 ```
 
 EvidenceFieldの外部形式は[既存候補の3キー](#対象証拠と状態結果)へ一意に変換する。enumの内部表現を新しいJSON形式として流出させない。IDのparseは表記検査だけ、生成はOS乱数・衝突照合を伴う別工程。TargetEvidenceをCloneしても観測時点の証拠の複製にすぎず、再検査済みにはならない。
@@ -1008,6 +1024,16 @@ root/OS以外でも適用外を使う場合は担当契約の明示条件が必�
 
 ### 記録集合と保存順序
 
+開始識別の候補順は、OS取得器によるOperationId/開始時刻の生成→監督unitと要求への束縛→対象guard取得→prepare_start→beginとする。prepare_startは取得済み値を照合するだけでID生成/時計/保存を行わず、親Planとguardの対象一致、ID未使用、未完了操作なしを検証する。begin内部でIDを新規生成しない。OperationStartは非Clone、消費は一回だけで、intentとrunningとイベントは同じID/開始時刻へ結合する。
+
+ID未使用/前操作の検査入力はStartEvidenceからだけ受ける。収集器がguard下で対象の全必要記録と監督単位を照合して構築し、inventory_completeの自己申告だけでは生成できない。existing_operation_idsは既存の操作/履歴/対応記録のID集合、previous_operationは不在の確証だけNoneとし、読取り不能をNoneへ補完しない。別target、集合欠損/重複、同じIDの既存操作、running/interrupted/未確認の前操作はSTORE_RECONCILE。今回の開始要求への予約と、既に開始した同じIDの記録を区別する。純粋prepare_startから不足資料の読取り/復旧を開始しない。A02-123にはこの入力欠損/別対象も含める。
+
+初回の固定管理directory/lockの確保は基本仕様が許す準備だけに限定し、既存記録を初期化しない。intent保存後のrunning/イベント失敗では開始記録の残存を保持し、資源変更0件でも同じIDを新規beginへ再利用しない。resume_media等は別の再開契約で照合する。開始記録後の失敗は残存intent/開始位置を保持した開始失敗として報告し、対象適用開始後のChangeFailureと区別する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-123` | ID生成前のintent要求、intent同期後running失敗、同じOperationStartの再消費 | 前者は型/工程不成立、後二件は資源変更0件で残存記録照合。begin内の別ID生成・既存記録削除・ID再利用なし |
+
 EventRecordの候補キーはoperation_id: OperationId、target_id: MachineIdまたは未構成時null、at: UtcMillis、level: debug/info/warn/error、event_id: 固定ASCII識別子、message: 秘匿化済みstring。すべて必須、未知キー拒否。schema_versionを持たないこの形式は保存先のEvent登録で識別し、他JSONLへ流用しない。対応する非公開フィールドstructをEventRecordとする。保存を許可された変更操作だけが出力し、ReadOnlyの診断をこの記録生成のため保存しない。
 
 ```rust
@@ -1138,6 +1164,12 @@ DEFLATE本体は[RFC 1951の3.1.1/3.2.3〜3.2.7](https://www.rfc-editor.org/rfc/
 | `A02-113` | TAR_OPTIONS継承、memberがhyphen開始、同内容になる空の第二gzip member | 入力/環境拒否または一stream確認未達。通常fileへ任意抽出・終了0だけのBUNDLE成功なし |
 
 ### コマンドごとの検査閉包
+
+beginの失敗はBeginFailureへ必ずID/段階/保存証拠を返す候補。last_confirmed_stageはUnknown以外、stage=Unknownなら最後に確認した段階を保持し、同期要求後の応答不明を前段階の未保存と断定しない。対象の実資源変更はcontext返却後だけなので、begin中の失敗で適用済みstepを捏造しない。呼出元は残存intent/runningを読み取り照合し、新規begin・削除で埋め合わせない。context成立後の実処理は既定のChangeResultを使い、BeginFailureを汎用エラーへ縮約しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-124` | running同期要求で応答不明、intentだけ同期の確証、beginイベント失敗 | stage=Unknown/last=IntentSynced等の実証範囲を返す。実適用0件だが残存を保持、再begin・空の失敗結果なし |
 
 必須検査を再算定する候補関数はrequired_checks(command, state, profile, plan_contracts)。入力は検証済み値だけで、結果はCheck.id/required/適用根拠の順序付き集合。状態をまだ判定できない段階では「未管理」を仮定せずunknownを要求する。共通八検査のIDは[既定の対応](#依存と受入の確定候補)を使い、下表は必要な部分集合と追加分を定義する。
 

@@ -86,8 +86,9 @@ SSH切断、マスター停止、対象再起動で結果を受け取れなか�
 | 台帳・編集・readiness・型 | [Phase 8の入力](../complete/PHASE_08.md#入力と保存形式の詳細案)、[型/API](../complete/PHASE_08.md#型とapiの詳細案)、[集計](../complete/PHASE_08.md#データ契約の具体化案) |
 | CLI解析・必須選択・型付き応答・送信後の未確認 | [MasterInvocation/MasterData](../complete/PHASE_08.md#マスターcliの解析と応答全集合) |
 | 同居資源・測定 | [測定と割当算定](../complete/PHASE_08.md#同居資源の測定と割当算定) |
-| 管理情報保全・主体喪失 | [P08-BACKUP](../complete/PHASE_08.md#p08-backup)、[単一制御主体の移行](../complete/PHASE_08.md#単一制御主体の移行候補) |
-| 遠隔要求・取消・結果回収・配送正本と合成上限 | [Phase 9の型/API](../complete/PHASE_09.md#型とapiの詳細案)、[保存形式](../complete/PHASE_09.md#入力と保存形式の詳細案)、[両側保存](../complete/PHASE_09.md#両側の配送保存と容量上限) |
+| 管理情報保全・主体喪失 | [master-v1の取得/隔離復元と制御切替](../complete/PHASE_08.md#単一制御主体の移行候補)。共通configuration用の方法と、旧主体の証拠を実行権限として復元する処理を混同しない |
+| 遠隔要求・取消・結果回収・要求全件索引 | [Phase 9の型/API](../complete/PHASE_09.md#型とapiの詳細案)、[indexと両側保存](../complete/PHASE_09.md#両側の配送保存と容量上限)。既知要求だけの照合を対象の全要求照合済みとしない |
+| 配送の容量検査 | [失敗枝を含む結果上界](../complete/PHASE_09.md#配送結果の事前上界)。要求量・結果量・保存記録の上限を別に照合する |
 | 通常SSHと初回搬入 | [固定一式](../complete/PHASE_09.md#p09-ssh)、[起動と搬入の分離](../complete/PHASE_09.md#ssh起動と初回搬入の分離) |
 | OS未導入Cloud | [Phase 10の入力](../complete/PHASE_10.md#型とapiの詳細案)、[Curtin比較](../complete/PHASE_10.md#curtin-adapterの比較入力)、[新OS信頼](../complete/PHASE_10.md#新os信頼根拠の引渡し) |
 
@@ -103,3 +104,5 @@ SSH切断、マスター停止、対象再起動で結果を受け取れなか�
 | 同居制御 | CPU・GPU・メモリー・ストレージ・ネットワークの資源配分、サービス間の競合検出とホスト変更の調整、管理先未登録時を含む機能別の準備状態、途中失敗時の保全・再開・切り戻しの具体契約と受入ケース |
 
 本書のフロー定義を、これらの契約が完成したことや実機で動作確認済みであることの根拠にしない。
+
+マスター機能の受入設計は[全ケースの実行割当](../complete/PHASE_11.md#全ケースの実行割当案)の担当行から参照する。物理構築、台帳の準備、既存OS/空diskへの遠隔処理、喪失後の制御切替は異なる検証対象とし、未束縛の環境をreadiness成功で代替しない。値・鍵/資格・対象機器を本書へ別定義せず、担当案の採用と具体的な実操作承認を分ける。

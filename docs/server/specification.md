@@ -35,7 +35,9 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 
 新形式の全キーと旧形式の扱いは[入力/保存形式](../complete/PHASE_06.md#入力と保存形式の詳細案)、停止取得/health試行の中断は[実行/復旧](../complete/PHASE_06.md#実行と復旧の確定候補)の候補へ集約する。既存backup.requiredの保護を維持し、旧backup.commandから復元/隔離検査を自動生成しない。新形式の採用・互換判断までは、下記の例を新形式に対応済みという根拠にしない。
 
-候補の型付き計画/全サービス集合と固定CommandSpecへの束縛は[データ契約](../complete/PHASE_06.md#データ契約の具体化案)、HTTPの応答完了/符号化/全量上限は[依存境界](../complete/PHASE_06.md#依存と互換性の詳細案)、health試行は[集約](../complete/PHASE_06.md#実行と復旧の確定候補)、アプリ版別の隔離復元は[P06-DATA](../complete/PHASE_06.md#p06-data)を参照する。本書で数値や型を複製せず、health成功とデータ復元、空アプリの正常と未選定アプリの対応を区別する。
+候補の型付き計画/全サービス集合と固定CommandSpecへの束縛は[データ契約](../complete/PHASE_06.md#データ契約の具体化案)、HTTPの応答完了/符号化/全量上限は[依存境界](../complete/PHASE_06.md#依存と互換性の詳細案)、完了印と外部応答の分離は[health adapter](../complete/PHASE_06.md#health-urlと外部adapter)、アプリ版別の隔離復元は[P06-DATA](../complete/PHASE_06.md#p06-data)を参照する。本書で数値や型を複製せず、health成功とデータ復元、空アプリの正常と未選定アプリの対応を区別する。
+
+適用後の部分結果は[AppResult列と後続未開始](../complete/PHASE_06.md#状態と中断の詳細案)、healthの試行集約は[実行/復旧](../complete/PHASE_06.md#実行と復旧の確定候補)へ参照する。先行アプリの失敗、後続の未開始、親操作の記録未完了を別に保持し、空結果や他アプリの成功へ置換しない。試験の実行割当は[Phase 11](../complete/PHASE_11.md#全ケースの実行割当案)へ対応付け、実アプリの方法行が未選定なら未達のままにする。
 
 `apps.yml`は本書のサーバ機能が管理するDockerアプリを定義する。読み込む構成の範囲は[構成の分離](../POLICIES.md#構成の分離)に従う。
 

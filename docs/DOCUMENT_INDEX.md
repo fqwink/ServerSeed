@@ -86,7 +86,7 @@
 | 本文案 | 担当する具体化 | 契約の確認先 |
 |---|---|---|
 | [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
-| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案B9](complete/PHASE_02.md#p02-cli)、[解析詳細案B9](complete/PHASE_02.md#p02-parse) |
+| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案B10](complete/PHASE_02.md#p02-cli)、[解析詳細案B10](complete/PHASE_02.md#p02-parse) |
 | [PHASE_03.md](complete/PHASE_03.md) | IaCの資源・観測・差分・計画 | [契約一覧](complete/PHASE_03.md#契約と共通参照) |
 | [PHASE_04.md](complete/PHASE_04.md) | 本体管理・更新・保全・復旧・IaC適用 | [契約一覧](complete/PHASE_04.md#契約と依存) |
 | [PHASE_05.md](complete/PHASE_05.md) | ISO・外部媒体・引継ぎ・ファームウェア | [契約一覧](complete/PHASE_05.md#契約と参照) |
@@ -99,14 +99,16 @@
 
 案の位置付け・照合元・案版と承認済み版の区別は[案の適用範囲](complete/PHASE_01.md#案の適用範囲)、策定・実装・受入の状態は[フェーズ別の進捗](ROADMAP.md#フェーズ別の進捗)を参照する。
 
-本文案B9の各フェーズには「型とAPIの詳細案」「入力と保存形式の詳細案」「実行と復旧の確定候補」「依存と受入の確定候補」を収録する。採用待ち/残る具体化/方式の成立根拠は各本文末尾の判断IDが正本であり、本索引へ状態や定義を複製しない。「確定候補」は採用済み・実装可能・試験済みの意味ではない。
+本文案B10の各フェーズには「型とAPIの詳細案」「入力と保存形式の詳細案」「実行と復旧の確定候補」「依存と受入の確定候補」を収録する。採用待ち/残る具体化/方式の成立根拠は各本文末尾の判断IDが正本であり、本索引へ状態や定義を複製しない。「確定候補」は採用済み・実装可能・試験済みの意味ではない。
 
 | 横断して確認する担当契約 | 直接参照 |
 |---|---|
-| 共通スキーマ・応答・保存確定 | [形式](complete/PHASE_02.md#共通スキーマの型対応)、[CommandData](complete/PHASE_02.md#検査観測の固定集合)、[必須記録](complete/PHASE_02.md#記録集合と保存順序) |
-| 資源・封印済み計画・保全 | [Plan型と封印](complete/PHASE_03.md#依存と受入の確定候補)、[保全の形式](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補) |
+| 共通スキーマ・応答・開始/保存確定 | [形式](complete/PHASE_02.md#共通スキーマの型対応)、[CommandData](complete/PHASE_02.md#検査観測の固定集合)、[開始ID/記録順](complete/PHASE_02.md#記録集合と保存順序) |
+| 資源・封印済み計画 | [Plan型と封印](complete/PHASE_03.md#依存と受入の確定候補)、[型付きdigest射影](complete/PHASE_03.md#入力と保存形式の詳細案)、[payloadの復号区分](complete/PHASE_03.md#非資源stepの閉じたpayload) |
+| 署名検証・暗号/復元 | [二入力pipe](complete/PHASE_04.md#匿名pipeによるdetached検証)、[暗号profile/容量](complete/PHASE_04.md#暗号profileと容量の閉じた比較案)、[隔離容量](complete/PHASE_04.md#復元の検証先と平文容量) |
 | 媒体とCloudの入口 | [内蔵継続](complete/PHASE_05.md#内蔵os継続unitと二回の起動証拠)、[初回SSH搬入](complete/PHASE_09.md#ssh起動と初回搬入の分離)、[導入機構](complete/PHASE_10.md#curtin-adapterの比較入力) |
-| 受入と未達の照合 | [13必須項目](complete/PHASE_11.md#受入条件の充足照合案)、[全ケースのカタログ](complete/PHASE_11.md#受入カタログの閉包と更新) |
+| 遠隔結果・マスター復旧 | [失敗枝を含む結果上界](complete/PHASE_09.md#配送結果の事前上界)、[全要求索引](complete/PHASE_09.md#両側の配送保存と容量上限)、[master-v1と主体移行](complete/PHASE_08.md#単一制御主体の移行候補) |
+| 受入と未達の照合 | [13必須項目](complete/PHASE_11.md#受入条件の充足照合案)、[カタログ形式](complete/PHASE_11.md#受入カタログの閉包と更新)、[全ケースの割当](complete/PHASE_11.md#全ケースの実行割当案)、[Scopeへの束縛](complete/PHASE_11.md#設計行から実行scopeへの束縛) |
 | 許可条件と個別採用 | [一般ポリシー](POLICIES.md#形式互換と実行方式の審査候補)、[安全審査](SECURITY_POLICY.md#完全仕様化に伴う審査候補)、[例外候補](DEPENDENCY_EXCEPTIONS.md#追加の個別審査候補) |
 
 ### 構成別仕様

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B9`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B10`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB9）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB10）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -62,7 +62,7 @@ P06-DATAの採用審査はアプリ名/正確な版/Compose全サービス/diges
 | アプリ適用の型付き境界 | [依存と受入](#依存と受入の確定候補)のAppPlan[]→ChangeResultに集約。開始後の部分位置を保持 |
 | `check_app(plan: &AppPlan, context: CommandContext<'_>) -> Result<HealthResult, ContractError>` | 許可された検査だけ。自動修復なし、ReadOnly時は個別の非変更契約が必須 |
 
-ComposeEvidence候補の全項目はname・project_name・compose_sha256・service_names・image_digests・contract。project_nameの生成/同定条件は[Composeの範囲](#composeの範囲とデータ方法行)だけを参照する。service_namesとimage_digestsのキーは同じ空でない集合、nameはAppConfigと一致、contractは採用済みのCompose観測契約とする。plan_serverは取得済み証拠しか使わず、浮動image解決やpullを行わない。apply_serverの結果列は入力AppPlan順と一対一に対応し、先行失敗後も後続をnot_startedのOperationReceiptとして保持する。HealthResultがpassでも必須のデータ検査/記録が不足すればAppResultを全体成功へ集約しない。
+ComposeEvidence候補の全項目はname・project_name・compose_sha256・service_names・image_digests・contract。project_nameの生成/同定条件は[Composeの範囲](#composeの範囲とデータ方法行)だけを参照する。service_namesとimage_digestsのキーは同じ空でない集合、nameはAppConfigと一致、contractは採用済みのCompose観測契約とする。plan_serverは取得済み証拠しか使わず、浮動image解決やpullを行わない。apply_serverの結果列は入力AppPlan順のAppResultと一対一に対応する。先行失敗後の後続も省略せず、そのアプリ担当stepをnot_startedとして親全体のOperationReceipt内に保持する。HealthResultがpassでも必須のデータ検査/記録が不足すればAppResultを全体成功へ集約しない。
 
 公開型はP02-MODELを参照し、リクエスト・結果の厳密な全集合はD06-01〜03に含める。難易度は構成解析が中、アプリ固有のデータ互換・復旧が高。新設案で旧実装は存在しない。将来のcrate抽出にはP06-DATAと共通保全の境界、呼出元、共通契約テストと移行順序を先に確定する。
 
@@ -190,6 +190,12 @@ AppResult.nameとhealth.nameは対応するAppPlan.nameへ完全一致させる�
 
 ## 状態と中断の詳細案
 
+型付き境界候補は`apply_server(ctx: &mut ExecutionContext, plans: &[AppPlan]) -> ChangeResult<Vec<AppResult>>`に統一する。後続未開始のAppResultはnameを保持し、health={同名, unknown, attempts_used=0, 必須unknown検査, APP_NOT_STARTED診断}、データ検証が必要ならSome(false)、明示非適用だけNoneとする。親receiptの既適用/失敗stepは消さず、当該後続アプリのstepだけがnot_startedであることを照合する。外部実行もhealth試行も0回の結果からpassを作らない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-34` | a失敗後にb未開始、bは必須データ検証あり | 結果はAppResult二件、bの試行0/unknown/data_verified=false。aの失敗と親receiptを保持し、OperationReceipt単体の列へ型を変更しない |
+
 `P06-APP`のアプリ別工程候補はchecked→preserved→applying→checking_health→verified→recorded。必須保全が不要なアプリでも、その適用外の承認済み根拠を持つ検査結果が必要。名前順で処理し、先行失敗後のアプリはnot_startedとして保持する。
 
 | 失敗・事象 | 動作候補 |
@@ -304,6 +310,16 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 ## 未決事項と成立判定
 
 ### health URLと外部adapter
+
+stderrの完了印候補をwrite-outの固定byte書式`%{stderr}\nSS_HEALTH_DONE:%{response_code}\n`へ定める。先行のHTTP header/trailer領域を構造解析した後、末尾に一つだけある印とHTTPコードを照合する。header内の同じ文字列を完了印として扱わず、未知診断/余剰byte/二つの印/未完結blockがあればHEALTH_RESPONSE。外部応答に選んでもらったdelimiterで解析しない。
+
+初期比較profileは--http1.1を固定argvへ追加し、HTTP/2以降へ自動upgradeしない。status line→1xx block（最大16）→最終block→許可されたtrailer→完了印/EOFの順とし、header/trailer総量は既定64 KiB。本文のtransfer framing完了は採用curl版の契約/終了とfixtureへ結合し、dump-headerだけでwire全体を復元できたとしない。TLS/固定GET/encoding/本文量/最終status/終了0/停止確認の全条件が揃って初めてpassとする。
+
+固定版のcurlが返すtrailerの区切りや診断を一意に構造化できない場合はadapter不成立で、文字列検索で完了印だけを拾って通さない。header/印/byte上限/途中EOF/矛盾したframingを組み合わせた固定fixtureが採用条件。人間向けstderrを追加コマンドや診断本文へ転用しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-35` | header内に偽の完了印、末尾印二件、curl終了0だが未完結header、HTTP/2へ変更 | 偽印をheaderとして扱い、余剰/不完全/別profileを拒否。文字列一致・statusだけのpass、方式自動切替なし |
 
 HttpInput.urlの候補はASCII http/httpsだけとし、単一のDNS名/IPv4/角括弧IPv6、port省略時80/443、/始まりpathと任意queryを受理する。userinfo/fragment/空白/制御文字/不正percent escape/percent復号後の制御文字を拒否し、hostnameやpathをshellへ渡さない。採用済みアプリのhealth契約が許可するorigin/path範囲へ一致させ、任意の外部URLを設定できるという意味にしない。HTTPSの証明書/名前検証は維持する。
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B9`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B10`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB9）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB10）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -72,7 +72,7 @@ read/verify/writeの候補参照はCommandSpecの固定テンプレートと期�
 
 | 宣言案 | 契約 |
 |---|---|
-| `media_plan(selection: &MediaSelection, targets: &[TargetEvidence]) -> Result<Plan, ContractError>` | 検証した選択と対象証拠から計画を所有して返す。変更なし、MediaRequestは計画確認後に構築 |
+| `media_plan(selection: &MediaSelection, targets: &[TargetEvidence], identity: PlanIdentity) -> Result<Plan, ContractError>` | 事前生成した計画識別と検証した選択から計画を所有して返す。変更なし、MediaRequestは計画確認後に構築 |
 | `handoff(ctx: &mut ExecutionContext, request: &MediaRequest) -> ChangeResult<HandoffRecord>` | preboot位置・継続情報・対象結果を保持。開始後失敗でもpartialを返す |
 | `removal_status(record: &HandoffRecord) -> Result<RemovalResult, ContractError>` | 書込み・マウント・関連処理を観測して照合。取外し済み・内蔵起動済みと捏造しない |
 
@@ -299,6 +299,14 @@ P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はReci
 
 ### Subiquity入力生成の対応表
 
+必須選択と計画確認の生成順候補は、PlanId/作成時刻の取得→操作/対象/構成/導入値の選択→MediaSelection→media_planの封印済みPlan→digestの表示→APPLY/必要時ERASE入力→Confirmation→MediaRequestとする。計画前のMediaSelection.confirmationはNoneだけを受け、古い確認を計画生成に使わない。継続管理でSelection=nullの場合もPlanIdentityが親IDを供給する。
+
+StorageInput.erase_confirmed_for_planはこの候補では消去対象を親計画へ結合するIDであり、入力済み確認の証拠ではない。計画中に親IDを設定できるが、実消去はMediaRequest.Confirmationの両応答・対象・全digest・期限の照合後だけ。短いコードを得るため、確認済みpayloadを先に要求する循環を作らない。対象/手順/実資材が変われば封印/選択/確認へ戻す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-41` | 未確認の導入値から計画生成、旧確認付きMediaSelection、親IDだけ一致しERASE未入力 | 計画生成だけ可/古い確認を拒否/消去0回。ID欄を実同意へ転用せず、digestと確認の相互待ちなし |
+
 生成器候補generate_autoinstallは検証済みMediaRequest/RecipeInput/資材カタログを借用し、UTF-8 YAML byte列と入力hashを所有して返す純粋処理とする。action=installだけを受け、既存OSのadopt/update/backup/recoverには生成しない。全キーを次表から生成し、利用者から任意YAML/early/late shell断片を受け取らない。外部ツールのschemaとServerSeed側の未知キー拒否を別に照合する。
 
 | 外部キー | 候補の生成規則 |
@@ -322,6 +330,14 @@ storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_boot
 | `A05-34` | adoptへ生成要求、storage v1でoffsetだけ指定、source ID未固定、late-commandへ文字列 | 生成/適用前拒否。既存OS消去・無視される寸法の保証・shell評価・既定source選択なし |
 
 ### 内蔵OS継続unitと二回の起動証拠
+
+resume_mediaの候補入力は、同期済みHandoffRecord/MediaRequest/RecipeInputと、今回のTargetEvidence/boot/process証拠。型付き境界は`resume_media<'g>(guard: &'g OperationGuard, saved: &HandoffRecord, request: &MediaRequest, recipe: &RecipeInput, observed: &TargetEvidence) -> Result<ExecutionContext<'g>, BeginFailure>`とする。ID/hash/版/CPU→予定したprebootから内蔵bootへの変化→実配置→intent/operation/資源journal→未完了stepの順に照合し、同じ対象operation_id/plan_idを再使用する専用再開である。
+
+旧bootのrunningを通常beginで上書きしない。再開の所有プロセス欄だけを実boot/PID/startへ同期して結合し、元のstarted_at、完了済みstep、history、元失敗を改変しない。prepare終了時には位置を同期してguardを解放し、verifyが同じ再開照合を経て再取得する。隙間に通常変更を許可せず、pending記録を新規beginの停止条件として維持する。再開前に期限の有効性を証明できなければ対象変更/記録修復を行わず、読み取り診断と内蔵consoleへの不足表示だけにする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-40` | 予定した新bootで同じ操作を再開、別request hash、prepare後verify前に通常begin | 正常だけ所有欄/位置を結合、他はMEDIA_BINDING/未完了停止。新操作ID・開始時刻の上書き・二重setupなし |
 
 継続unit候補の固定名はserverseed-media-continue.service、配置は対象の/etc/systemd/system/同名、実行本体は検証済み/usr/local/bin/serverseedとする。unitはType=oneshot、RemainAfterExit=yes、Restart=no、UMask=0077、WorkingDirectory=/、StandardInput=null、After=local-fs.target、WantedBy=multi-user.target。ExecStartは`/usr/local/bin/serverseed __internal media-continue --stage prepare --record /var/lib/serverseed/media-handoff.json`の固定argv。外部からrecord pathや追加actionを選ばせない。ログには固定診断IDだけを出し、要求/設定/鍵をjournalへ流さない。
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B9`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B10`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB9）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB10）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -193,9 +193,9 @@ changed_attributesはfileならcontent/uid/gid/mode、directoryならuid/gid/mod
 | 観測 | 対象の機器・root・親の同一性と内容byte列。mtimeだけで一致判定しない |
 | ファイル安全性 | 標準File APIだけでTOCTOU防止を保証しない。OS方式と反証試験が未確定なら適用不可 |
 | 資源版 | 初期はfile/directoryのみ。package/systemdの型はP04-APPLYの別採用後だけ追加 |
-| 計画互換 | 対象・所有範囲・全観測前提・変更属性・順序・停止理由が比較対象。ID/時刻だけを除外 |
+| 計画互換 | 対象・所有範囲・全観測前提・変更属性・順序・停止理由が比較対象。除外は[型付き射影](#入力と保存形式の詳細案)の位置だけ |
 
-計画の配送同一性候補は、P02-CLIの決定的JSON出力から生成ID・時刻を除いた計画固定部分をbyte列として固定し、SHA-256で識別する方式。署名対象の配布物を再生成する正規化とは別用途で、hash実行契約はP04-SELFと例外台帳へ接続する。どのキーを固定部分へ含めるかの完全集合・形式版が未確定なため、この方式案だけではdigestを計算可能・真正性確認済みとしない。
+計画の比較用digestは[型付き射影](#入力と保存形式の詳細案)の候補だけを使い、配送された全Planの同一性hashはP09に従う。署名対象の配布物を再生成する正規化とは別用途で、hash実行契約はP04-SELFと例外台帳へ接続する。射影の具体案があることと、方式/外部hash実行物の採用・真正性確認の成立は別とする。
 
 抽出候補は観測器と純粋な差分/グラフ評価を分け、観測器を模擬へ差し替えても本番FS安全性の成功証拠にしない。同じResourceSetと観測列で変更集合・順序・blocked理由を新旧比較し、対象固定方式の差は隔離環境で別に再検証する。
 
@@ -227,7 +227,22 @@ Planを封印する前の候補正規順はresources/observationsをresource_id�
 
 計画順序の候補は、全ID一意/全依存先存在→自己辺拒否→入次数0のstep IDをASCII昇順で一件選択→後続辺を除去して反復、の順。未出力stepが残り入次数0が空ならPLAN_CYCLE、実行可能な先頭部分だけを返さない。資源の順序は対応するstepを生成してこの順序へ結合し、resource_id順とstep ID順の二つの実行列を保存しない。計画同一性はこの確定順の全step・停止理由・全前提で比較し、入力objectの掲載順で変わらない。
 
-digest入力はPlanからplan_id・created_at・digestを除く全キーで、target.observed_atだけを時刻として除外する。objectキーはP02-CLIの整形順、空白なし、末尾LFなし、数値は検証済み整数の十進表記、文字列は同契約のescapeとする。配列順を後で並べ替えない。ID・時刻の除外は有効期限・選択との照合を省略する理由ではない。hash取得はP04-SELFの外部境界であり、純粋計画器が外部プロセスを起動しない。選択済み要求全体の配送hashはP09が別に定義する。
+digest入力は次の型付き射影だけから生成する候補。最初に親子の束縛と全payloadを検証し、その後に表の項目だけを除く。キー名が同じという理由で再帰削除しない。
+
+| 射影する位置 | 除外する値・事前条件 |
+|---|---|
+| Plan直下 | plan_id・created_at・digest。PlanDraftにはdigestがない |
+| 今回の対象を表すTargetEvidence | Plan.target、SelfChange.target、Backup.source、Restore.destination、App.resources.target、MiningControl.target、Capacity.evidenceのobserved_atだけ。各対象は親Planの対象同一性検査を通す |
+| SelfChange | PreparedSelf.plan_idだけ。親Plan.plan_idとの完全一致が必要 |
+| MediaInstall / OsInstall.install | StorageInput.erase_confirmed_for_planだけ。親Plan.plan_idとの完全一致が必要。実際の消去許可は別の確認工程で検証する |
+
+Restore.sourceに含む過去のBackupReceipt/RestoreEvidence、backup_id・request_id・epoch、検証済み保全物の参照、ContractRef.commit、payloadの意味を持つ時刻は除外しない。過去計画の参照を現在の親IDとして削除しない。表にない新しい親ID/対象証拠を持つvariantの追加は、この射影契約と受入の改定前にはPLAN_PAYLOADで停止する。
+
+純粋API候補`fixed_plan_bytes(draft: &PlanDraft) -> Result<Vec<u8>, ContractError>`がこの射影と直列化を担当する。objectキーはP02-CLIの整形順、空白なし、末尾LFなし、整数は十進、文字列は同契約のescape、配列は確定順のまま。型の検証前に射影して親ID不一致を隠さない。seal_planも同じ関数を使い、ID・時刻の除外を期限・選択の照合省略へ転用しない。hash取得はP04-SELFの外部境界、Plan全体の配送hashはP09の別契約とする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-36` | SelfChangeとOsInstallを含む同じ計画で親と対応する子ID/今回の観測時刻だけ変更。次に子IDだけ不一致、過去backup_idだけ変更 | 前者の固定byte列/digestは同一。子だけの不一致は射影前拒否、過去保全参照の変更は別digest。P09の全Plan hashは前者でも変わる |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -239,7 +254,7 @@ P03-FSのrootはパス文字列ではなく観測したdisk/root/FS/bootの証�
 
 前後の再照合だけでは、二つの照合の間のパス交換を防げない。標準ライブラリだけで安全な相対操作を証明できない環境は適用不可とする。採用方式には、競合する書き手の排除根拠、固定したrootに対する全操作、交換後に別対象へ書かないことの反証試験が必要。保護された親directoryという前提も、同権限の他処理を除外できないなら充足としない。
 
-RootBindingの審査候補の全キーはtarget・root_identity・filesystem_identity・boot_id・generation・parent_entries・operations・writer_exclusion_ref・method_ref。targetはTargetEvidence、親entry列はrootから末端の親までのpath/identity/kind、operationsはread/create/replace/metadata/syncの必要集合、method_refは採用する方式のContractRef、残る識別/根拠は空でない固定参照とする。変更予定の全操作が同じ方式の保証範囲内であることを要求し、一操作でも対象固定・排他の根拠が欠ければFS_BINDINGで適用を停止する。観測だけ可能な方式から変更権限を導かず、ブート世代やmount集合の変化はBindingを失効させる。方式A/Bの成立証拠そのものはD03-02の未達に残す。
+RootBindingの審査候補の全キーはtarget・root_identity・filesystem_identity・boot_id・generation・parent_entries・operations・writer_exclusion_ref・method_ref。targetはTargetEvidence、親entry列はrootから末端の親までのpath/identity/kind、operationsはread/create/replace/metadata/sync/removeの必要集合、method_refは採用する方式のContractRef、残る識別/根拠は空でない固定参照とする。変更予定の全操作が同じ方式の保証範囲内であることを要求し、一操作でも対象固定・排他の根拠が欠ければFS_BINDINGで適用を停止する。観測だけ可能な方式から変更権限を導かず、ブート世代やmount集合の変化はBindingを失効させる。方式A/Bの成立証拠そのものはD03-02の未達に残す。
 
 計画中の取消は以降の観測を中止し、完結した診断だけ返す。部分観測集合で適用計画を作らない。適用直前の期限切れは再計画・再選択/確認へ戻し、既に開始した操作はP04の中断照合へ渡す。計画器から自動復旧・ファイル修復を呼ばない。
 
@@ -312,7 +327,15 @@ PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資
 
 ### 非資源stepの閉じたpayload
 
-PlanStep.payloadの候補は下表の担当型だけとする。kindの選択はstep.contract.contract_idで行い、入力の自己申告で別契約へ切り替えない。表にない契約を変更stepとして受理しない。観測/検証だけのstepはCheckStepPayloadを使い、対象検査ID・期待参照・非変更の実行契約を固定する。外側のMediaRequest/RemoteRequest/Planをpayloadへ入れる循環形式を作らない。
+payload復号の識別候補はcontract_idとstep.idの区分の組とする。check.で始まるIDを検証step専用に予約し、destructive=false・resource_change=null・CheckStepPayloadを要求する。残りでは担当表の型を使うが、P04-APPLYはpackage./unit.、P04-BACKUPはbackup.capture/backup.restoreの区分を必須とする。backupの二IDは完全一致、またはdot一つと資源IDを付けた形だけを許す。他の担当で同じcontract_idに複数の変更型を割り当てる案を追加しない。
+
+型のキーを試し読みして都合のよいvariantを選ばず、復号前に上記の組から一型へ決める。check.以外でCheckの形が来た場合、check.なのに変更型が来た場合、package/unitの区分欠損はPLAN_PAYLOAD。検証stepのexecution_refsは非変更性を別に証明し、接続検査ならrequires_networkとの一致も要求する。資源stepはresource_changeのみという既定の境界を維持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-37` | 同じP04-BACKUPでcapture/restore/checkの三step、区分不明ID、checkにPackageResource | 最初の三つはそれぞれ一型へ解決。他は封印前拒否。キー推測・variant tag追加・非変更検査からの更新なし |
+
+PlanStep.payloadの候補は下表の担当型だけとする。型の選択は上記のcontract_id/step.idの組で行い、入力の自己申告で別契約へ切り替えない。表にない契約を変更stepとして受理しない。観測/検証だけのstepはCheckStepPayloadを使い、対象検査ID・期待参照・非変更の実行契約を固定する。外側のMediaRequest/RemoteRequest/Planをpayloadへ入れる循環形式を作らない。
 
 | 担当契約 | payloadの型・全集合 |
 |---|---|
@@ -353,6 +376,22 @@ pub struct CheckStepPayload {
 | `A03-31` | P04-SELFへInstallPayload、payload内にRemoteRequest/Plan、未登録の任意command | PLAN_PAYLOADで封印/配送/適用不可。wrapperの再帰・別契約へのfallback・Core依存方向の逆転なし |
 
 ### 内容カタログとRootBindingの失効
+
+RootBindingの型候補を次へ固定し、P04のRestoreFixtureも同じ型を参照する。各値の保証範囲は本節の方式A/B審査が定義し、型の存在は方式の成立根拠ではない。
+
+```rust
+pub enum BoundFsOperation { Read, Create, Replace, Metadata, Sync, Remove }
+pub struct BoundParentEntry { path: std::path::PathBuf, identity: String, kind: String }
+pub struct RootBinding {
+    target: TargetEvidence, root_identity: String, filesystem_identity: String,
+    boot_id: String, generation: String, parent_entries: Vec<BoundParentEntry>,
+    operations: Vec<BoundFsOperation>, writer_exclusion_ref: String, method_ref: ContractRef,
+}
+```
+
+parent_entriesはrootから末端親までの順序・重複なし、kind=directory、pathは対象内の検証済み絶対パス。root自身のpath=/だけを本型の親列に許し、管理資源としての/の禁止は維持する。operationsは一意な必要操作集合で、読取りだけのBindingをreplaceへ拡張しない。generationは固定した採取世代の証拠ID、writer_exclusion_refは同じ主体/期間/対象の排除資料。未知/空の参照、別boot/世代の混在、対象同一性不成立はFS_BINDING。外部の任意path/自由コマンドへ解決しない。A03-24/32の失効・必要操作の照合にもこの型を適用する。
+
+RemoveはP02の既知一時名清掃、P04の許可済み本体削除/復旧で特定した単一entryにだけ使う候補。呼出元の正本/Plan/所有根拠/実inodeを照合し、directoryの再帰削除・一般資源の削除・保全物の自動除去へ拡張しない。remove保証のないBindingでは、作成/検査が成功しても清掃や本体除去を開始しない。削除済みの確証と、要求後の結果不明を別に保持する。A03-24には清掃だけが保証範囲外の入力も含める。
 
 ContentBlob集合の生成候補は、組込み資材の署名済みrelease対応、または復元検証済みbackupのentry対応を採取器が照合し、全byte列を固定してから純粋解決器へ貸与する方式。資材ID/参照は一意、長さ/hashは採取した同じ実体へ結合する。初期の集合同時保持上限は64 MiB、個別上限はP03-RESOURCE、加算overflow/総量超過はCONTENT_LIMITで計画前停止する。上限を超える場合に任意pathへの遅延参照へ切り替えない。貸与期間中の変更・再取得・同名資材の差替えを許可しない。
 

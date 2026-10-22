@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B9`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B10`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB9）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB10）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -387,6 +387,14 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 
 ### 監視記録の保存と再同定
 
+再試行枠の判定候補を、新規要求の予約前と同じ要求の実行前で分ける。新規自動start/restartはattempts_used+既存予約数<retry_limitを要求する。予約した同一requestの実行は、自分の一予約を含めた和<=retry_limit、pending/reservedの同一ID、台帳preparedとの一致を検査する。予約直後に同じstrict比較で自分の最後の枠を拒否しない。別要求へ予約を貸し替えない。
+
+ControlLedger.preparedとmemoryのpending_control/reserved_retryを同期して照合してから制御を開始する。片側同期失敗は開始0件、途中保存不明はunknownとして既存予約を保全する。実開始の確証が得られたら、同じrequestについて予約解除とattempts_used+1を一つの次memoryへ計算し、台帳と照合して確定する。整数overflow/矛盾はMONITOR_RECEIPT。未開始の確証以外で予約を解放せず、同じreceiptを二度加算しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-41` | retry_limit=1、使用0から要求rを予約、同じr実行、別s要求、rの二重receipt | rだけ枠内で一回消費、s拒否、二重加算0回。予約後の自己拒否・未確認予約の解放・上限超過なし |
+
 監視状態の候補保存先を/var/lib/serverseed/mining/cpu/monitor-state.jsonとgpu/同名へ固定する。要求別の制御記録は同じengine配下control/OperationId.json、request_idはP02の新規OperationId表記で生成する。生成は純粋evaluateの外で一回だけ行い、engine/epoch/sample時刻/action/config hash/対象の組へ結合する。同じ組の既存要求があれば新IDを発行せず読取り照合する。対象/engine/IDを外部pathへ展開しない。
 
 ControlLedgerの全キー候補はschema_version: 1、request: ControlRequest、operation_id: OperationId、phase: prepared/started/finished/unknown、receipt: ControlReceiptまたはnull、memory_before: MonitorMemory、memory_after: MonitorMemoryまたはnull、verification_refs: string[]。preparedを同期してから制御を開始し、実開始の確証/未確認を保存し、実サービスとreceiptを照合してmemory_afterを確定する。先にMonitorMemoryだけ更新して要求証拠を失う順序は不可。共通operation/historyの確定は親が行う。
@@ -404,6 +412,30 @@ controlのサービス操作はP04-APPLYのunitテンプレートを使い、cpu
 | `A07-34` | prepared同期失敗、開始不明の予約一件、過去の古いreceipt再配送、記録欠損後の再起動 | 実行0回/枠保持/再消費0回/unknownを照合。回数0への復元・同要求再実行・保存失敗の成功化なし |
 
 ### 機器検出と採用能力行の区分
+
+検出と使用可能性の型候補を次へ閉じる。取得不能を表すEvidenceFieldはP02の型だけを使い、DeviceCapabilityは全必要項目の検証後だけ生成する。
+
+```rust
+pub struct DeviceIdentity {
+    device_id: EvidenceField, target_machine_id: EvidenceField, boot_id: EvidenceField,
+    kind: EvidenceField, topology_ref: EvidenceField, vendor_id: EvidenceField,
+    device_code: EvidenceField, subsystem_ref: EvidenceField, driver_ref: EvidenceField,
+    observed_at: UtcMillis,
+}
+pub struct CapabilityRange { unit: String, min: i64, max: i64, step: i64 }
+pub struct DeviceCapability {
+    device_id: String, kind: Engine, vendor: String, model: String,
+    driver_material: MaterialRef, kernel_release: String, miner_material: MaterialRef,
+    algorithms: Vec<String>, sensor_contract: ContractRef,
+    temperature_range: Option<CapabilityRange>, power_range: Option<CapabilityRange>,
+}
+```
+
+driver_materialはCPUでもOS側の対応実行基盤を台帳参照で特定し、GPU専用driverを架空登録しない。温度は符号付き、電力は0以上で共通外部整数範囲内、step>0を要求する。device_idをObservedから抽出する前に、同じMachineId/boot/topologyの照合が必要。温度/電力のNoneは制御非対応または未確認の区別を担当検査へ残し、確認不能を非対応の確証として処理しない。表示の検出一覧をCapabilityの集合へ無検査変換しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-40` | device_id未取得、電力minが負、CPUに架空GPU driver、同位置でboot変更 | 能力構築/値域/資材照合を拒否し再同定。検出だけの対応認定・型宣言のないAPI入力・0埋めなし |
 
 機器の列挙候補では、CPU packageは対象のtopology識別、GPUはPCIのdomain:bus:device.functionとvendor/device/subsystem/driverへ対応付ける。PCIアドレスは当該起動世代内の位置で、恒久的な個体識別子ではない。DeviceIdentity候補はdevice_id・target_machine_id・boot_id・kind・topology_ref・vendor_id・device_code・subsystem_ref・driver_ref・observed_atの全キーとし、未取得は理由付きのEvidenceFieldで表す。候補IDだけで別boot/交換機器へ設定を再適用しない。
 
