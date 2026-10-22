@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B11`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B12`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB11）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB12）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -286,6 +286,8 @@ last_confirmed_stageは同期済みの直前の通常段階を保持する候補
 
 request_sha256はMediaRequestの全キーをP02-CLIのJSON順/escape・末尾LFなしで固定したbyte列、recipe_sha256はRecipeInput全体の同じ表現へのSHA-256とする候補。どちらも媒体file全体のhashやPlan.digestと代用しない。継続情報はmedia_id・両operation_id・plan_id・二hash・対象の固定識別を一組で照合する。既存media-handoff.jsonが別の未完了操作を指す場合はMEDIA_PENDINGで新規操作を停止し、単一保存先へ上書きしない。完了済みでも履歴との対応を保全してから新しい計画の保存を判断し、fileがあるだけで再開処理を起動しない。
 
+media_idは一回の媒体操作セッションを識別する16byte由来のhex32候補とし、P02の乱数/一意性条件で入口が生成する。ISO版・volume label・USB製品serialそのものではなく、同じISOの別操作へ再利用しない。実媒体のdevice/FS/起動参照集合は別の観測証拠へ束縛し、同一labelや同一ISO hashを理由に他のUSB/namespace参照を解除済みと扱わない。再開では保存済みの同じmedia_idを使い、新規IDで未完了を隠さない。A05-21/30/33/36で同一ISO二媒体、label重複、再開時ID差替えを照合する。
+
 ISO recipeのtools_refはMaterialRefの識別集合を重複なしで固定し、baseと全実行物、同梱本体の実hashをrecipeへ結合する。RAM起動を第一候補とし、採用版で測定した必要量と予約量のchecked合計が観測した使用可能RAM以下の場合だけ起動条件を通す。測定根拠なし・取得不能・overflowは起動保留。boot後のlatest取得や、ツール参照名toolsへの別名置換は行わない。容量条件の成功だけで媒体参照解消を認定しない。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -363,7 +365,7 @@ StorageInput.erase_confirmed_for_planはこの候補では消去対象を親計�
 | user-data | 空objectだけの比較候補。identityによる秘密password/hashの埋込みを使わず、対象ユーザーの準備を固定の対象側処理へ分離。cloud-initを利用者の別の開始経路にしない |
 | early-commands | 空配列。選択/消去確認前に対象を変更するscriptを置かない |
 | late-commands | 検証済み同一本体の固定内部入口に、同期済みhandoffを照合させる一つのargv配列。動的入力は記録を読ませ、shell文字列へ連結しない |
-| shutdown | poweroff。ServerSeedの同期/媒体解除確認を経ずにinstallerが内蔵OS再起動を開始する候補にはしない |
+| shutdown | installerによる自動再起動・電源断の抑止を必須とする比較条件。poweroffを無条件生成しない。採用版でServerSeedへ制御を戻す設定/起動契約を固定できなければD05-01/02未達とし、実行しない |
 
 storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_bootはformat/mountなし。disk選択の自由なmatch/最大容量指定を使わない。採用storage版がoffsetを保証しない場合、共通の厳密start_bytes契約と両立する証拠を必要とする。[Curtin storage](https://curtin.readthedocs.io/en/latest/topics/storage.html)の版1と版2でoffsetの意味が異なるため、version=1へoffsetを書いただけで厳密配置を保証しない。採用版/生成schema/寸法fixtureが一致しない場合は実行前保留する。
 
@@ -400,6 +402,8 @@ verifyは新たなsetupを開始せず、操作別の照合guard下でboot証拠
 | `A05-39` | prepare失敗、通常unit一件起動失敗、prepareが通常unit active待ちを要求 | 順に通常起動抑止/verifyで失敗保持/生成契約拒否。oneshotとサービスの循環待ち・失敗の完了化なし |
 
 BootProof候補の全キーはmedia_id、plan_id、target_operation_id、disk_id、root_identity、boot_id、observed_at、media_absent、required_services、checks。required_servicesは当該構成の固定unit名→実状態のmap、media_absentは採用観測器で確認したbool。boot1/boot2を対象側operations/OperationId/media-boot-1.jsonとmedia-boot-2.jsonへ同期する。boot2はboot1と異なるboot_id・同じdisk/root/操作を要求し、通常サービスと媒体非依存の全必須Checkを再検証する。同一bootの二観測やreboot要求の受付は二回目の証拠にしない。
+
+media_absentを観測不能な場合はBootProofを構築せず、HandoffRecordをunknownと確認済み位置へ対応付ける候補。falseは媒体接続の確証がある場合だけとし、観測器失敗を「接続あり」または「取り外し済み」へ変換しない。required_servicesの欠損も空mapの起動成功にせず、同じ対象の不足Checkを保持する。A05-11/31/35へ媒体検出不能とサービス集合欠損を加え、内蔵起動の事実だけでcompleteへ進めない。
 
 boot1後の再起動は確認済み計画と再起動許可を照合し、許可がなければ内蔵consoleで利用者に案内する。USBの再接続、SSH保守への切替、allow_rebootの書換えを要求しない。再起動前に継続位置を同期し、boot2と構成検証/必須記録の一致後だけhandoff.completeを確定する。実行期限が再起動を跨いで判定不能なら未実施の変更は開始せず、照合/表示だけ行う。boot証拠の取得不能を現在時刻や旧PIDで補完しない。
 

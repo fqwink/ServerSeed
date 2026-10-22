@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B11`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B12`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB11）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB12）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -323,6 +323,8 @@ TemperaturePolicyの全キーはstop_milli_c・resume_milli_c（i64または両�
 
 MiningConfigの検証候補順序は形式/版→modeとcpu/gpuのnull条件→各EngineConfig→機器ID集合と能力参照→機器別TemperaturePolicy→monitor→maintenance→相互条件とする。数値文字列・真偽値のinteger化は行わない。power_milli_wattsはP07-DEVICEの範囲/刻みへ照合し、GPU全機器に適用できなければ拒否する。backup_poolsの掲載順は保持するが、切替機能の採用前は自動切替を発生させない。allow_service_recovery=falseなら許可に依存するstart/restartの自動復旧提案を実行せず、温度停止の安全条件を同じboolで解除しない。
 
+temperature_unknown_action=stopは現候補のunknown/none規則を上書きする実装許可ではない。対応する安全ポリシー・機器別停止契約・状態表の採用が揃わない間は、当該設定を形式上識別できても運転計画をblockedにする候補とする。holdも安全性の確証ではなく、必要な保護が未成立なら運転開始を許可しない。A07-06/11/25で形式受理、運転許可、実制御を分けて照合し、実装者が二方式のどちらかを選ばない。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A07-17` | combinedでgpu=null、minimum_hashrate=0、UTC時間帯23:00〜01:00の00:30/01:00 | 前二件は拒否。時間帯だけの評価では前者内・後者外。時間帯内でも実行許可を代行しない |
@@ -421,6 +423,8 @@ ControlLedgerの全キー候補はschema_version: 1、request: ControlRequest、
 reserved_retryは開始不明の自動start/restartについて枠を予約する要求IDまたはnull。新規予約前と同じ要求の実行前の比較は本節冒頭の二条件だけを使用し、予約後にもstrict比較を繰り返して最後の枠を拒否しない。開始確証で予約を解除してattempts_usedへ一回加算する。未開始の確証なら予約だけ解除、未確認なら予約を維持する。初回の明示開始だけは同じ保存セッションの新規開始確認に対応付け、自動復旧へ読み替えない。停止要求は再試行枠を消費しないが、同一要求の重複発行は禁止する。
 
 制御台帳の上限候補は各engineで1,000要求かつ64 MiB、ControlLedger一件64 KiB、MonitorMemory一件64 KiBとする。新規/一時保存分も加算し、どちらかの上限へ達する新規制御を停止する。未完了/unknown台帳は削除せず、完了台帳の退避も別の明示保守計画で参照閉包を保持する。容量不足を理由にstop_latched・attempts_used・reserved_retryを初期化しない。安全上必要な停止を発行できない場合は、その未実行と残存サービスを報告し、停止済みと偽らない。
+
+64 KiBは各完成JSONのescape/キー/区切り/LF込み実長へ適用する候補。ControlLedgerはrequest/receipt/memory_before/memory_afterの合成全体で判定し、各memoryが単独上限内という理由だけで保存可能にしない。監視セッション開始前に、固定機器/Check/参照集合から成功・失敗・unknown各枝の最大合成量とP02の深さ/ノードを照合し、不明/超過なら制御を開始しない。実出力も再検査し、超過時の切詰め・回数/保持の消去は禁止する。A07-18/34/41へ個別memoryは上限内だが合成台帳超過、失敗枝だけ超過を加える。
 
 再起動後は全未完了ControlLedger、保存設定hash、対象/boot、実unitの状態を読み、pending/予約/回数/停止保持を復元する。経過時刻の連続性は引き継がず新epochとし、unknownからの明示照合へ戻す。記録欠損/別設定/別対象/不整合を回数0にしない。消費済みIDは同engineの確定履歴と照合し、last_control_receipt一つだけで過去の全重複を判定しない。保持上限到達では自動制御の新規開始を停止し、ログ整理で制御履歴を自動削除しない。
 

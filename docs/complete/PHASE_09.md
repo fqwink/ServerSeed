@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B11`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B12`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB11）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB12）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -166,6 +166,7 @@ pub enum DeliveryStage { Accepted, Started, ResultReady, Unknown }
 pub struct PlanReference {
     plan: Plan, plan_sha256: String, selection: Option<Selection>,
     install_payload: Option<InstallPayload>, backup_set: Option<BackupSet>,
+    confirmation: Confirmation,
 }
 pub struct RemoteRequest {
     schema_version: u32, request_id: OperationId, master_machine_id: MachineId,
@@ -223,6 +224,8 @@ RemoteFailure.request_may_have_arrivedはboolの候補で、到達可能性が�
 
 取消と終端の競合候補では、既にresult_readyなら同じ確定receiptを返し、元操作をinterruptedへ書き換えない。実行中なら取消対象のoperation/監督単位を照合して停止工程へ一度だけ渡す。同じCancelの再受信は取消位置の照合だけで追加signalを発行しない。delivered=true/acknowledged=falseは対象へ到達したが受理拒否の確証、stopped=nullは停止未確認。acknowledged=trueなのにdelivered=false/nullという矛盾はREMOTE_CANCELで拒否する。停止の確証がない限り、取消の受付をstopped=true・データ復元・後続変更の許可へ変換しない。
 
+Cancelの候補経路は実行中workerへの制御要求であり、新しい変更operationをbeginして対象の同じexclusive guardを待つ処理にはしない。実行者が保持するguardの下で取消の受理位置/保全/停止結果を確定し、受付側は元operation/historyを直接上書きしない。workerが応答不能ならacknowledged/stoppedを未確認のまま返し、guard取得成功だけを強制終了・取消完了の根拠にしない。安全な制御伝達の実方式はD09-02へ残し、成立しない間は取消可能としない。A09-08/12/30で実行者がguardを保持中の取消と終端競合を照合する。
+
 RemoteSessionは検証済み接続と対象証拠を所有し、Cloneを許可しない候補。drop・SSHプロセス終了は対象操作の取消・ロック解除を意味しない。固定入口・初回搬入の実現手段が未決なため、これらの宣言だけで配送可能とはしない。
 
 RemoteSessionは接続条件と確認資料を束縛する論理セッション候補で、単一のSSHプロセスへ複数JSONを追記する持続接続の保証ではない。一メッセージごとに固定入口/一stdin/EOF/一応答を使用する。Query/Cancelのtarget_idはsessionの台帳IDと一致させ、接続側で検証した主体・権限を照合し、payloadにIDがあるだけで問合せ/取消を許可しない。認証参照は検証済みの接続資格から導き、要求の自己申告で置換しない。ホスト鍵/実対象/接続条件の変化・期限切れはセッションを失効させ再接続へ戻す。対象側固定入口の権限実装は安全ポリシーとD09-01の採用待ちであり、型宣言で成立済みとしない。
@@ -277,7 +280,11 @@ SSHは信頼/認証/固定入口、REMOTEは型/配送/排他・記録、RECONNE
 
 P09-REMOTEの配送形式候補をschema_version・kind・payloadの三キーへ閉じる。JSON UTF-8、末尾LF一つ、入力wrapper全体512 KiB以内・応答全体1 MiB以内、圧縮・複数JSON・余分なstdout文字列を拒否する。payloadの型はkindごとの既存Rust型に一致させる。P02の通常上限を拡張せず、本配送の入力だけをさらに狭める。
 
-RemoteRequestのplan_refは曖昧な文字列を廃し、Planを所有するplanと、その固定byte列のplan_sha256を持つ参照へ具体化する候補。全体のキーはschema_version・request_id・master_machine_id・target_id・target・plan_id・plan_ref・action・contracts。PlanReferenceの全キーはplan・plan_sha256・selection・install_payload・backup_set。planはP03のPlan、plan_sha256はhex64。plan_sha256はPlanの全キー（plan_id/created_at/digestを含む）をP02のキー順JSON・末尾LFなしで直列化したbyte列のSHA-256とし、P03の前提比較用Plan.digestとは別の照合値とする。selectionは初回setup/install_osだけ必須で継続管理/self単独はnull、install_payloadはinstall_osだけ必須、backup_setは独立backupと保全を伴う計画で必須。他はnullとする。対象・plan_id・構成・採用版の全一致を対象側で再検証する。入力上限を超えるPlanは配送前に拒否し、外部URL参照へ自動変更しない。
+RemoteRequestのplan_refは曖昧な文字列を廃し、Planを所有するplanと、その固定byte列のplan_sha256を持つ参照へ具体化する候補。全体のキーはschema_version・request_id・master_machine_id・target_id・target・plan_id・plan_ref・action・contracts。PlanReferenceの全キーはplan・plan_sha256・selection・install_payload・backup_set・confirmation。planはP03のPlan、plan_sha256はhex64。plan_sha256はPlanの全キー（plan_id/created_at/digestを含む）をP02のキー順JSON・末尾LFなしで直列化したbyte列のSHA-256とし、P03の前提比較用Plan.digestとは別の照合値とする。selectionは初回setup/install_osだけ必須で継続管理/self単独はnull、install_payloadはinstall_osだけ必須、backup_setは独立backupと保全を伴う計画で必須。他はnullとする。confirmationは[P05のConfirmation](PHASE_05.md#入力と保存形式の詳細案)の型/二応答を共用し、Submitでは必須・null不可とする。媒体のmedia_idや取外し条件は追加しない。対象・plan_id・構成・採用版の全一致を対象側で再検証する。入力上限を超えるPlanは配送前に拒否し、外部URL参照へ自動変更しない。
+
+confirmationはマスターで実施した選択後の計画確認を当該Plan/対象disk/digestへ結合する候補であり、認証・権限の証明ではない。対象側は接続資格の照合と別に、plan_id/target_disk_id/shown_digest/応答/期限、消去stepの有無と追加確認の対応を検証する。未確認・別計画・消去確認欠損ならaccepted保存/worker変更0件。Query/Cancel/Indexにはconfirmationを受け取らない。A09-14/17/27で不足・別Plan・短いコードだけ一致を照合し、確認が配送で失われる経路を認めない。
+
+Submitの共通参照閉包にはP03-PLANと、Confirmationを定義するP05-MEDIAも含める候補。後者の型の共用から、USB操作/媒体取り外し/物理PC起動をCloudの実行条件へ追加しない。request_digestと保存/応答上界はconfirmationを含む六キーのPlanReference全体から再算定する。旧五キーの要求は欠損として拒否し、対象側で確認済み値を補完しない。A09-17/27/33/36で旧要求・全要求hash差・上界超過を照合する。
 
 | 対象記録 | 全キー候補・配置 |
 |---|---|
@@ -401,7 +408,9 @@ pub fn query_index(session: &mut RemoteSession, request: &IndexRequest)
 |---|---|---|
 | `A09-34` | last_deliveryはstarted、旧accepted応答を後受信、sent_bytesが減少 | 正本の後退を拒否して既知startedを保持。二ファイルの後勝ち・Query修復・部分送信の未配送化なし |
 
-マスターは要求の同期保存→送信→応答検証→last_delivery同期の順。対象は共通guard取得→ActiveController照合→同ID/hash検索→新規要求同期→accepted→operationと監督unitの対応同期→started→必須結果同期→result_readyの順。受理後の一段だけの保存成功は段階の不一致として保持する。Queryは両側の欠損・hash・operation・unit・実対象の照合結果だけを返し、保存の補修を行わない。照合結果を保管する行為はマスター側の変更工程として区別する。
+マスターは要求の同期保存→送信→応答検証→last_delivery同期の順。対象は固定入口の非変更検証→同要求に束縛した監督workerの起動→worker自身の共通guard取得→ActiveController照合→同ID/hash検索→新規要求同期→accepted→同じworkerのbeginと監督unitの対応同期→started→必須結果同期→result_readyの順とする候補。受付プロセスがguardを保持したまま別workerの取得を待たず、acceptedから記録確定まで一主体が所有する。同名worker/未完了要求を発見した入口は第二workerを起動せずQueryへ戻す。起動予約・入口間競合のOS方式はD09-02の成立条件であり、名前の事前確認だけでは解消しない。受理後の一段だけの保存成功は段階の不一致として保持する。Queryは両側の欠損・hash・operation・unit・実対象の照合結果だけを返し、保存の補修を行わない。照合結果を保管する行為はマスター側の変更工程として区別する。
+
+Queryは実行中workerのexclusive guard取得を待つ変更処理へ変換しない候補。原子的に保存された確認可能な同一要求の位置だけを読み、不整合/採取中変化はrecord_consistent=null/falseとして返す。workerが書込み中という事実だけを元操作の失敗とせず、全必須記録が揃うまでresult_readyも生成しない。Indexの非待機shared取得/REMOTE_BUSYは別の全件索引契約を維持する。A09-04/10/24/38で実行中のQuery、同時Submit、Index競合を分けて照合する。
 
 配送記録の候補上限は両側それぞれ1,000要求かつ専用領域64 MiB、新規要求・原子的保存の一時byteを含む。要求payloadは入力wrapper込み512 KiB内、各delivery/cancel/観測一覧はそれぞれ64 KiB以内、合成した各request.json全体は1 MiB以内とする。JSONの実byte列（escape/区切り/末尾LFを含む）で評価し、512 KiBの要求が1 MiBの記録へ無条件に収まるとは仮定しない。受理前に合成上限と当該Planの結果上界を照合し、上界を確定できない場合もREMOTE_CAPACITYで受理を拒否する。開始後の予期しない超過では元の対象側証拠と最後の配送段階を保持し、receiptのstepを切り詰めてresult_readyにしない。
 

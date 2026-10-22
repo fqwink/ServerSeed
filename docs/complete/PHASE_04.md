@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B11`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B12`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB11）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -79,7 +79,7 @@ UpdatePayloadは子stepの索引であり、それ自身から同じupdateを再
 | `restore_evidence` | 方法ID、検証した対象・版、実施時刻、期限、期待結果と確認結果。未確認をverifiedへ変換しない |
 | `result` | 実保存物の識別・形式版・サイズ・照合結果と、既存の[バックアップ状態](../BASIC_SPEC.md#バックアップ状態)への対応 |
 
-採用案の流れは、対象・保存先確認、アプリ固有の整合性確保、取得、保存物の照合、隔離先への復元確認、有効性判定、結果確定とする。取得の成功、ハッシュ一致、復元可能性を別の結果にする。保存と復元各操作の上限は3,600秒、再試行0回を候補とする。
+採用案の流れは、対象・保存先確認、アプリ固有の整合性確保、取得、保存物の照合、隔離先への復元確認、有効性判定、結果確定とする。取得の成功、ハッシュ一致、復元可能性を別の結果にする。独立backup/restore各操作の上限は3,600秒、再試行0回を候補とし、子工程と親予算の対応は[接続と責務の照合](#接続と責務の照合)へ集約する。
 
 暗号形式、鍵の保全、保存先の対応方式、保持・削除、復元先の隔離、定期確認の期限、アプリ別の検証方式は`D04-02`の未達。仮の汎用アーカイブだけでデータベースやマスター管理情報の復元可能性を保証しない。`require_backup_before_update=false`の適用条件も[担当ポリシー](../POLICIES.md#バックアップ設定の未確定条件)の決定待ちとし、本書で免除案を追加しない。
 
@@ -142,6 +142,8 @@ StepReceiptは親計画の各stepと1対1に対応し、未開始も省略しな
 
 同じ親操作から呼ぶself/apply/backupと構成別の子処理は、親のoperation_idとguardを使用する候補。子の完了は担当StepReceiptまでで、finishによる履歴/終了記録の確定は全step照合後に親だけが一度行う。子APIが返すOperationReceipt.recordはその時点の親の記録段階であり、completeでないことを子資源の検証失敗と混同しない。逆に子資源verifiedを親全体のsuccessへ変換しない。
 
+本体変更後の清掃候補は、元計画で破棄を許可した受信用/配置用の一時物だけを対象とする。verifiedのself-transaction記録と、親intent/history/snapshot/復旧参照を清掃で削除しない。固定self-transaction保存先を次操作が使う前に、前操作の不変snapshotと完了を照合し、未完了なら置換しない。既存の本体配置契約どおり操作状態/履歴の確定後に清掃し、清掃と必要な保存/出力も同じguard/親期限の内側へ含める。清掃失敗で成功を返したり、不変の完了記録を書き換えたり、最終名の本体や保全済み旧版を無条件削除したりしない。記録確定後の清掃失敗を保持する補助記録/CLI結果と再試行の全形式はD04-01の未達へ残し、通常の資源step完了と混同しない。A04-03/12/33とA02-115/119で記録完了後の一時物残存、次操作の開始、清掃先交換を照合する。
+
 BackupReceiptは取得・保存・復元確認の参照を結合する候補で、既存のバックアップ成功状態の代替ではない。verified=trueは同じartifact_sha256の保全物を所定の隔離先へ復元し、方法が要求する全必須検査に成功した場合だけ。`verified_at <= now < valid_until`で判定し、時刻不明・逆転・方法/版/対象不一致は無効とする候補。具体的な有効期間と対象別の検査方法は`D04-02`で決め、仮の共通期限を作らない。
 
 適用関数がエラーを返す場合も、最後に確認したStepReceiptと保存済み記録への参照を親へ保持させる契約が必要である。汎用ContractErrorだけで実適用位置を失う経路は未充足とし、エラーと部分結果を結合するRust型・永続化の全形式は`D04-01`〜`D04-04`の採用審査に残す。新しいファイルパスを復旧時の任意書込み先として受理する案にはしない。
@@ -151,6 +153,8 @@ BackupReceiptは取得・保存・復元確認の参照を結合する候補で�
 PreparedSelf・StepReceiptは[P03-PLAN](PHASE_03.md#データ契約の具体化案)の対象・plan_id・契約参照へ結合する。self単独は構成の適用・migration変更を含めず、通常update内のselfは親operation_idとロックを使用する。署名・メタデータ・実配置の各照合が異なる段階で失敗した場合、到達していないstepはnot_startedとして保持する。
 
 工程上限の最大値の合計と、実際の見積時間・親期限を区別する。全stepに個別最大値をそのまま消費させず、実行時は`min(個別上限, 親の残期限)`で制御する候補。開始前に必要な処理時間・保全・停止予算を確保できる根拠がなければblockedとし、既定の上限値だけで実行可能性を認定しない。見積方法と停止の実現性は各未決事項に残す。
+
+独立backupの候補上限3,600秒は整合性確保/取得/暗号化/保存同期/隔離復元確認/サービス復帰/結果確定を含む一操作の総予算とする。内部のrestoreへ新しい3,600秒を追加しない。独立restoreだけは別の確認済み操作の予算を持つ。通常update内の保全は更新の親期限内で、実行可能な停止/記録予約を含む見積が成立しなければbegin前にblockedとする。A04-15/35/38で単独予算と更新内予算、子完了後の親保存時間を照合する。
 
 BackupReceipt.restoreは[P06-DATA](PHASE_06.md#p06-data)・[P08-BACKUP](PHASE_08.md#p08-backup)の対象固有検証へ結び付ける。同じパスでも対象・形式・アプリ版が違えば再利用しない。CLIの成功表示・SSHのresult_ready・媒体のtarget_verifiedはいずれも、対象側OperationReceiptと必須記録の一致を必要とする。出力送達失敗は適用済み状態を巻き戻す根拠にしない。
 
@@ -280,6 +284,8 @@ BackupProgress.stageの候補全集合はpreparing・capturing・saved・restore
 
 BackupProgress.last_confirmed_stageはpreparing/capturing/saved/restore_checked/completeのいずれかで、stageが通常段階なら同値、failed/unknownなら最後に証拠を確認した段階を保持する候補。capturingは開始の確証であり全entry取得済みの意味ではない。receipt=Noneのfailedでもsavedまで到達した事実を保持し、失敗した保存物を未作成として再取得しない。stageだけをcompleteへ変更せず、対象固有の復元確認と保存物の検証記録の確定後に正式receiptを結合する。親update内ではこの子のreceiptを親へ返した後、全stepを照合して親がfinishする。子receiptの生成条件に親のfinish完了を要求して循環させず、子のcompleteを親操作の成功とも扱わない。
 
+preparingもアプリ停止などの副作用を含み得る候補とし、stage=preparingだけで「対象変更なし」と判定しない。停止前に元稼働状態/対象集合を担当stepへ同期し、停止開始・停止確認・取得開始・復帰の各証拠を保存する。BackupProgress.temporary_evidenceはその実在参照も保持し、receipt=Noneを未停止/未保存の証明へ転用しない。P06-DATAの元稼働集合と同じ照合を使い、復帰不能/不明なら重要更新へ進まない。A04-16/37/38とA06-22/25で停止直後・capture開始前の障害を再現する。
+
 | 中断・失敗位置 | 停止と復旧候補 |
 |---|---|
 | 容量・対象・保存先の再照合前 | 対象変更なし。入力・計画を再確認 |
@@ -339,6 +345,8 @@ restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測�
 BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各pathは空でない相対成分列で、directory自身のbytes=0・sha256=null、fileは実byte数/hashを必須とする。親directoryを含むことを未列挙の子の取得許可にしない。復元時は全entryと保全物の版/暗号/方法を先に検証し、全pathの出力先を固定してから変更する。復元確認が失敗した保存物は参照と検証失敗をBackupProgressへ残すが、正式BackupReceiptは生成しない。verified=falseの途中結果は成功receiptではなく検査証拠として扱い、更新前提にも保持期限による削除根拠にも使用しない。
 
 BackupEntryの親子検証候補は、pathの成分列を比較して重複を拒否し、列挙したfileの配下へ別entryが存在する場合も拒否する。列挙directory配下は明示したentryだけを取得し、再帰探索で未管理データを追加しない。検査から取得までに種別・同一性・内容が変わったらBACKUP_CHANGED。総量はfileのbytesのchecked合計に形式/暗号/作業領域を加えてFS別に計算し、暗号形式の上限が未確定なら容量検査を成功にしない。
+
+entry_idも集合全体で一意とする候補。異なるrelative_pathでも同じentry_idは拒否し、ContentRef/復元照合で先勝ちの解決をしない。relative_pathは空成分・.・..・末尾slash・NUL/制御文字を拒否し、正規化で別pathへ直さない。entriesの字句/ID/path/親子関係を全件検証してから取得を始める。A04-19/31へ別path同ID、空成分、file配下のentryを含め、拒否時はcapture/復元書込み0件を照合する。
 
 BackupSet→BackupRequestはsourceをtargetへ改名して移す唯一の内部変換とし、schema_versionを検証してから残る値を無変更で移す。target識別やentriesを再収集して別内容へ差し替えない。ResourceJournalEntry.expectedはResource全体、afterは実観測であり、期待値をafterへ複製して適用成功を捏造しない。journalのentriesは資源stepのsequence順、欠損を未開始と推測して新しい空行を自動作成しない。
 

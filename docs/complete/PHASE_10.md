@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B11`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B12`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB11）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB12）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -63,6 +63,8 @@ OS再導入だけでデータを復元したと報告しない。保全物があ
 
 BootExpectationの候補照合は、信頼参照→endpointの登録対応→request/plan→disk/root→OS/版/CPU→導入全工程記録の順。取得不能はBOOT_UNKNOWN、確認済み不一致はBOOT_MISMATCHとして区別し、両方ともPhase 9への構成変更引渡しを停止する。起動済みOSから得たrootを一時環境側のroot証拠で補完しない。修復要求には対象・許可された修復step・保全元・期待結果を固定した新計画を必要とし、partition/formatを含む再導入は別の必須選択/消去確認へ戻す。返却は開始前だけContractError、開始後はChangeResult<InstallProgress>で全未開始/確認不能工程を保持する。
 
+BootExpectation.endpoint_refは、同じRemoteRequest.target_idに属する導入後の登録済み接続先へ解決する候補。後述の照合証拠にあるtarget_idはその外側要求から取得し、九キーのBootExpectationへ未定義の十個目を追加しない。旧endpoint/同一IP/別targetの参照は拒否し、新しいhost鍵の信頼と対象disk/rootの照合を独立に残す。A10-25/31へ同一IPでtarget_idまたはendpoint登録だけが違う入力を加える。
+
 ## 内製API・移行案
 
 配置候補は`src/cloud/capability.rs`・`install.rs`・`recover.rs`。能力判定・計画・対象照合を内製し、選定したOS導入基盤を外部契約として呼び出す。OSインストーラー・SSH・ブートローダーそのものの内製化を本案の条件にしない。
@@ -96,6 +98,18 @@ InstallInputの各refは完全な入力契約への参照であって、契約�
 固定工程順の候補はtarget_recheck・preserve・partition・filesystem・os_expand・boot_configure・management_configure・boot_verify・reconnect・handoff。各工程の実適用位置をInstallStageで記録し、後続not_startedを省略しない。対象方式で工程が不要な場合も、承認済み契約に理由を対応付けた検証結果を持たせ、実装者の判断で飛ばさない。各工程の予算は親の残期限を超えず、消去・展開・起動を再送しない。
 
 新OSからの再接続は、予定されたOS・CPU・ディスク/ルートの対応と管理経路、ホスト鍵の信頼根拠を検査する。同じIP・接続成功・復元したmachine-idのどれか一つだけでは同一対象と判定しない。再起動後の証拠が不足すればInstallProgressは未完了で、Phase 9の構成変更を開始しない。
+
+導入前後の対象照合候補は次表とし、TargetEvidenceの全値一致を要求して正常なOS生成を拒否したり、逆に全値を無条件差替えしたりしない。元Plan/要求は変更せず、予定変化をBootExpectationと工程証拠へ対応付ける。
+
+| 証拠 | 導入後に必要な対応 |
+|---|---|
+| disk_id | 元の固定diskとの一致。path名の一致だけでは不足 |
+| root_id | 導入前の不在と、計画したFS/実作成証拠から同じdisk上の新rootへの対応 |
+| os_id/os_version | 導入前の不在または起動不能と、固定OS資材/実生成/起動結果への対応 |
+| execution_id/boot_id | 一時環境から新OSへの予定変更と新起動証拠。旧PID/guardの継承不可 |
+| observed_at | 各採取時点の保存。時刻一致を対象同一性の証明にしない |
+
+後続の対象側context/RootBindingは新OSで再取得し、元request/plan/operationとこの遷移証拠へ結合する。未定義の識別変化や証拠欠損はBOOT_UNKNOWN/MISMATCHで停止し、初期TargetEvidenceの書換えで整合させない。A10-12/25/28で空diskからの正常遷移と別disk/別root/旧boot流用を分けて照合する。
 
 OS導入前の永続記録・排他、各工程に必要なコマンドと資材、工程別の復旧可否は`D10-01`〜`D10-03`に残る。候補の工程名・MaterialRefの存在を、資材の使用許可やroot filesystem方式の採用に読み替えない。
 

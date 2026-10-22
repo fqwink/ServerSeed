@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B11`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B12`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB11）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -90,9 +90,13 @@ target_idの重複と、同じ検証済み対象を異なるIDで同時管理す
 
 重複検査候補はtarget_id、非nullのexpected_machine_id、同じhost/port/userの登録を別々に照合する。接続設定の文字列が異なる場合も、同じ実対象と確認した証拠があれば二重登録を拒否する。一方、DNS名の相違だけで別機器と確定しない。登録前の純粋検査は名前解決やSSHを実行せず、初回同定で既存対象と判明した場合は変更配送前にREGISTRY_DUPLICATEで停止する。
 
+遠隔管理先としてマスター自身を登録しない候補とする。expected_machine_id/既知の実対象がmaster_machine_idと一致する登録はREGISTRY_DUPLICATE、未同定の別名が接続後に自身と判明した場合もSubmit前に停止する。ローカルの共通guardを保持したまま自身の遠隔guardを待つ構成、SSHを使って物理マスターの媒体保守条件を迂回する経路を作らない。A08-12/26/28で別DNS/別資格の同一マスターを照合する。
+
 MasterReadiness.featuresは三機能のFeatureReadinessをちょうど1件ずつ含める。configured/appliedだけでreadyにせず、verifiedと必須検査成功が必要。MasterReadiness.readyは全三機能readyのときだけtrue。target_count=0でも対象登録入口の準備は検証できるが、接続・遠隔実行が成功した証拠にはしない。
 
 FeatureReadinessの候補集約は、必須failが一件でもあればstatus=failed、failなしで必須unknown/欠損またはconfigured/applied/verifiedの未成立があればunknown、それ以外だけreadyとする。資源配分のresources.boundedと台帳整合の検査はmaster機能のchecksへ必須で結合し、三つのverified boolだけで全体readyを作らない。featuresはserver/mining/masterの固定順で返す。capacityの総量式、最低要求、測定根拠、実効制限の四条件を別Checkにし、一条件のpassを他条件へ複製しない。純粋集約器は測定・サービス操作・記録保存を行わない。
+
+readyの候補判定では、P02-CLIのrequired_checksから求めた当該機能の必須集合とchecksの対応も必要とする。server/miningは各担当の適用済み資源・運転/データの検査、masterは台帳と資源四条件を含み、担当集合が未登録ならunknownとする。checks=[]、他機能のpassだけ、全件required=falseを根拠に空集合のreadyを生成しない。A08-24/27/29へこの三入力を加え、boolが全trueでもready=falseとなることを照合する。
 
 configured/applied/verifiedは工程の検証済み事実で、verified=trueならapplied/configuredもtrue、applied=trueならconfigured=trueを要求する候補。矛盾するboolの組はREADINESS_INPUTで拒否し、unknownへ丸めて正常入力にしない。boolが全trueでも担当必須Checkのfailを優先し、status/readyは集計器が再算定する。呼出元からのready=trueをそのまま採用しない。
 

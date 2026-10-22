@@ -178,6 +178,7 @@ trueなら既存の有効な根拠の確認または計画済み新規保全を�
 
 | 審査対象 | 候補の照合先と通過させない不足 |
 |---|---|
+| 検証方式の成立 | [シェルの実行境界](complete/PHASE_01.md#シェル検証の実行境界候補)と[契約別の確認資料](complete/PHASE_11.md#受入条件の充足照合案)へ照合する。言語の指定・入口名・ケース数だけで内部契約の検証方法を充足としない |
 | 既存設定と新形式 | [共通スキーマ](complete/PHASE_02.md#入力と保存形式の詳細案)、[apps](complete/PHASE_06.md#入力と保存形式の詳細案)、[mining](complete/PHASE_07.md#入力と保存形式の詳細案)。未知形式や旧項目の消失を実装者の自動補完で移行しない |
 | 保全必須性 | AppBackup.requiredと[共通保全](complete/PHASE_04.md#入力と保存形式の詳細案)を対応付ける。required=false、method=null、共通設定falseのいずれも必須保護の免除根拠にしない |
 | 監督/引渡し | [対象worker](complete/PHASE_02.md#実行と復旧の確定候補)、[媒体](complete/PHASE_05.md#実行と復旧の確定候補)、[遠隔](complete/PHASE_09.md#実行と復旧の確定候補)。接続終了・lock解放だけで対象処理終了や変更再開を認定しない |

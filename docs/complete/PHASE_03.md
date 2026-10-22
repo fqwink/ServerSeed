@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B11`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B12`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB11）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB12）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -161,7 +161,7 @@ resolve_contentは収集器が所有する検証済みContentBlob集合を借用
 
 解析入力はvalidate_resourcesだけでValueから変換し、内部ではResourceSet・ResourceObservationを使う。型変換失敗時に観測・計画・適用を呼ばない。Planの形式・digest・全step payloadの採用判断はD03-03へ対応付ける。
 
-changed_attributesはfileならcontent/uid/gid/mode、directoryならuid/gid/modeの一意ASCII順集合とする候補。content_ref/bytes/hashの三項目を別々の部分変更へ分けずcontentとして一体比較する。before.presence=unknownはBlocked、AbsentはCreate、Presentで差なしはUnchanged、差ありはModifyだけを許可する。kind変更・未定義属性・不一致のactionをPLAN_RESOURCEで拒否する。Blockedには非空blocked_by、他actionには空blocked_byを要求する。
+changed_attributesはfileならcontent/uid/gid/mode、directoryならuid/gid/modeの一意ASCII順集合とする候補。content_ref/bytes/hashの三項目を別々の部分変更へ分けずcontentとして一体比較する。所有根拠・参照・対象固定等の停止理由を先に評価し、一件でもあればpresenceにかかわらずBlockedとする。停止理由がない場合だけ、AbsentはCreate、Presentで差なしはUnchanged、差ありはModifyへ対応させる。Unknownは必ず停止理由を持つBlockedとする。kind変更・未定義属性・不一致のactionをPLAN_RESOURCEで拒否する。Blockedには非空blocked_by、他actionには空blocked_byを要求する。Blockedのchanged_attributesは確証のある差だけを保持し、不明を空の一致と解釈しない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -182,6 +182,8 @@ changed_attributesはfileならcontent/uid/gid/mode、directoryならuid/gid/mod
 | 適用開始後に期限到達または応答欠損 | P04-APPLYの実位置照合へ移る。未開始計画へ戻さない |
 
 上記の厳密な期限境界は採用候補であり、既存の「10分以内」という候補をこの境界へ統一する審査対象とする。読み取り観測が途中で失敗した場合は完結した資源の事実を報告できるが、欠損集合を空として実行可能計画にしない。差分・計画の処理に管理状態の修復・自動保存を追加しない。
+
+600秒の計測候補は計画生成元の受付時に固定した単調時計を起点とし、観測/構築/封印/選択待ちも含める。created_atの壁時計差だけで有効期限を延長しない。同一起動世代の生成元は対応する非公開の時計証拠を保持し、配送先や別bootでは同じ計画の経過上界を保証する採用済み時計契約の証拠が必要となる。受信時から新しい600秒を与えず、証拠不明なら計画失効として再計画/再確認へ戻す。P02の変更開始後のOperationBudgetと混同せず、成立根拠はD03-03/D02-01へ残す。A03-08/16へ壁時計後退、配送待ち、別bootで経過不明を加える。
 
 ## 依存と互換性の詳細案
 
@@ -410,6 +412,20 @@ ContentBlob集合の生成候補は、組込み資材の署名済みrelease対�
 RootBinding方式Aの審査資料は、対象OS停止の証拠、対象block deviceの全mount/holder集合、writer/自動mount/対象変更timerの排除方法、許可FSとmount option、操作を行う全プロセス、排他を維持する期間、namespaceとhotplugの変化検出を全項目とする。方式Bの資料には各操作におけるroot相対ハンドルの使用とsymlink/mount越えを拒否する外部インターフェースの契約を要求する。root pathの前後検査や保護directoryだけの方式はどちらにも分類しない。
 
 Bindingの有効期間は採取世代から一つの親操作終了までで、boot/対象root/mount/親entry/実行主体/排除条件の変更を検出した時点で失効する。新たな対象観測を旧Bindingへ継ぎ足さず、既適用部分を保持してFS_BINDINGで後続停止する。隔離設定の名称は保証ではない。[systemdのRootDirectory](https://www.freedesktop.org/software/systemd/man/255/systemd.exec.html)だけを競合writer排除や同権限プロセスに対する完全な防壁として採用しない。実現方式が未選定の通常稼働OSへ、オフライン方式の成立を一般化しない。
+
+### 対象固定を使用する操作の閉包
+
+方式審査は管理資源のfile適用だけに限定しない候補。各担当が必要とする操作集合と保護対象は次表へ対応付け、readだけ成立した方式から後続の書込みを許可しない。
+
+| 使用先 | 同じ対象固定方式へ照合する範囲 |
+|---|---|
+| P02-STORE | lockの実体/親、intent/history/snapshot/events、明示成果物の一時物/最終名/清掃 |
+| P04-SELF/APPLY | 本体候補/退避/配置、属性変更、許可した単一entryの除去、journal |
+| P04-BACKUP | 取得全entry、暗号保存先、隔離復元先、本番復元先を別Bindingとして識別 |
+| P05-HANDOFF/P10-OS | prebootの対象rootと新OSのrootを別世代で束縛し、ブート後に再取得 |
+| P07/P08/P09 | 監視台帳/対象台帳/配送記録と初回staging。機器/マスター/遠隔先の同名pathを区別 |
+
+一方式で全行を保証できるとの前提を置かず、各対象/操作について採用根拠を持つ必要がある。Createの保証対象にはP02-STOREの新規最終名のhard_linkも含める候補とし、method_refはリンク元の実体/親と宛先の親/未存在名を同じ固定条件で扱える根拠を必要とする。通常fileのcreate_new成功だけをhard_linkの保証へ流用しない。保証できない行はその契約と依存工程の未達へ残す。A03-21/24/32で管理資源のreplaceだけ成功し記録のhard_link/removeが未保証の入力、復元先だけ別FS、ブートで失効したBindingを照合する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

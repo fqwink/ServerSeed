@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B11`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B12`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB11の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB12の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -974,6 +974,8 @@ pub struct SelfTransaction {
 
 OperationStatusのRunningはHistory/LastResultで拒否し、LastSuccessはSuccessだけ、LastFailureはFailed/Interruptedだけを受理する。Policy省略値の補完は既存の担当ポリシーから一回だけ行い、nullは省略にしない。config_revisionの対応値・旧形式からの移行はP04-UPDATEの採用対象で、enumの追加だけで未知revisionを受理しない。StateSnapshot/Envelope/EventRecordの子型は[検査・観測の固定集合](#検査観測の固定集合)と[記録集合と保存順序](#記録集合と保存順序)で閉じる。
 
+SelfTransaction.commandの候補値はself install/self update/self uninstallだけで、phaseはprepared/replaced/verifiedだけとする。recoverは元commandを保存した記録を照合し、recoverという別値へ上書きしない。uninstallではafter_sha256/staged_pathが共にnull、それ以外では共に非null。before_sha256/previous_pathも共にnullまたは共に非nullだけを許し、前者は初回installの不在証拠がある場合だけとする。片側null・未知phase・updateの退避なしをSCHEMA_CONDITIONで拒否する。A02-79/107で各組合せと元操作の保全を照合する。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A02-107` | kind=LastSuccessにfailed、Historyにrunning、Policyにnull、MachineIdをJSONとして投入 | 型/形式不一致で拒否。別kindへの切替・null既定化・終端結果の補完なし |
@@ -1073,6 +1075,8 @@ Stringで表す列挙値も上表の許容集合だけへ検証し、任意文�
 
 キャッシュのos/kernel/boot等がnullの場合は根拠をchecksへ残す。内蔵OSのmodeはuefi/bios、Secure Bootの表現は既存キャッシュのenabled/disabled/unknownを維持する。unknownは状態を特定できない観測、nullは項目自体を取得できない場合へ区別し、unknownをnullに書き換える移行は本案で行わない。
 
+SnapshotServerseed.installedは既存形式のboolを維持する候補で、取得不能をfalseへ変換しない。導入有無の確証がなければキャッシュ生成を不成立とし、読取りCLIのCheck=unknownと理由で報告する。書込みを計画した変更操作では必須キャッシュ保存の失敗として扱い、任意のnull追加や架空の未導入記録を保存しない。A02-06/72/78でabsentの確証とinstall記録の読取り不能を分けて照合する。
+
 inspectのObservation集合候補は次表。execution_environmentとtargetの両配列に、それぞれ指定したIDを一回ずつ含める。取得不能はunknownと固定reason、非適用は担当条件に根拠のある場合だけ。IDが存在してもvalueの自己申告だけで収集成功にしない。
 
 | 配列・ID | 取得対象と表現 |
@@ -1157,6 +1161,8 @@ complete後の過去照合はこの不変snapshot・intent・担当journal・当
 | `A02-110` | self更新がconfig revision変更を要求、operation.end保存失敗、FS別容量の一つだけ不足 | 集合/保護不一致、complete不可、開始前停止を区別。同じhistory再追記・別保存先への自動退避なし |
 
 ### 変更workerの固定起動契約
+
+内部入口は通常のRequest::Run/Masterとは別の検証済み起動文脈で選別する候補。通常parse_argsは__internalを公開操作として受理しない。worker/media-continue/target-prepare/remoteごとの固定argv/入力型と許可行為を照合し、用途が違う入力へfallbackしない。起動の安全条件は[内部入口の選別](../SECURITY_POLICY.md#完全仕様化に伴う審査候補)を参照する。A02-85/94/111で一般CLIからの内部要求、用途混在、rootだけ一致し起動根拠欠損を照合する。選別方式のOS根拠が未成立ならD02-04を解消しない。
 
 P02-EXECの監督候補は、対象OSのsystem managerに一操作一serviceを生成する方式へ具体化する。unit名はserverseed-OperationId.service、要求保存先はoperations/OperationId/request.json。所有者/種別/RootBinding/元byte列hashを再検証した要求だけをworkerが読む。内部入口は検証済み同一本体の`__internal worker --request 固定保存先`。一般CLIの任意引数としては受理せず、root・system manager起動・同一要求/対象/版・単一実行の確認後だけbeginへ進む候補。名前が内部用であることだけを認証にしない。
 
@@ -1296,6 +1302,8 @@ pub fn resume_deadline(budget: &OperationBudget, evidence: &ResumeBudgetEvidence
 OperationBudgetの上記六キーだけを保存し、ResumeBudgetEvidenceは再収集した内部証拠で保存用Instant表現を設けない。clock_contractは停止/休止/電源断/時刻補正を含む元開始からの経過区間を保証する採用済み取得契約。収集器が同じ操作/対象と現在bootに対応する下限/上限を確認してから証拠を構築する。参照の存在や単なる時計の同期表示を保証にしない。純粋resume_deadlineは入力budgetと証拠内budgetの六値完全一致、0<=lower<=upper<totalを検査し、observed_instant+(total-upper)をchecked算定する。区間/対応/取得契約不明はMODEL_DEADLINE、再起動時点から全予算を再付与しない。
 
 同一boot内も外側deadlineを延長せず、再開時は算定期限と呼出元期限の早い方を使用する。期限不明/超過は読取り照合だけとし、記録修復/未実施変更は開始しない。新しい復旧計画が必要なら別の明示選択/確認/操作として扱い、旧開始時刻を改変しない。採用できるclock_contractの実現根拠はD02-01/04と担当入口の未達に残す。A02-73/104に上限=total、区間逆転、電源断分不明、時刻後退を含める。
+
+再開判定の候補では、区間上界がtotal以上なら期限条件不成立、区間/対象/起動対応の根拠欠損なら期限不明として診断を分ける。どちらも新規変更不可であり、期限不明を超過の実測値へ変換しない。収集器はbudgetを同じintent.target/操作/計画へ結合してからResumeBudgetEvidenceを構築し、別対象の時計証拠を流用しない。読取り診断のためのstage/所有者欄の書戻しも行わない。P05の二bootとP10の新OS継続はこの同じ条件を使う。A02-73/104、A05-08/40、A10-07/25で停止期間不明と既知超過を分けて照合する。
 
 budget保存はguard下の開始準備で一回だけ行う候補。同じID/全byte列/hashに束縛された今回の予約と、既にintent/runningがある開始済みIDを区別する。予約存在だけを衝突や開始成功へ変換せず、別内容/出所不明の既存budgetはSTORE_CONFLICTで保持する。StartEvidenceのID集合が今回予約を除外する場合も、その対応根拠をverification_refへ必須とする。A02-123/124へ予約後中断と別要求の予算流用を含める。
 

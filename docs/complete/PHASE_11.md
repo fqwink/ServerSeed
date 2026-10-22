@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B11`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B12`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB11）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB12）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -93,6 +93,8 @@ expected_refは実出力から作らず、採用済みの受入条件と固定�
 ReleaseEvidence.artifactsの期待集合は[既存成果物名](../BASIC_SPEC.md#リリース)だけから生成し、各名前をちょうど1件要求する。本体とISOのCPU対応、両マニフェストとbuild情報、署名・checksumの相互参照を既存工程へ照合する。単なるファイル名一致やproducerの申告だけをverification_refsの代わりにしない。
 
 リリース集合の候補検証順序は固定tag/commit/version→必須成果物名の完全一致→各byte数/hash→本体manifestからbuild/各CPU本体→媒体manifestから本体manifest/ISO/収録本体→checksum対象集合→全detached署名の対象→受入証拠→公開条件とする。checksum自身とその署名は既存仕様どおり一覧対象外だが、配布必須集合からは除外しない。余分なassetや重複名もRELEASE_SETで停止し、自動削除で一致させない。各署名の検証成功を別ファイルへ流用せず、再取得後も同じbyte集合と参照グラフを再検証する。
+
+固定commitの候補照合は、Git tagが最終的に指すcommit、ReleaseSet.commit、ReleaseEvidence.commit、build metadata.commit、AcceptanceScope.implementation_commitの完全一致を必要とする。注釈付きtagのobject IDやAPIのtarget_commitishにあるブランチ名を、この実commitの代わりにしない。仕様証拠のspecification_commitは別版でもよいが、その採用済み契約/実装との対応が必要。配置前・再取得後・公開直前に同じtag/commit/asset集合を照合し、移動/取得不能はRELEASE_CHANGEDで公開しない。A11-11/17/18/29でtagだけ別commit、注釈tag ID混同、API上の同名branchを照合する。
 
 publishable=trueの候補条件は、全必須成果物の一致、必要な実行・VM受入のcomplete、各許諾・例外・署名鍵・公開設定の担当条件の成立を所有者が確認できること。未確定の担当条件はfalseとし、チェック数の多数決で成功にしない。公開可否の評価関数と実際の公開操作は分離し、評価成功だけでタグ作成・署名・uploadを開始しない。
 
@@ -193,6 +195,10 @@ ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_ref
 全38契約の審査資料は、契約IDと[13必須項目](../POLICIES.md#完全仕様の必須条件)の掲載順index（1〜13）の組を一意キーとする候補。494組を欠損/重複なく対応付け、各組に定義先のファイル/節、共通参照、受入case ID、未達の判断IDを持たせる。本文の存在・型宣言の存在・参照検査の成功と、内容が成立している判定を別欄にする。要件を定義していない本文へ形式だけで充足印を付けない。
 
 候補がある組、具体化不足、方式根拠不足、所有者入力/採用待ち、適用外の根拠を区別する。適用外は根拠と影響を持つ場合だけ、共通参照も参照先の同じ条件まで辿る。未実装の製品試験はnot_runで別管理し、この文書審査の証拠には含めない。A11-16/25へ一契約一項目欠損、根拠のない適用外、同じ参照の別版、案だけの採用済み判定を含める。最終の仕様充足判定は所有者が行い、494組があるという件数で代替しない。
+
+各組の確認資料候補はcontract_ref/item_index/definition_refs/acceptance_case_ids/gap_ids/assessmentの六項目とする。definition_refsは実際にその項目を定義するファイル/節の参照、acceptance_case_idsは該当入力枝と期待結果を照合できるケース集合、gap_idsは担当判断ID集合、assessmentはcandidate_defined/gap/not_applicableの一値。候補定義だけでも採用待ちのgap_idを保持し、gapを空にして承認済みへ変換しない。全項目へ同じファイル名/同じ総論節を複写するだけの対応は拒否する。
+
+受入caseの存在だけでitem 13を充足にせず、シェルからの入力構築/呼出し/観測/比較と各laneの実現方法まで辿る。方式未定義ならgap。実装前に実試験結果がないこと自体はgapではなく、試験方法が未定義であることをgapにする。A11-16/25/36で13番目だけ方法欠損、全項目が同じ総論参照、期待枝の一部欠損を照合する。六項目の確認資料はPRの審査資料として扱い、製品の保存形式や変更履歴ファイルを追加しない。
 
 各フェーズの同名節は担当契約・受入ケース・未達を対応付ける。全体の成立判定では、[必須条件](../POLICIES.md#完全仕様の必須条件)の13項目を次表の不足へ照合する。案の具体化先を示すもので、13項目を満たしたという判定ではない。
 
@@ -332,6 +338,8 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 | `A11-32` | 同一laneのrequiredだけ相違、空lanes、実結果から作ったexpected_ref | ACCEPT_SCOPE/ACCEPT_EVIDENCE。重複の後勝ち・空直積の完了化・期待と実結果の循環なし |
 
 検証順序は、担当本文に現存する全ケースID集合との完全一致→ID一意性→source/expectation/要件/契約の参照閉包→execution_classと環境の適合→全lane→ExpectedCase展開→結合キー重複と必要経路の不足、とする。展開は各Bindingのrequirement_ids×contracts×lanesだけを使い、全製品の無条件直積を作らない。ケースが複数の要件/契約を扱う場合も省略せず別行へ対応付ける。構文/純粋fixtureの実行成功を同じケースのVM/実機成功へ転写しない。
+
+一Bindingのrequirement_idsとcontractsは全組合せの要求/契約がそのケースの期待セルに対応すると確認した集合だけを許す候補。単なる関連リンクをcontractsへ足して直積の試験範囲を広げない。一組でも対応根拠が欠ければACCEPT_SCOPEとし、対応しない組だけを実行時に黙って除外しない。全組合せを表せない複合ケースはカタログ形式の別採用判断を必要とし、現形式のまま充足済みにしない。A11-26/30/36で二要件二契約のうち一組だけ期待根拠がない入力を照合する。
 
 仕様にケースを追加したときは、case_idをカタログへ追加してlane/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、展開後ExpectedCase 100,000行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
 

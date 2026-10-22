@@ -35,11 +35,11 @@ CPU・GPUのサービス分離は[マイニングの実行基盤](../PRINCIPLES.
 | 設定・pool・許可・時間帯・温度入力 | [Phase 7の入力形式](../complete/PHASE_07.md#入力と保存形式の詳細案) |
 | 状態遷移と観測不明時の優先順 | [単一状態表](../complete/PHASE_07.md#状態と中断の詳細案) |
 | 全設定型・監視API・待機時刻・停止/開始のreceipt | [型/API](../complete/PHASE_07.md#型とapiの詳細案) |
-| 永続記録・再試行の予約と消費 | [監視記録](../complete/PHASE_07.md#監視記録の保存と再同定)。新規予約と同一要求の実開始を分け、最後の枠の自己拒否・二重消費を防ぐ候補 |
+| 永続記録・再試行の予約と消費・合成容量 | [監視記録](../complete/PHASE_07.md#監視記録の保存と再同定) |
 | 機器同定・能力行・対応認定 | [DeviceIdentity/DeviceCapabilityの型と検出](../complete/PHASE_07.md#機器検出と採用能力行の区分)、[範囲と単位](../complete/PHASE_07.md#依存と受入の確定候補)。検出済みと使用可能を区別する |
 | 更新前後の資材・設定 | [MiningUpdateBinding](../complete/PHASE_07.md#p07-update) |
 | 内製境界と互換性 | [依存と互換性](../complete/PHASE_07.md#依存と互換性の詳細案) |
-| 温度/停止の保護条件 | [担当安全審査](../SECURITY_POLICY.md#完全仕様化に伴う審査候補) |
+| 温度不明の設定と運転可否 | [設定の相互条件](../complete/PHASE_07.md#入力と保存形式の詳細案)、[担当安全審査](../SECURITY_POLICY.md#完全仕様化に伴う審査候補) |
 
 自動化対象、採掘成功の判定、再試行と温度制御の条件は[マイニングの運転監視](../POLICIES.md#マイニングの運転監視)を参照する。
 

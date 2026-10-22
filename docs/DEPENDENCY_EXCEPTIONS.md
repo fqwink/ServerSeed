@@ -41,6 +41,7 @@ OS・CIイメージなどの集合は、具体化時に使用パッケージ、�
 | 初回搬入/昇格、EX-001 | [SFTPと初回入口](complete/PHASE_09.md#ssh起動と初回搬入の分離)のclient/server/subsystem、sudoとpolicy plugin、root実体の固定方式を個別化。OpenSSH client採用だけでSFTP server能力・sudo権限・fd実行の成立を認定しない |
 | 新OS準備、EX-001/EX-002 | [target-prepare](complete/PHASE_10.md#新os信頼根拠の引渡し)で使うuseradd/visudo/sshd、対象内実行adapterとPAM/NSS/loader等の実依存を固定。内部helperの名称を未採用OSツールの包括許可にしない |
 | 非保存署名検証、EX-001/EX-008 | [匿名pipe検証](complete/PHASE_04.md#匿名pipeによるdetached検証)に対応するgpgvのfd/status/logger option、鍵方式/期限/失効を独立照合。Rustのpipe APIと外部検証実行物を別に評価 |
+| シェル検証基盤、EX-008 | [実行境界候補](complete/PHASE_01.md#シェル検証の実行境界候補)のGNU Bash、byte入出力/時計/監督/同期の各実行物を個別化する。検証対象として呼ぶ製品処理と検証専用の補助を区別し、外部言語パーサーや製品内試験専用機能による迂回を採用しない。正確な版・構造解析と内部注入の成立根拠は未確定 |
 
 候補の手順・キー・引数は各担当本文だけへ置き、本書は採用情報とその参照を管理する。監督方式の採用はsystemd全機能の包括許可ではなく、curlの候補はTLS/redirect/大容量保存方式の実証不足を解消しない。未選定の暗号・loader・機器コマンドは、別実行物を実装時に自由選択できる余地として扱わない。
 
