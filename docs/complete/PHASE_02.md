@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B7`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B8`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB7の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB8の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -207,6 +207,7 @@ pub struct OperationOptions {
 }
 pub enum Request {
     Run { action: Action, plan: bool },
+    Master(MasterInvocation),
     Help { scope: String },
 }
 pub struct Invocation { request: Request, common: CommonOptions, operation: OperationOptions }
@@ -789,14 +790,243 @@ planと変更操作は適用可能な八検査と担当step検査を要求する
 
 ## 未決事項と成立判定
 
+### 共通スキーマの型対応
+
+validate_documentの登録対象を次の13形式へ閉じる候補とする。machine-idはJSONでないためparse_machine_idのASCII検証だけを使い、ログ/他フェーズの形式は各担当validatorへ渡す。未登録型を本enumの汎用Valueへ取り込まない。各structの外部キー・null・値域は[登録表](#入力と保存形式の詳細案)、出力は[P02-CLI](#p02-cli)だけを参照し、型から別のJSON名を生成しない。
+
+```rust
+pub enum SchemaKind {
+    Config, Policy, Managed, Install, State, Operation, History,
+    SelfTransaction, Version, LastSuccess, LastFailure, CliEnvelope, Event,
+}
+pub enum ValidatedDocument {
+    Config(ConfigDocument), Policy(PolicyDocument), Managed(ManagedRecord),
+    Install(InstallRecord), State(StateSnapshot), Operation(OperationRecord),
+    History(HistoryRecord), SelfTransaction(SelfTransaction), Version(VersionRecord),
+    LastSuccess(LastResultRecord), LastFailure(LastResultRecord),
+    CliEnvelope(Envelope), Event(EventRecord),
+}
+pub enum Environment { Usb, Cloud }
+pub enum OperationStatus { Running, Success, Failed, Interrupted }
+pub struct ConfigDocument { serverseed: BaseConfig }
+pub struct BaseConfig {
+    config_revision: u32, environment: Environment, profile: Profile,
+    log_level: String, allow_reboot: bool, update_channel: String,
+}
+pub struct PolicyDocument { policy: CommonPolicy }
+pub struct CommonPolicy {
+    require_backup_before_update: bool, require_ssh_recovery_path: bool,
+    allow_password_auth_disable: bool, allow_unattended_security_updates: bool,
+    allow_destructive_disk_setup: bool,
+}
+pub struct ManagedRecord {
+    managed: bool, machine_id: MachineId, created_at: UtcMillis,
+    serverseed_version: String, config_revision: u32,
+    migration_revision: u32, profile: Profile,
+}
+pub struct InstallRecord {
+    schema_version: u32, status: String, serverseed_version: String,
+    architecture: String, binary_sha256: String, installed_at: UtcMillis,
+}
+pub struct OperationRecord {
+    schema_version: u32, operation_id: OperationId, command: String,
+    status: OperationStatus, started_at: UtcMillis, finished_at: Option<UtcMillis>,
+    pid: u32, plan_id: PlanId, lock_path: std::path::PathBuf,
+    boot_id: String, process_start_ticks: u64, target: TargetEvidence,
+}
+pub struct HistoryRecord {
+    operation_id: OperationId, command: String, started_at: UtcMillis,
+    finished_at: UtcMillis, result: OperationStatus, profile: Option<Profile>,
+    serverseed_version_before: Option<String>, serverseed_version_after: Option<String>,
+    target: TargetEvidence, plan_id: PlanId,
+}
+pub struct VersionRecord {
+    serverseed_version: String, config_revision: u32, migration_revision: u32,
+    profile: Profile, operation_id: OperationId, updated_at: UtcMillis,
+    last_successful_operation: Option<OperationId>, last_successful_operation_at: Option<UtcMillis>,
+}
+pub struct LastResultRecord {
+    operation_id: OperationId, plan_id: PlanId, target: TargetEvidence,
+    finished_at: UtcMillis, result: OperationStatus, history_sha256: String,
+}
+pub struct SelfTransaction {
+    schema_version: u32, operation_id: OperationId, command: String, phase: String,
+    before_sha256: Option<String>, after_sha256: Option<String>,
+    staged_path: Option<std::path::PathBuf>, previous_path: Option<std::path::PathBuf>,
+}
+```
+
+OperationStatusのRunningはHistory/LastResultで拒否し、LastSuccessはSuccessだけ、LastFailureはFailed/Interruptedだけを受理する。Policy省略値の補完は既存の担当ポリシーから一回だけ行い、nullは省略にしない。config_revisionの対応値・旧形式からの移行はP04-UPDATEの採用対象で、enumの追加だけで未知revisionを受理しない。StateSnapshot/Envelope/EventRecordの子型は[検査・観測の固定集合](#検査観測の固定集合)と[記録集合と保存順序](#記録集合と保存順序)で閉じる。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-107` | kind=LastSuccessにfailed、Historyにrunning、Policyにnull、MachineIdをJSONとして投入 | 型/形式不一致で拒否。別kindへの切替・null既定化・終端結果の補完なし |
+
+### 検査観測の固定集合
+
+P02-CLIの型を下記へ具体化する候補。status/reasonの値域は同契約を参照する。キャッシュ用SnapshotCheckだけは既存のresultキーを保持し、CLI Checkと相互代用しない。
+
+```rust
+pub struct Diagnostic { code: String, message: String, field: Option<String> }
+pub struct Check {
+    id: String, required: bool, status: String,
+    code: Option<String>, field: Option<String>, message: String,
+}
+pub struct Observation {
+    id: String, status: String, value: Option<String>, reason: Option<String>,
+}
+pub struct Envelope {
+    schema_version: u32, command: String, result: String,
+    started_at: UtcMillis, finished_at: UtcMillis, state: String, summary: String,
+    data: CommandData, warnings: Vec<Diagnostic>, errors: Vec<Diagnostic>,
+}
+pub struct SnapshotCheck { id: String, result: String, message: String }
+pub struct SnapshotOs { id: Option<String>, version_id: Option<String>, kernel: Option<String> }
+pub struct SnapshotBoot { mode: Option<String>, secure_boot: Option<String> }
+pub struct SnapshotServerseed {
+    installed: bool, profile: Option<Profile>, version: Option<String>,
+    config_revision: Option<u32>, migration_revision: Option<u32>,
+}
+pub struct StateSnapshot {
+    schema_version: u32, state: String, detected_at: UtcMillis,
+    machine_id: Option<MachineId>, os: SnapshotOs, boot: SnapshotBoot,
+    serverseed: SnapshotServerseed, checks: Vec<SnapshotCheck>,
+}
+```
+
+CommandDataは[P02-CLIのコマンド別data](#コマンド別data案)の各行に対応する排他的enumとする。Help/Errorの二専用形も別variantにし、既知の担当型をValueへ落として未知キーを通さない。Envelope.commandでvariantを照合し、plan要求と通常実行の同名応答はrequested_command/modeも照合する。CommandResponseのValueは入出力境界でだけ使用し、validate_responseが全フィールドを検査してこの型へ対応付ける。完全なCommandDataの子型宣言はなおD02-01の具体化対象で、enumという説明だけで全スキーマ宣言済みとしない。MasterInvocationは[P08の単一定義](PHASE_08.md#マスターcliの解析と応答全集合)をP02-MODELの共通要求型として参照し、P02からprofiles実装への依存を作らない。
+
+キャッシュのos/kernel/boot等がnullの場合は根拠をchecksへ残す。内蔵OSのmodeはuefi/bios、Secure Bootの表現は既存キャッシュのenabled/disabled/unknownを維持する。unknownは状態を特定できない観測、nullは項目自体を取得できない場合へ区別し、unknownをnullに書き換える移行は本案で行わない。
+
+inspectのObservation集合候補は次表。execution_environmentとtargetの両配列に、それぞれ指定したIDを一回ずつ含める。取得不能はunknownと固定reason、非適用は担当条件に根拠のある場合だけ。IDが存在してもvalueの自己申告だけで収集成功にしない。
+
+| 配列・ID | 取得対象と表現 |
+|---|---|
+| execution_environment: execution.id / os.id / os.version / kernel.release / cpu.architecture / boot.id / systemd.state | 実行側の識別済みOS、uname相当のkernel/CPU、proc起動ID、OS managerの実状態。対象側の値を流用しない |
+| target: target.disk / target.root / os.id / os.version / boot.mode / boot.secure_boot | 対象disk/ルートと対象内os-release、対象の起動構成。空diskでroot/OS不在を確認した場合だけnot_applicable |
+| target: storage.filesystems / network.interfaces / ssh.configuration / docker.installation / serverseed.installation | 各採取器の検証済み結果の証拠参照ID。全一覧を自由文字列へ連結せず、対象別の収集資料へ対応付ける |
+| target: network.reachability | inspectでは常にunknown・reason=INSPECT_NO_NETWORK。外部接続を実施しない |
+| version: os.id / os.version / kernel.release / applied.source | 対象側で読めた版と適用記録の検証参照。未構成のapplied.sourceだけ根拠付きnot_applicable |
+
+root/OS以外でも適用外を使う場合は担当契約の明示条件が必要で、未採取・コマンド欠損・権限不足をnot_applicableにしない。ReadOnlyの観測器は管理領域を作成せず、検査中に情報が変わればMODEL_CHANGED。idに動的パス・秘密値を使わない。
+
+### 記録集合と保存順序
+
+EventRecordの候補キーはoperation_id: OperationId、target_id: MachineIdまたは未構成時null、at: UtcMillis、level: debug/info/warn/error、event_id: 固定ASCII識別子、message: 秘匿化済みstring。すべて必須、未知キー拒否。schema_versionを持たないこの形式は保存先のEvent登録で識別し、他JSONLへ流用しない。対応する非公開フィールドstructをEventRecordとする。保存を許可された変更操作だけが出力し、ReadOnlyの診断をこの記録生成のため保存しない。
+
+必須保存集合の算定候補は下表の和集合。固定保存先IDは[管理ファイル一覧](../BASIC_SPEC.md#管理ファイル一覧)と各担当保存先から一意に解決し、外部入力のpathを受けない。開始前にRecordIntentを対象の/var/lib/serverseed/operations/OperationId/record-intent.jsonへ同期する候補とする。全キーはschema_version: 1、operation_id、plan_id、target、required_paths: 一意な固定保存先ID配列、before_hashes・planned_after_hashes・observed_after_hashes: 保存先IDからhex64またはnullへのobject、append_bindings: AppendBinding[]、complete: bool。hashのnullは初回不在または計画済み除去の確証だけで、未確認をnullにしない。開始時complete=false、observed_after_hashesとappend_bindingsは空、まだ生成不能な終了時刻等はplanned_after_hashesへ入れない。終了時に実hashをobserved_after_hashesへ固定し、全required_pathsの照合と同期後だけcomplete=trueへ置換する。後述のintent.completeはこのboolの確定を意味し、未定義の別ファイルやstageではない。
+
+AppendBindingの全キー候補はpath_id: 固定履歴/イベント保存先ID、record_id: 当該操作内の一意行ID、offset: u64、bytes: u64、sha256: hex64。LFを含む確定行の開始位置/長さ/hashを保存し、重複/範囲外/部分末尾を拒否する。排他中に取得した実offsetだけを登録し、未確認の仮offsetを確定値にしない。共有追記先はrequired_pathsの照合対象だが、hash objectではなくこの行単位形式を使う。intent自身は別途同期/完了を照合し、自己参照のhash対象にはしない。
+
+| 条件 | 常に必要な記録・追加条件 |
+|---|---|
+| 全変更 | intentの独立照合と、operation、当該history一行、対応するlast-result、eventsのoperation.begin/operation.end二イベント。失敗側も同じ対応を保持。intent自身はrequired_pathsの自己参照対象外 |
+| self install/update/uninstall | install情報とself取引、release/previous資材。管理対象ならserverseed_versionを更新するmanaged/version。構成revisionの変更なし |
+| 初回setup/adopt | config、managed、machine-id、version、選択機能の設定/検証。machine-id生成後の再生成なし |
+| 通常update/recover | 実際に変更する版/設定と担当journal/receipt。変更しない版記録は不変。復旧による元結果の改変なし |
+| バックアップ工程 | P04-BACKUPの保存物検証と復元証拠、同じ親のstep。子は親historyを個別確定しない |
+| media/remote/monitor/registry | 各担当が要求する対応記録も追加。共通operationだけで代用しない |
+| state/report/text logを計画した操作 | 計画した保存物を追加し、生成失敗を成功へしない。ReadOnlyでは集合自体を生成しない |
+
+必須量は新しい全byte列+同FSの一時物+保持する旧物+親directory更新をFSごとにchecked合算する。空き容量にはこの和と16 MiBの記録予約を必要とする候補。historyの一行/全体上限は既存候補を再利用する。予約量は実容量・永続化の保証でなく、各write/sync失敗も検出する。begin前の不足は変更0件、開始後は元intentと実配置を保持し、保存先を別diskへ自動変更しない。
+
+finishの確定順は全step検証→終了集合の直列化→history→operation終端→last-result→変更済み版/補助記録照合→operation.end→intent.complete。各置換にfile同期と親同期を要求し、intent.complete前は全体completeを返さない。intent自身は同期/形式/ID/completeを別途照合し、自己hashをrequired_pathsやhash objectへ含める循環を作らない。共有の追記履歴/イベントは当該操作の行byte列とoffset/長さを照合し、後続操作で変わる共有file全体のhashを永続条件にしない。クラッシュ後はintentの集合・実体hash・history行・資源journalを照合する。completeという自己申告だけを信用せず、不一致はSTORE_RECONCILE。eventsの再追加防止キーはoperation_id/event_idで、同キー別内容はSTORE_CONFLICT。ログ整理ではintent/historyを削除しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-110` | self更新がconfig revision変更を要求、operation.end保存失敗、FS別容量の一つだけ不足 | 集合/保護不一致、complete不可、開始前停止を区別。同じhistory再追記・別保存先への自動退避なし |
+
+### 変更workerの固定起動契約
+
+P02-EXECの監督候補は、対象OSのsystem managerに一操作一serviceを生成する方式へ具体化する。unit名はserverseed-OperationId.service、要求保存先はoperations/OperationId/request.json。所有者/種別/RootBinding/元byte列hashを再検証した要求だけをworkerが読む。内部入口は検証済み同一本体の`__internal worker --request 固定保存先`。一般CLIの任意引数としては受理せず、root・system manager起動・同一要求/対象/版・単一実行の確認後だけbeginへ進む候補。名前が内部用であることだけを認証にしない。
+
+起動argv候補は採用済みsystemd-runの絶対path、--unit=上記名、--service-type=exec、下表の--property=KEY=VALUEを各一引数、--、本体の絶対path、__internal、worker、--request、固定保存先の順。--scope/--pipe/--pty/--collect/--waitは付けず、SSH/stdin/端末の寿命へ結合しない。起動器のstdinは空、cwd=/、環境はLANG=C.UTF-8とLC_ALL=C.UTF-8だけ。systemd側のworker環境もこの二値を明示し、UnsetEnvironmentで秘密値/代理設定の継承を除く。実環境で残る環境集合も起動後照合し、不一致なら対象変更前停止する。
+
+| property | 候補値・条件 |
+|---|---|
+| KillMode / SendSIGKILL / Restart / Delegate | control-group / yes / no / no |
+| RuntimeMaxSec / TimeoutStopSec | 親の通常処理残予算 / graceのms精度値。既定の二重加算をせず、終了記録予約も通常予算から除外 |
+| WorkingDirectory / UMask / StandardInput | / / 0077 / null |
+| OOMPolicy / MemoryAccounting / TasksAccounting | stop / yes / yes。OOMを正常終了へ変更しない |
+
+実行者はsystemctl showの固定property集合Id/ActiveState/SubState/Result/MainPID/ControlGroup/ExecMainCode/ExecMainStatusを採取し、unit名とoperation記録を照合する。停止要求は同じunitへのsystemctl stop一回だけで、観測は再試行できてもstart/stopを重ねない。managerのjob受付、unitの終了、cgroup内全子孫の終了、実資源と必須記録を別に確認する。scope外に起動する管理対象サービスは担当StepReceiptで追跡し、worker停止だけでそのサービスの変更を巻き戻したとしない。
+
+worker異常終了・OOM・期限到達・manager照会不能では保存済みrunning/intentを保全する。ロックがOSにより解放されても、残存unit/cgroupと未完了operationの照合が通らなければ次のbeginを禁止する。カーネルの中断不能I/Oや監督不能を時間内停止と保証せずstop_unknown、外側の制御器にも応答不能なら次回照合対象とする。systemd 255のAPI資料と、実際のUbuntu固定版/能力/停止試験は区別し、個別採用まで本候補を実行しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-111` | SSH切断後もworker稼働、worker死亡後に子孫残存、同名unitが既存、OOM | Query/未完了照合/起動拒否/異常結果を区別。第二worker起動・lock解放だけの続行・期限保証の偽装なし |
+
+### 割当失敗と測定の判定
+
+P02-PARSEのMemoryLimitは論理計数Mの超過だけを意味する候補で、allocatorの全失敗を同じErrで回収できるという約束をしない。Vec/Stringを拡張する前はchecked計数とtry_reserveを行い、予約失敗をparse.memory_limitへ結合する。BTreeMap挿入・標準機能内部等の回復不能な割当失敗でプロセスが異常終了した場合は呼出元のworker異常として扱い、成功Valueを生成しない。解析完了・全validator通過前は対象への変更を開始しないため、解析失敗の後処理に復旧書込みを必要としない。
+
+測定候補は採用CPU/ツールチェーンのrelease build、同じ入力byte列・深さ・ノード数を固定し、単一解析呼出しを一プロセスで実行する方式。通常/最大長/最大深さ/最大ノード/Unicode escape/重複キー/長い共通prefixを独立に測る。記録する値はM、入口から返却までの単調経過、最大RSS、stack設定、終了/シグナル。外側のRSSや時間をMへ足して別の「32 MiB」と呼ばない。成功要件は契約内の同じ値/エラー/位置であり、実RSSの製品目標値は未採用の非機能要求として別審査する。
+
+CLIの出力は整形完了前のstdout書込み0回を維持する。出力writerが戻らない場合は制御が戻る硬い期限を標準Write APIの契約に加えず、外側が観測できた場合だけCLI_OUTPUT/送達不明を記録する。既に対象操作が確定している場合もその記録を保持する。同期I/Oのリアルタイム保証を必要とする要求は未成立としてD02-02/04へ残し、thread化やOS timeout設定だけで解消したとしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-112` | try_reserve失敗、allocator abort、返却しないwriter、論理Mは上限内だがRSS大 | 解析エラー/worker異常/送達不明/別測定値を区別。部分値・対象変更・32 MiB実保証の捏造なし |
+
+### bundle生成adapterの比較契約
+
+OS方式の比較候補をGNU tar→GNU gzipの二段へ固定する。入力は秘匿化済みContentBlobをコピーして固定した専用stagingだけで、各member名はASCII採取IDと.json/.txt/.ymlのいずれか、100bytes以内・先頭hyphen禁止とする。元設定のdirectoryを再帰アーカイブしない。環境はLANG=C/LC_ALL=C/TZ=UTCだけでTAR_OPTIONS/GZIPを継承せず、cwdは当該staging、stdinは空。実行物の正確な版は例外台帳で未選定のまま。
+
+| 工程 | argvテンプレート・成功判定候補 |
+|---|---|
+| tar生成 | tarの固定path、--create、--format=ustar、--blocking-factor=1、--numeric-owner、--owner=0、--group=0、--mtime=@0、--file=固定tar一時path、--、検証済みmember名の昇順列。通常file以外をstagingへ登録しない |
+| gzip生成 | gzipの固定path、--no-name、-6、--stdout、--、固定tar一時path。stdoutは専用file-sink、stderrは通常capture、最終17 MiB以下 |
+| 展開検査 | gzipの固定path、--decompress、--stdout、--、固定gzip一時path。通常stdout captureへ流さず、非公開検証用sinkへ上限付き出力。生成前tarの実byte列とも照合 |
+| member検査 | 512byteのustar header/サイズ/型/終端を照合し、固定member集合とhash/実量を一対一照合。通常file以外・リンク・prefix逸脱・拡張entry・余剰非zeroを拒否。実FSへのtar抽出なし |
+
+展開量の上限は合計file実量+各header/padding+終端1,024bytesのchecked和とし、無制限展開しない。tar/gzip各終了0だけではarchive検証成功としない。[RFC 1952](https://www.rfc-editor.org/rfc/rfc1952)は複数memberを許すため、gzipコマンドの展開成功だけでは候補の「一stream」条件を証明できない。一member終端の識別とCRC/ISIZE照合を持つ検査器、またはその検証可能な外部adapterの個別採用がD02-06の残る方式判断。単純なmagic文字列検索、gzip -t、展開結果一致だけで空の第二memberを見逃して合格にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-113` | TAR_OPTIONS継承、memberがhyphen開始、同内容になる空の第二gzip member | 入力/環境拒否または一stream確認未達。通常fileへ任意抽出・終了0だけのBUNDLE成功なし |
+
+### コマンドごとの検査閉包
+
+必須検査を再算定する候補関数はrequired_checks(command, state, profile, plan_contracts)。入力は検証済み値だけで、結果はCheck.id/required/適用根拠の順序付き集合。状態をまだ判定できない段階では「未管理」を仮定せずunknownを要求する。共通八検査のIDは[既定の対応](#依存と受入の確定候補)を使い、下表は必要な部分集合と追加分を定義する。
+
+| コマンド群 | 検査の期待集合 |
+|---|---|
+| inspect / status | OS・CPU・target.identity・records.consistent、条件付きprofile.selected、任意operation.clear。inspectの通信禁止はP02-CLI/inspect.local_onlyを必須追加 |
+| doctor | 上記の共通対象集合とP04-SELF/installation.consistent、P02-PARSE/config.valid、P02-STORE/paths.protected、P01-CHECK/dependency.approved。未構成と確証のある設定不在だけconfig.validを根拠付き非適用 |
+| doctor --transaction | doctor集合にP04-SELF/transaction.boundを追加。親guard/operation/候補hashの全対応が必要 |
+| report | P02-STORE/records.consistent、P02-STORE/record.set。操作なしの確証がある場合だけrecord.setを非適用 |
+| version / help | helpは空。versionはP02-MODEL/binary.identity、構成済みならP02-STORE/records.consistent。対象観測の未取得は個別診断へ保持 |
+| plan / 変更操作 | 適用する共通八検査とPlan.contracts全件の担当検査閉包。依存/保全/署名/容量/復旧経路の担当検査を除外しない |
+| verify | 対象の共通集合と、選択構成が要求するP04/P06/P07/P08の検査。未定義の個別能力行はunknownとして充足不可 |
+| support-bundle | P02-STORE/records.consistent、P02-CLI/bundle.scope、bundle.redacted、bundle.archive、bundle.saved。dry-runはarchive/savedを未実施として予定表示し、成功済みにしない |
+
+担当契約に複数の適用stepがある場合はCheckを重複生成せず、各stepの証拠を照合して一件へ集約する。全件passだけpass、一件failならfail、failなしで欠損/unknownならunknown、全件が明示非適用の場合だけnot_applicable。集約前の結果はStepReceiptへ保持する。必須集合に含まれない追加CheckもIDと担当根拠を必要とし、未知IDはCLI_RENDER。判定前に集合の過不足を検出し、空の配列だけでsuccessを構築しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-108` | doctorのpaths.protected欠損、同じ契約の二stepがpass/fail、未構成証拠なしでprofile非適用 | 集合欠損/集約fail/unknownを区別。必須検査の縮小・重複ID・推測非適用なし |
+
+### OS取得器の入力と停止
+
+P02-MODELの乱数源の第一候補は、Linuxの/dev/randomから16bytesを一回分だけ取得する方式とする。[Linux random(4)](https://man7.org/linux/man-pages/man4/random.4.html)へ照合した候補で、初期化前urandomへのfallbackはしない。対象は採用済みLinux実行環境だけ。OpenOptionsExtのO_NOFOLLOW（Linux amd64/arm64では0x20000）を指定し、開いた実体がcharacter device、major=1/minor=8であることをMetadataExtのrdevから照合する。定数は当該OS ABIの確認対象で、他OSへ流用しない。symlink・通常file・別device・namespaceの確認不能はMODEL_RANDOM_SOURCE。
+
+取得は変更前の観測workerで実施し、受付から5秒、停止予約1秒を候補とする。read_exactで短いread/Interruptedを同じ一回の16byte取得へ結合し、EOF・期限到達・OS読取り不能はMODEL_RANDOM。実際に停止を確認できなければstop_unknown、変更開始0件。乱数sourceが読めない場合に時刻/PID/既存IDから作らない。照合する既存集合は計画生成元の全保存計画/operation/history/remote/media/monitor IDで、MachineIdは対象記録と登録済み台帳を含む。集合未取得は失敗とし、衝突は既定の一回停止を維持する。
+
+boot/PID/starttimeの採取も一組5秒内、各proc入力の量を先の上限へ制限し、読取り前後のboot_idを照合する。UTCはSystemTimeからUNIX_EPOCH以後の秒/ナノ秒を取得し、グレゴリオ暦の400年/100年/4年規則でUtcMillisへ変換する。範囲外・duration_since失敗はMODEL_CLOCK。壁時計が戻ってもelapsedの減算へ転用しない。OSのソース仕様を調べたことと、採用環境での停止/同一性が成立した実証は別とする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-109` | /dev/randomを通常file/別deviceへ置換、16bytes中の短いread/EOF、未取得の既存集合 | source拒否/同一取得の継続/取得失敗を区別。代替乱数・再抽選・変更開始なし |
+
 | 判断ID | 採用前に必要な判断・調査 | 影響 |
 |---|---|---|
-| `D02-01` | OS取得器と純粋ID表記器の分離を推奨。所有者は乱数源・取得量/期限・boot/PID/tickの取得契約と証拠を採用判断する。復元時MachineIdはD08-03へ参照し別定義しない | 全変更の対象照合 |
-| `D02-02` | 対象状態別の必須集合と単一revision範囲を推奨。所有者は全担当Observation/Check対応、出力期限方式・保存失敗条件を決定する。同期writerの硬い期限は未成立のため採用待ちだけの項目と分ける | 全CLIと骨格。候補の記載を成立・採用済みとしない |
-| `D02-03` | 形式別validatorと検証順序を推奨。採用待ちは限定文法・型・形式版、具体化不足は全形式の対応表/三構成移行、成立根拠不足は実割当失敗・ヒープ/stack測定。後者を論理予算Mで代替しない | 全設定・状態・マニフェスト |
-| `D02-04` | guardを借用するcontextと対象worker監督を推奨。guard/contextはClone不可・OSハンドルの貸与不可。残る根拠は監督unit全契約、停止不能時・親停止後の排他とI/O期限の成立性 | 全実行・中断復旧 |
-| `D02-05` | 事前直列化と必須記録集合の条件別確定を推奨。所有者は各操作の集合・同期順序と障害照合を採用判断し、FS停止不能・容量測定の成立根拠不足は別に残す | 全変更の成功判定 |
-| `D02-06` | 固定memberのOS圧縮adapterを第一、内製形式を第二候補とする。所有者は実行物/版/全引数・相互運用・部分保存条件を決定。HTTPSはD04-01へ委ね二重選定しない | 調査成果物・取得処理 |
+| `D02-01` | [OS取得器](#os取得器の入力と停止)に乱数/時刻/boot取得の案あり。固定OS版の実行契約・失敗観測の成立根拠と採用判断が残る。MachineId復旧はD08-03 | 全対象照合 |
+| `D02-02` | [検査観測](#検査観測の固定集合)と[検査閉包](#コマンドごとの検査閉包)に案あり。CommandData全子型とマスター応答の完全な型対応、同期writerの期限方式は未完了 | 全CLI |
+| `D02-03` | [型対応](#共通スキーマの型対応)と[割当判定](#割当失敗と測定の判定)に案あり。三構成への形式移行・全子型の閉包、実ヒープ/stackの測定条件と成立根拠が残る | 設定・状態・マニフェスト |
+| `D02-04` | [worker起動](#変更workerの固定起動契約)に案あり。固定版での排他/監督・環境の全条件、停止不能I/Oと親停止後寿命の根拠が残る | 全変更・中断 |
+| `D02-05` | [記録集合](#記録集合と保存順序)に保存順序・完了形式の案あり。FS別の容量/同期/障害照合の成立根拠と採用判断が残る | 全変更の確定 |
+| `D02-06` | [bundle adapter](#bundle生成adapterの比較契約)にargvと形式比較の案あり。固定tar/gzip版、空の追加gzip member検出・部分保存の成立性が残る。HTTPSはD04-01 | 調査成果物 |
 
 本書の内製候補は形式解析・対象判定・識別・記録調整・実行制御。モジュール新設案とし、初期からcrateへ抽出しない。難易度は[調査表](PHASE_01.md#標準機能の充足調査)へ対応付ける。旧実装は存在せず、差し替え時の共通ケースは上表を拡張して契約ごとに固定する。移行・抽出・旧コード除去の具体的変更は今回の対象外とする。
 

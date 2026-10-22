@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B7`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B8`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB7）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB8）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -285,12 +285,38 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 | `A09-29` | started後の応答欠損、終端失敗のreceiptは確定、startedでoperation_id=null | 最後のstartedを保持し再投入なし。確定失敗は回収可だが成功化せず、ID欠損のstartedは拒否 |
 | `A09-30` | 完了直後のCancel、同じCancel再受信、ack=true/delivered=null | 元確定結果を保持し追加停止0回。矛盾はREMOTE_CANCEL、受付だけの中断完了・結果書換えなし |
 
+### SSH起動と初回搬入の分離
+
+通常配送のargv候補は`ssh -F /dev/null -T -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o VerifyHostKeyDNS=no -o UserKnownHostsFile=<固定known_hosts> -o GlobalKnownHostsFile=/dev/null -o ConnectionAttempts=1 -o ConnectTimeout=30 -o ControlMaster=no -o ControlPath=none -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes -o PermitLocalCommand=no -o ProxyCommand=none -o ProxyJump=none -i <固定identity> -p <port> -l <user> -- <host> <固定入口>`とする。各空白区切りは独立した引数で、山括弧部分は検証済み参照の解決値だけ。host/user/portの文法は台帳の正本へ照合し、hostをoptionとして扱わない。cwdはマスターの固定作業領域、環境はLANG/LC_ALLと必要な固定PATHだけを新規構成し、SSH_AUTH_SOCK・SSH_ASKPASS・DISPLAYを継承しない。秘密鍵の保護条件はセキュリティポリシーで審査する。
+
+固定入口の候補は`/usr/bin/sudo -n -- /usr/local/libexec/serverseed-remote-entry`という変更不能な文字列一つ。構造化stdin以外からactionやpathを取らず、wrapperは所有者・mode・hashと許可された呼出主体を確認し、同一本体の内部入口だけへ引き渡す。root-ownedであることだけでは許可主体を証明しない。初回にwrapperがない対象へ、この通常配送を呼び出してはならない。
+
+初回搬入はBootstrapTransferの四資材を、選定するSFTP等の固定転送契約で専用stagingへ送り、対象上で署名・hash・CPU/loaderを検証してからroot所有領域へ公開する別工程とする。転送方式・stagingの確保・初回昇格の固定入口が未確定なら`SSH_BOOTSTRAP`で停止する。上記wrapperを設置するために未設置wrapperを要求する循環、任意shellスクリプトの送信、SCP/SFTPの暗黙採用は禁止する候補。現時点では初回搬入の成立性は未確認で、SSHのみを外部入口とする要求は維持する。
+
+[OpenSSHのコマンド配送](https://man.openbsd.org/ssh)と[設定項目](https://man.openbsd.org/ssh_config)を比較資料とする。これはUbuntu採用版の全オプション・実権限・初回搬入の証明ではない。固定版で未対応のoptionが一つでもあれば削除して続行せず、adapter不成立として採用審査へ戻す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-31` | ユーザーconfigへProxyCommand、agent設定、初回対象にwrapperなし、未対応optionを各注入 | 継承0件または起動前停止。任意shellへのfallback・初回準備済み扱い・秘密値のargv混入なし |
+
+### 両側の配送保存と容量上限
+
+マスター側の送信記録候補は`/var/lib/serverseed/master/remote/<request_id>/request.json`、同じディレクトリの`delivery.json`・`observations.json`とする。対象側のRemoteRequestRecordは`/var/lib/serverseed/remote/<request_id>/request.json`へ集約する。前者の全キーはschema_version=1・request_sha256・request・sent_bytes・last_delivery・observation_refs、後者の全キーは既存のRemoteRequestRecordを参照し、別の受理形式を作らない。sent_bytesは確認できた送信byte数で、0であっても送信開始後の未確認を未配送の確証にしない。
+
+マスターは要求の同期保存→送信→応答検証→last_delivery同期の順。対象は共通guard取得→ActiveController照合→同ID/hash検索→新規要求同期→accepted→operationと監督unitの対応同期→started→必須結果同期→result_readyの順。受理後の一段だけの保存成功は段階の不一致として保持する。Queryは両側の欠損・hash・operation・unit・実対象の照合結果だけを返し、保存の補修を行わない。照合結果を保管する行為はマスター側の変更工程として区別する。
+
+配送記録の候補上限は両側それぞれ1,000要求かつ専用領域64 MiB、新規要求・原子的保存の一時byteを含む。各要求1 MiB、各delivery 64 KiB、観測一覧は64 KiB以内。上限のいずれかへ達する計画は受理前停止し、古い未完了要求の自動削除・ID再利用をしない。完了記録の退避・除去は別の明示保守計画で、対象のoperation/historyと対応を失わない条件を要求する。これらはP02の履歴保持条件を緩和しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-32` | マスター送信記録だけ確定、対象accepted直後保存失敗、1,001件目または64 MiB超過 | 到達可能性を保持し変更再送0回。容量超過は受理前停止、自動削除・Queryによる記録修復なし |
+
 ## 未決事項と成立判定
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|
-| `D09-01` | 同一本体搬入+薄い固定wrapperを第一候補としBootstrapTransferへ対応。所有者は転送/署名検証/昇格/固定入口の全argv・個別版・権限を決定。未準備入口への任意shell連結は不可 | 接続・初回搬入・対象実行 |
-| `D09-02` | master_machine_id・PlanReference・単一CancelResultと全要求hashを推奨。所有者は部分受理/確定と監督寿命を採用判断。nullの未確認をfalseへ縮約せず対象記録を再照合する | 重複防止・切断復旧 |
-| `D09-03` | 三つの独立照合と有限観測再試行を推奨。所有者は固定fixture/隔離VMと各対象契約の適用を決定。再接続の成功を要求再送や対象変更の許可にしない | 成功判定・受入 |
+| `D09-01` | [SSHと初回搬入](#ssh起動と初回搬入の分離)に通常argv案あり。初回転送/署名検証/昇格/入口設置の循環しない実契約と固定版は未完了 | 初回搬入・遠隔実行 |
+| `D09-02` | [両側配送保存](#両側の配送保存と容量上限)に順序/上限案あり。対象worker寿命・部分同期の実方式と採用判断が残る。Queryは修復しない | 重複防止・切断復旧 |
+| `D09-03` | 三独立照合・有限再接続に案あり。固定fixture/隔離VM・各対象証拠条件と採用判断が残る。成功接続を再送許可にしない | 遠隔の結果判定 |
 
 未達の解消前はSSH接続だけを完全自動導入の成立根拠にしない。固定版・個別例外・非機能要求と共通契約の採用承認も未完了。遠隔接続・対象変更・製品受入は実施していない。

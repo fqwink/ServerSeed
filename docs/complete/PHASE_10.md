@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B7`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B8`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB7）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB8）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -288,12 +288,47 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-28` | MediaとSshBootstrapへnext_endpoint=nullを別々に指定、payloadで入口を偽装 | 媒体だけnull条件を通過、Cloudは拒否。入口は呼出元が束縛し、物理導入へ遠隔台帳登録を強制しない |
 | `A10-29` | IPv4の先頭zero/短縮表記、gatewayが同じaddress、multicast MAC、解析後DNS重複 | INSTALL_PAYLOADで消去0回。別表記の黙認・同名interfaceへの推測結合なし |
 
+### Curtin adapterの比較入力
+
+導入機構Aの具体候補をCanonical Curtinとし、InstallerBindingのmethodを`curtin`、execution_contractを採用版・実行環境ごとのContractRefへ束縛する。候補argvは`curtin --config <固定設定path> --log-file <固定log path> install`、cwdは専用作業領域、stdinは空、環境は固定LANG/LC_ALL/PATHのみ。自動依存導入のoption、自由なshell command、外部URLを設定へ追加しない。実際の絶対path・版・Python/partition/FS/loader等の推移依存は例外台帳への個別登録が必要で、Rust crateに分類しない。
+
+生成設定の担当値を次表へ限定する候補。既定のdisk自動選択・simple layoutを利用せず、未知項目を拒否する内製validatorを外側へ置く。
+
+| 設定 | InstallPayloadからの生成と制約 |
+|---|---|
+| install | targetは専用mount、resume_dataとlogは消去対象外の記録領域。実行中rootをtargetへしない |
+| sources | 検証済みUbuntu root filesystemの固定ローカルMaterialRefを解決。source種別・展開hash・CPUはInstallerBindingに固定 |
+| storage | version=2候補、configはdisk→二partition→必要format→mountの固定依存順。diskは観測済みserialと実機器へ束縛、GPT・preserve=false・wipe方針を明示。各partitionのnumber/offset/sizeはStorageInputの値。UEFIはboot flag/ESP、BIOSはbios_grub、rootはext4で/へmount |
+| network | MACへ束縛したNetplan version=2を生成。dhcp/static・MTU・DNSはNetworkInputだけから作り、別interfaceへ適用しない |
+| boot | 選定したGRUB資材/対象disk/firmwareに固定。NVRAM更新と順序変更の可否を明示し、既定の副作用へ任せない |
+| kernel・swap・system_upgrade | kernelはMaterialRefの採用集合、swap自動作成とsystem_upgradeは無効候補。資材にないpackageの暗黙取得なし |
+| write_files・ユーザー工程 | 検証済み本体/設定/公開鍵/初回引渡し記録だけ。非rootユーザー・昇格・sshd設定は固定helperへ束縛し、UserInputをshellへ展開しない |
+| stages | 工程別にpartitioning/network/extract/curthooks/lateの証拠を対応付ける。工程名の一致だけで監督・記録の原子性を保証しない |
+
+[公式storage資料](https://curtin.readthedocs.io/en/latest/topics/storage.html)ではpartitionのoffset解釈にversion差があり、version 2は変更の可能性がある。[公式設定資料](https://curtin.readthedocs.io/en/latest/topics/config.html)の存在だけでUbuntu採用版への適合を認定しない。固定版が上表を生成・実行できない場合、version 1へ落としてoffsetを無視せず採用不成立とする。Subiquity側も同じ寸法契約を参照するが、adapterは別々に検証する。
+
+未達は固定Curtin版とrootfsの供給形式、全実行依存、boot/user/helperの完全設定、stage間でP02の監督・両側同期を成立させる方法の実証。方式Aの具体候補はできたが、設定表を実行可能な確定recipeとは扱わない。消去外の永続領域を要求する現候補は、RAMだけのrescue・単一disk環境では成立しない場合がある。マスター記録だけで代替する方式を未承認で混在させず、対応能力不足として報告する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-30` | Curtin v1でoffset入力、未登録Python/loader依存、RAMのみのjournal、既定disk自動選択 | adapter不成立で消去0回。v2相当の位置保証・依存採用・永続性を推測しない |
+
+### 新OS信頼根拠の引渡し
+
+BootExpectationへ結合する証拠候補は、request_id/plan_id/target_id、観測したdisk/rootの識別、導入したOS/CPU、本体/installer/資材hash、新OS公開host keyの全byteとそのfingerprint、回収経路、独立照合の承認参照を一組にする。公開鍵の受理方式・昇格・秘密鍵の保護は[SSH鍵受理候補](../SECURITY_POLICY.md#導入時のssh鍵受理候補)だけを参照し、本書に安全規則を複製しない。
+
+手順候補は、対象rootへの設定生成→本体/sshd/管理ユーザー/固定入口の検査→新host keyの信頼確定→両側へBootExpectation同期→再起動→P09の厳格な鍵/実対象/記録照合→後続構成のguard取得とする。再起動前のいずれかが未確認なら再起動せず、再起動後の欠損はunknownとして保存済み根拠を提示する。旧鍵を消したことと新鍵を信頼できることは別検査で、対象rootの成功を一時環境の資格失効へ代用しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-31` | 公開鍵blobのtype不一致、独立照合なしの新host key、同IP/別root、旧資格が残存 | 形式拒否またはhandoff保留。鍵検証緩和・自動再登録・構成変更への続行なし |
+
 ## 未決事項と成立判定
 
 | 判断ID | 残る具体化・採用判断 | 影響 |
 |---|---|---|
-| `D10-01` | InstallerBindingを方式/環境単位で固定しAを第一候補とする。所有者は実資材・対応CPU/boot・非対話/監督の外部契約を比較して採用判断。A不成立時のB自動選択はしない | 導入方式全体 |
-| `D10-02` | StorageInputの六キー/NetworkInputの七キーと明示レイアウト算定を推奨。所有者はIPv4限定候補の要求適合、鍵/昇格・loader/network生成、永続記録/排他の実方式を決定。型の存在だけで消去可能としない | OS導入と中断照合 |
-| `D10-03` | BootExpectationの事前固定と工程別復旧限界を推奨。所有者は新OSの信頼確立/失効確認と隔離VMの証拠条件を決定。SSH喪失時に事業者操作や未確認の再導入で補完しない | 初回起動・復旧 |
+| `D10-01` | [Curtin adapter](#curtin-adapterの比較入力)をAの第一候補へ具体化。固定版/rootfs形式・全推移依存・stage監督と完全設定の成立根拠が残る。Bへ自動変更しない | Cloud OS導入 |
+| `D10-02` | StorageInput/NetworkInputと生成対応に案あり。IPv4限定範囲の採用、boot/user/helper、消去外journal/排他の成立根拠が残る。RAMだけの記録で補完しない | 消去・導入・工程記録 |
+| `D10-03` | [新OS信頼引渡し](#新os信頼根拠の引渡し)に案あり。独立信頼/旧資格失効と隔離VM条件の成立根拠・採用判断が残る。SSH喪失後の自動復旧を保証しない | 初回起動・handoff |
 
 契約・共通依存の採用承認、実行環境の根拠・非機能要求の確定が残る。本文案はOS未導入環境の実装・受入・対応済みを示さず、完全仕様は未成立。

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B7`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B8`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB7）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB8）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -304,12 +304,26 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | `A11-28` | catalogに証拠欠損/同ID重複、参照は同じだが収集後の実体変更 | ACCEPT_EVIDENCEまたは証拠失効で集計/公開不可。純粋関数の暗黙I/O・参照だけの実測認定なし |
 | `A11-29` | 第一pageだけ一致し次page未確認、途中uploadの部分map、取得中にrelease ID変更 | RELEASE_SET/RELEASE_CHANGEDで公開停止。部分列挙・名前一致・二回観測を完全配置や排他の証明にしない |
 
+### 受入カタログの閉包と更新
+
+ExpectedCaseの生成入力候補を`CaseBinding`の固定集合とする。全キーはcase_id・source（ContractRef）・requirement_ids（既存要件IDの空でない一意配列）・contracts（検証対象ContractRefの空でない一意配列）・execution_class・lanes・expected_ref。execution_classはdocument/pure/adapter/vm/hardwareの一つ。lanesの各要素はarchitecture/profile/entry/environment_ref/required/applicability_refの六キーで、CPU・構成・入口は本書の対応表へ照合する。applicability_refは適用/拒否/非適用を区別する固定根拠であり、能力未確認や未実施を非適用へ変換しない。
+
+検証順序は、担当本文に現存する全ケースID集合との完全一致→ID一意性→source/expectation/要件/契約の参照閉包→execution_classと環境の適合→全lane→ExpectedCase展開→結合キー重複と必要経路の不足、とする。展開は各Bindingのrequirement_ids×contracts×lanesだけを使い、全製品の無条件直積を作らない。ケースが複数の要件/契約を扱う場合も省略せず別行へ対応付ける。構文/純粋fixtureの実行成功を同じケースのVM/実機成功へ転写しない。
+
+仕様にケースを追加したときは、case_idをカタログへ追加してlane/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、展開後ExpectedCase 100,000行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
+
+本項はカタログの全形式・展開/欠損検出の契約案である。実対象のenvironment_ref、各ケースの実行区分/lane、採用済み期待資料を揃えた全行の固定は未完了で、実施済みのAcceptanceScopeを捏造しない。D11-01の残りは集計器の型だけではなく、この固定集合と環境の成立根拠を含む。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A11-30` | 新ケースのBinding欠損、同ID二行、VMケースをpureだけへ結合、展開100,001行 | ACCEPT_SCOPEで停止。反復数・件数一致だけで閉包/VM受入を認定せず、期待集合の自動間引きなし |
+
 ## 未決事項と成立判定
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|
-| `D11-01` | 環境を含む一意キー・固定期待集合・独立証拠の集計を推奨。所有者は全要求のscopeと13必須項目対応、検査実行体/予算を決定。仕様成立の判断と未実装製品の試験結果を分ける | 自動検査・全体受入 |
-| `D11-02` | ReleaseDestinationの固定と応答欠損後の読取り照合を推奨。所有者はAPIヘッダー版・認証権限/全操作・draft閲覧条件を決定。文書URLの版表示や名称だけで採用/非公開を保証しない | 配布工程・非公開性 |
-| `D11-03` | 六区分を担当正本へ一意に対応付ける審査を推奨。所有者は許諾条文・採用情報・鍵/実機の条件を別途決定。文書案作成承認をこれらの採用/実施/公開の承認にしない | 正式署名・配布・公開 |
+| `D11-01` | [受入カタログ](#受入カタログの閉包と更新)に全形式/展開案あり。各ケースのclass/lane/期待資料/実環境の全行固定、検査実行体/予算の成立根拠が残る | 仕様充足・統合受入 |
+| `D11-02` | ReleaseDestinationと全asset照合に案あり。固定HTTP API版・全操作/権限・draft閲覧条件と公開予算の成立根拠が残る | 配布・公開 |
+| `D11-03` | 六審査区分の対応案あり。正式許諾・個別採用情報・鍵/実機条件は担当正本で所有者が別途決定。本文作成承認を公開許可にしない | 正式署名・公開 |
 
 Phase 1〜10の全必須契約・判断の採用承認と仕様充足が未完了であり、本フェーズも完全仕様未成立。初期CI・製品テスト・バイナリ/ISO生成・署名・公開は行っていない。

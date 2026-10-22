@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B7`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B8`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB7）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB8）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -263,10 +263,47 @@ PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資
 
 ## 未決事項と成立判定
 
+### 非資源stepの閉じたpayload
+
+PlanStep.payloadの候補は下表の担当型だけとする。kindの選択はstep.contract.contract_idで行い、入力の自己申告で別契約へ切り替えない。表にない契約を変更stepとして受理しない。観測/検証だけのstepはCheckStepPayloadを使い、対象検査ID・期待参照・非変更の実行契約を固定する。外側のMediaRequest/RemoteRequest/Planをpayloadへ入れる循環形式を作らない。
+
+| 担当契約 | payloadの型・全集合 |
+|---|---|
+| P04-SELF | PreparedSelf。action/target/plan_idを親へ照合 |
+| P04-UPDATE | UpdatePayload: layers（os/configuration/application/miner/bodyの一意配列）、materials（MaterialRef/ReleaseArtifactRefの区分付き配列）、migration（MigrationRuleまたはnull）、backup_id（OperationIdまたはnull）。各層の具体stepが別に存在することを検査 |
+| P04-BACKUP | BackupSet。復元stepだけRestoreRequestとしてsource/destination/methodを全キーとし、step.idのbackup.capture/backup.restore区分と照合 |
+| P04-APPLY | file/directoryはresource_changeだけ。package/unit拡張は対応PackageResource/UnitResourceだけ。任意CommandSpecを外部入力として直結しない |
+| P05-MEDIA | InstallPayload。action=installのsetup計画だけで、adoptへpartition工程を加えない |
+| P06-APP / P06-DATA | AppPlan / ApplicationDataMethod。アプリ名/全サービス/方法と同じ保全stepへ結合 |
+| P07-RUN / P07-UPDATE | ControlRequest / MiningUpdateBinding。ホスト更新を運転制御へ混入しない |
+| P08-MASTER / P08-COHOST | RegistryChange / CapacityInput。台帳変更と同居制約設定は別step |
+| P10-OS | InstallPayloadとInstallerBindingを持つInstallStepPayload。マスターの配送wrapperを内包しない |
+| 各担当の検証step | CheckStepPayload: check_ids（重複なしstring[]）、expected_refs（ContractRef[]）、execution_refs（ContractRef[]）。空集合・未採用の変更実行を検査と偽装した参照を拒否 |
+
+payloadの型は仕様上の担当フェーズが定義し、共通で運ぶdata型はsrc/core/model/payload.rsに置く候補。Coreからprofilesの実行器へ依存するenumにはしない。生成器は型付き値を検証してから固定JSONへ変換し、受信側は同じ契約のvalidatorで検証済み型へ戻す。入力と同じPlanを含む再帰payload、未知の自由object、二契約のキーの混在はPLAN_PAYLOADで拒否する。上記各型の採用・全外部実行契約が不足するstepはblockedを維持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-31` | P04-SELFへInstallPayload、payload内にRemoteRequest/Plan、未登録の任意command | PLAN_PAYLOADで封印/配送/適用不可。wrapperの再帰・別契約へのfallback・Core依存方向の逆転なし |
+
+### 内容カタログとRootBindingの失効
+
+ContentBlob集合の生成候補は、組込み資材の署名済みrelease対応、または復元検証済みbackupのentry対応を採取器が照合し、全byte列を固定してから純粋解決器へ貸与する方式。資材ID/参照は一意、長さ/hashは採取した同じ実体へ結合する。初期の集合同時保持上限は64 MiB、個別上限はP03-RESOURCE、加算overflow/総量超過はCONTENT_LIMITで計画前停止する。上限を超える場合に任意pathへの遅延参照へ切り替えない。貸与期間中の変更・再取得・同名資材の差替えを許可しない。
+
+旧カタログを除去できるのは、それを参照する未完了Plan/operation/journal/復旧計画が存在しないと照合できる場合だけ。保持期限だけで保全物を自動削除しない。借用側はbyte列を暗黙複製せず、APIを抽出してもカタログ所有者の寿命へ従う。署名済み資材参照と対象パス固定は別の根拠であり、内容が正しいだけで別rootへの書込みを許可しない。
+
+RootBinding方式Aの審査資料は、対象OS停止の証拠、対象block deviceの全mount/holder集合、writer/自動mount/対象変更timerの排除方法、許可FSとmount option、操作を行う全プロセス、排他を維持する期間、namespaceとhotplugの変化検出を全項目とする。方式Bの資料には各操作におけるroot相対ハンドルの使用とsymlink/mount越えを拒否する外部インターフェースの契約を要求する。root pathの前後検査や保護directoryだけの方式はどちらにも分類しない。
+
+Bindingの有効期間は採取世代から一つの親操作終了までで、boot/対象root/mount/親entry/実行主体/排除条件の変更を検出した時点で失効する。新たな対象観測を旧Bindingへ継ぎ足さず、既適用部分を保持してFS_BINDINGで後続停止する。隔離設定の名称は保証ではない。[systemdのRootDirectory](https://www.freedesktop.org/software/systemd/man/255/systemd.exec.html)だけを競合writer排除や同権限プロセスに対する完全な防壁として採用しない。実現方式が未選定の通常稼働OSへ、オフライン方式の成立を一般化しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-32` | カタログ合計64 MiB/+1、未完了Planが参照中の除去、操作途中でmount集合変更 | 上限内だけ保持/除去拒否/Binding失効。内容の遅延再取得・再照合だけの安全認定・後続適用なし |
+
 | 判断ID | 残る採用判断・確認 | 影響先 |
 |---|---|---|
-| `D03-01` | evidence_refを持つ単一Adoption・版付きResourceSetを推奨。所有者は既存資源の取り込み根拠とcontent参照表の生成/保全を採用判断する。旧別名の自動受理はしない | 差分・構成適用 |
-| `D03-02` | A: 排他を証明するオフライン対象、B: 個別OS実行物の固定root操作を比較。所有者はRootBinding・許可FS・反証試験を確認して選定する。どちらも成立根拠未取得で、標準APIの有無だけでは解消しない | 観測・適用・保全 |
-| `D03-03` | 単一Planと型付きstep/diffの結合・固定byte列を推奨。所有者は非資源stepの担当payload、digest取得器と版を採用判断する。changes/orderの別保存形式は採らない | 媒体・SSHへの引継ぎ |
+| `D03-01` | [内容カタログ](#内容カタログとrootbindingの失効)と単一Adoptionに案あり。既存資源の取り込み証拠、生成/保持の実方式と採用判断が残る | 資源の観測・取り込み |
+| `D03-02` | [RootBindingの失効](#内容カタログとrootbindingの失効)に案あり。オフライン排他A/OS側root固定Bの成立根拠・許可FS・反証試験は未取得 | 全path操作 |
+| `D03-03` | 単一Planと[非資源payload](#非資源stepの閉じたpayload)に案あり。担当payload全子型の閉包、digest取得器の個別版と採用判断が残る | 媒体・SSHの計画引渡し |
 
 実装移行には、これらと使用するPhase 2契約の承認済み版、非機能要求の不足を解消する必要がある。差分・計画本文案は作成したが、完全仕様の成立・実装・試験成功は未達とする。

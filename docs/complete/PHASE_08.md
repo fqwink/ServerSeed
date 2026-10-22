@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B7`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B8`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB7）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB8）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -277,10 +277,81 @@ P08-MASTERは台帳/対象選択、COHOSTは三機能の集約、BACKUPは管理
 
 ## 未決事項と成立判定
 
+### マスターCLIの解析と応答全集合
+
+新構文の型付き候補MasterInvocationはList/Register/Remove/Run/Reconcileのenumとし、Registerはtarget_fileの絶対PathBuf、RemoveはTargetId、RunはTargetIdとrequest_fileの絶対PathBuf、ReconcileはTargetIdとOperationIdを保持する。共通フラグ/上限/UTF-8/helpの解析はP02-CLIを再利用し、当該五入口の許可optionだけを追加する。全optionは一回だけ、余分な語・未定義のmaster操作はCLI_COMMAND/CLI_OPTION_SCOPE。検証済みfile入力を持つことと利用者選択の成立を別にする。
+
+| 応答 | data候補の全集合と停止時 |
+|---|---|
+| list | registry_sha256: hex64、targets: RegistryEntry[]。一意なtarget_id昇順。不在/読取り不能は空一覧でなく開始前エラー |
+| add/remove | before_sha256・after_sha256: hex64、changed_target_ids: TargetId[]。一件だけ。dry-runのafterは予定byte列のhash、実保存済みと表示しない |
+| run | DeliveryRecord。配送前エラーは共通error_stage/prerequisites、配送開始後はRemoteFailureの既知位置を保持 |
+| reconcile | ReconcileResult。記録不在/不明の根拠を保持し、成功したQueryを元操作成功へ変換しない |
+| help/解析/未実装 | P02-CLIの専用data。未知の語や入力file内容をmessageへ連結しない |
+
+対話候補は一覧表示→対象IDの明示選択→操作の選択→初回構成/保存先/導入値の必須入力→固定Plan提示→計画確認/追加消去確認→直前再照合の順。target-file/request-fileは選択候補にすぎず、--yesでこの選択列を省略しない。初回構成は三択を提示し、Cloudでmaster選択時は非対応理由で停止してserverへ変更しない。更新では保存済み構成を継承する。
+
+各必須選択の待機候補は受付から300秒、未入力/EOF/対話不能/取消なら変更前blocked。入力は一行4 KiB以下、改行終端を除く完全一致で候補ID/操作名を照合し、trim/大小文字変換/近似選択なし。入力行は秘密値を受けない。入力エラーの再提示は同じ工程で最大三回、上限後は停止する。再提示で計画期限を延長せず、失効した計画は新しいIDと確認へ戻す。製品上の選択を開発の「承認」と混同しない。
+
+固定診断候補はMASTER_INPUT/MASTER_SELECTION/MASTER_TIMEOUT/MASTER_NOT_READY/REGISTRY_DUPLICATE/REGISTRY_MISSING/MASTER_TRANSFER。表示は分類だけを固定し、認証/秘密値/生出力を含めない。終了分類はP02-CLIへ照合し、構文/設定は2、選択/準備不足は3、確定不整合は4、実行後の失敗は対象操作の分類を保持する。readinessの成功を配送の成功にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-30` | 五構文と余分option、fileだけ指定し無応答、Cloud master選択、dry-run台帳変更 | 解析/選択停止/適用拒否/予定hashだけを区別。自動選択・構成代替・配送/保存・送達成功の捏造なし |
+
+MasterInvocationの宣言候補は次のとおり。共通要求型へ置くが、定義の担当は本節に統一する。pub enumのvariantを構築できることを検証済み入力の証明にせず、dispatch前にP02の解析/型検証を要求する。
+
+```rust
+pub enum MasterInvocation {
+    List,
+    Register { target_file: std::path::PathBuf },
+    Remove { target: TargetId },
+    Run { target: TargetId, request_file: std::path::PathBuf },
+    Reconcile { target: TargetId, request_id: OperationId },
+}
+```
+
+### 同居資源の測定と割当算定
+
+WorkloadProfile候補の全キーはprofile_id、対象機器/OS/driverの固定参照、全アプリ/サービス/imageの固定集合、採掘方式/機器/algorithmの参照、管理対象数、要求操作列、測定環境、測定時間/間隔、期待応答上限とする。空のアプリ集合を未選定アプリの負荷へ代用せず、最大1,000対象という台帳上限を1,000同時操作の保証にしない。初期の遠隔変更は直列一対象だけ。
+
+測定方式候補は隔離環境で同じprofileを五回実行し、一回900秒、1秒ごとに管理/サーバ/採掘のcgroup CPU使用量とmemory.peak、管理CLI/Queryの応答時間を採取する。中央値でピークを隠さず、五回の最大値を算定へ使う。CPUは測定区間のusage_usec差/経過usecをmillicpuへ切上げ、逆行/不足/overflowは測定不成立。管理応答の候補上限は各1秒、失敗/未確認0件とする。実採掘・実機試験は安全ポリシーの許可境界が確定するまで実施しない。
+
+最低CPU候補は各管理/サーバの最大millicpuに5/4を乗じ、1,000で割って論理CPU整数へ切上げ、最低1とする。最低memory候補は各最大memory.peakの5/4をbyte整数へ切上げ、さらに256 MiBを加える。採掘は残量の中で確認済みthreads/必要memoryを満たす範囲だけ。数値は測定方式の提案で、機器/負荷未指定のまま実最低値を生成しない。実際のCapacityProfileには測定元と算定結果を固定して採用する。
+
+CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの共通部分とする候補。論理CPU IDを昇順に管理→サーバ→採掘へ重複なく分配し、各必要数と総量式を照合する。systemdのAllowedCPUs/MemoryMaxと、Dockerの実効cgroupを読み戻し、全対象サービスが正しい親/範囲にあることを検証する。CPUQuotaやMemoryLowだけで専有・優先/実負荷応答を保証しない。SMT/共有memory/GPU/IOの干渉は同じ負荷試験へ含める。
+
+管理/サーバ/採掘の一件でも有効制限不明、最低要求未選定、GPUの未確認共有、負荷profile不一致ならresources.enforced/measured/minimumをpassにせずready=false。資源不足を理由に一機能を削る縮退masterへ変えない。実際の最低値/対象負荷と強制方式の採用はD08-02に残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-31` | CPUピーク1,001 millicpu、memory測定欠損、割当集合重複、四回成功/一回応答上限超過 | CPU候補は2、他は未成立/失敗を保持。平均値でピーク隠蔽・ゼロ予約・未測定機器の資源保証なし |
+
+### 単一制御主体の移行候補
+
+喪失時復旧の第一比較候補は、対象側の固定入口がActiveControllerを一件だけ照合する方式。全キーはschema_version: 1、master_machine_id: MachineId、credential_fingerprint: string、generation: 正整数、transfer_id: OperationIdまたは初期時null、target_machine_id: MachineId。対象側のroot管理領域に保持し、SSHで認証された資格のfingerprintと主体IDの双方を確認する。要求内のmaster_machine_idだけで権限を決めない。初回enrollment/更新の権限は担当安全ポリシーの別の所有者管理資格へ照合する候補。
+
+| 工程 | 必須の照合・変更範囲候補 |
+|---|---|
+| 新物理マスター準備 | 外部媒体構築、新MachineId、隔離復元/台帳検証。旧ID・lock/PID・秘密鍵の無条件継承なし。まだ通常の遠隔変更を送らない |
+| 対象別の照合 | 独立した回復資格で接続信頼/実対象/現ActiveControllerを読み、旧要求のoperation/実状態を回収。未確認要求は再投入しない |
+| 旧主体の停止 | 旧資格による新規Submitの受付を止め、進行中要求の完了/保全停止を照合。Queryの必要性と新変更の禁止を分ける |
+| 一件の制御切替 | 対象の共通排他の下で旧generation/hashを再検査し、旧/新資格・対象・transfer IDを固定した新ActiveControllerへ原子的に置換/同期。新generationは旧+1のchecked値 |
+| 認証の失効確認 | 旧資格の実効認証/変更権限の失効、新資格の固定入口照合、pending全件の結果を別に検証。台帳値だけで失効済みにしない |
+| 再開 | 対象別の失効/照合資料をControlTransferへ結合し、所有者の再開判断後だけ当該対象の新Planを許可 |
+
+この比較候補は一時的な二制御主体を許可しない。新資格登録時に旧資格も残る場合でも、固定入口の実効制御権は一件だけであること、迂回したsudo/旧wrapperがないことを審査する。SSH資格そのものの失効も別に確認する。回復資格未設定/旧主体の追加権限不明/対象SSH不通なら変更を再開しない。外側の回復経路と具体的な認証/昇格の許可は未採用で、通常のrestoreによる自動登録を行わない。
+
+切替途中の応答欠損ではActiveControllerの実世代/hashと対象記録をQueryで取得し、旧状態へ書き戻したり、generationを再加算したりしない。結果が対象ごとに異なる場合はその依存範囲を保留し、全台切替成功と表示しない。旧秘密鍵の漏えい/喪失から、既に取得された情報を回収できるとは保証しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-32` | 切替同期後に応答欠損、旧資格のsudo迂回あり、旧要求不明、新旧同ID | 実世代照合/権限失効未達/要求照合待ち/拒否。世代二重更新・旧ID復元・二台からの変更再開なし |
+
 | 判断ID | 決定・確認が必要な事項 | 影響 |
 |---|---|---|
-| `D08-01` | 五入口と型付き台帳・事前hash照合を推奨。所有者は各応答/固定診断・対象/操作の対話選択と初期信頼の担当手順を決定。台帳欠損を0件と扱わない | 初期設定と対象管理 |
-| `D08-02` | CapacityProfileの最低値/測定条件と総量式を併用する案を推奨。所有者は負荷・測定機器・許容遅延/資源量・強制制御を決定。測定前に最低値を推測して充足にしない | 同居の成立・更新 |
-| `D08-03` | 新MachineIdとControlTransferによる対象別失効/照合を推奨。所有者は失効方式・秘密情報/信頼の復旧条件をセキュリティポリシーで決定。二台運用・旧ID自動継承は候補外 | マスター復旧 |
+| `D08-01` | [マスターCLI](#マスターcliの解析と応答全集合)と台帳に案あり。全応答子型・初回信頼/登録の実手順と採用判断が残る | 初期設定・対象管理 |
+| `D08-02` | [同居測定と算定](#同居資源の測定と割当算定)に案あり。機器/負荷/許容遅延、強制制御の成立根拠と測定された最低値は未確定 | 同居・更新 |
+| `D08-03` | [単一主体移行](#単一制御主体の移行候補)に世代/旧資格失効/照合案あり。復旧資格・失効の実効性と固有保全の復元方法を安全ポリシーに対応させ採用判断 | マスター喪失・復旧 |
 
 同居評価の値・操作上限・試験条件と共通契約が未確定で、完全仕様は未成立。SSH操作の実装・製品の構築・受入試験は今回実施しない。

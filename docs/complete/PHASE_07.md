@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B7`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B8`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB7）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB8）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -142,7 +142,8 @@ pub struct MonitorMemory {
     target: TargetEvidence, config_sha256: String,
     state: MonitorState, failure_since_ms: Option<u64>,
     cool_since_ms: Option<u64>, healthy_since_ms: Option<u64>,
-    last_control_receipt: Option<String>, pending_control: Option<String>, stop_latched: bool,
+    last_control_receipt: Option<String>, pending_control: Option<String>,
+    reserved_retry: Option<String>, stop_latched: bool,
 }
 pub struct ControlReceipt {
     request_id: String, epoch: String, action: ControlAction,
@@ -315,11 +316,43 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 
 ## 未決事項と成立判定
 
+### 監視記録の保存と再同定
+
+監視状態の候補保存先を/var/lib/serverseed/mining/cpu/monitor-state.jsonとgpu/同名へ固定する。要求別の制御記録は同じengine配下control/OperationId.json、request_idはP02の新規OperationId表記で生成する。生成は純粋evaluateの外で一回だけ行い、engine/epoch/sample時刻/action/config hash/対象の組へ結合する。同じ組の既存要求があれば新IDを発行せず読取り照合する。対象/engine/IDを外部pathへ展開しない。
+
+ControlLedgerの全キー候補はschema_version: 1、request: ControlRequest、operation_id: OperationId、phase: prepared/started/finished/unknown、receipt: ControlReceiptまたはnull、memory_before: MonitorMemory、memory_after: MonitorMemoryまたはnull、verification_refs: string[]。preparedを同期してから制御を開始し、実開始の確証/未確認を保存し、実サービスとreceiptを照合してmemory_afterを確定する。先にMonitorMemoryだけ更新して要求証拠を失う順序は不可。共通operation/historyの確定は親が行う。
+
+reserved_retryは開始不明の自動start/restartについて枠を予約する要求IDまたはnull。再試行許可はattempts_used+予約数（0/1）<retry_limitをchecked算定し、開始確証で予約を解除してattempts_usedへ一回加算する。未開始の確証なら予約だけ解除、未確認なら予約を維持する。初回の明示開始だけは同じ保存セッションの新規開始確認に対応付け、自動復旧へ読み替えない。停止要求は再試行枠を消費しないが、同一要求の重複発行は禁止する。
+
+制御台帳の上限候補は各engineで1,000要求かつ64 MiB、ControlLedger一件64 KiB、MonitorMemory一件64 KiBとする。新規/一時保存分も加算し、どちらかの上限へ達する新規制御を停止する。未完了/unknown台帳は削除せず、完了台帳の退避も別の明示保守計画で参照閉包を保持する。容量不足を理由にstop_latched・attempts_used・reserved_retryを初期化しない。安全上必要な停止を発行できない場合は、その未実行と残存サービスを報告し、停止済みと偽らない。
+
+再起動後は全未完了ControlLedger、保存設定hash、対象/boot、実unitの状態を読み、pending/予約/回数/停止保持を復元する。経過時刻の連続性は引き継がず新epochとし、unknownからの明示照合へ戻す。記録欠損/別設定/別対象/不整合を回数0にしない。消費済みIDは同engineの確定履歴と照合し、last_control_receipt一つだけで過去の全重複を判定しない。保持上限到達では自動制御の新規開始を停止し、ログ整理で制御履歴を自動削除しない。
+
+controlのサービス操作はP04-APPLYのunitテンプレートを使い、cpu/gpuの固定native unitだけへ解決する。監視評価は保存も実行もしない。temperature_unknown_actionの選定・センサーの正確な外部API・実機停止の許可は担当安全審査へ残し、記録設計だけで制御可能としない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-34` | prepared同期失敗、開始不明の予約一件、過去の古いreceipt再配送、記録欠損後の再起動 | 実行0回/枠保持/再消費0回/unknownを照合。回数0への復元・同要求再実行・保存失敗の成功化なし |
+
+### 機器検出と採用能力行の区分
+
+機器の列挙候補では、CPU packageは対象のtopology識別、GPUはPCIのdomain:bus:device.functionとvendor/device/subsystem/driverへ対応付ける。PCIアドレスは当該起動世代内の位置で、恒久的な個体識別子ではない。DeviceIdentity候補はdevice_id・target_machine_id・boot_id・kind・topology_ref・vendor_id・device_code・subsystem_ref・driver_ref・observed_atの全キーとし、未取得は理由付きのEvidenceFieldで表す。候補IDだけで別boot/交換機器へ設定を再適用しない。
+
+温度の標準観測候補は[Linux hwmon](https://www.kernel.org/doc/Documentation/hwmon/sysfs-interface)の入力を、選定済みsensor_contractが示す機器/labelへ対応付けて読む方式。最大4 KiB/一入力、符号付き十進整数と末尾LF一つだけ、許容範囲を照合し、元単位がmilli_cの場合は値をそのまま保持する。hwmon番号/列挙順だけでCPU/GPUへの接続を推測しない。driver固有の温度単位/offset/欠損/更新間隔が不明ならunknown。標準化された名前があっても実際のセンサー配線/用途が一致した証拠を必要とする。
+
+採用能力行の一意キーは機器の能力識別/driver MaterialRef/kernel/miner MaterialRef/algorithm/sensor_contractの組。公式資料の記述は対応候補、選定/検証資料のある組だけを対応行とする。機種名の事前指定を全機器の列挙条件にせず、未登録機器も「検出したが使用未確認」と表示する。実機の安全温度/電力/採掘APIの全契約が未取得なら制御は保留する。CPUのみの運転へGPUを無断代替せず、利用者のmodeを保持する。
+
+[SRBMiner公式資料](https://github.com/doktor83/SRBMiner-Multi)にある対応/手数料/許諾の表示は、採用する正確なreleaseと照合する必要がある。公式配布物が公開されていることを、ISOへの同梱・再配布や内部GPU binaryの抽出の許可としない。個別のライセンス/配布判断は例外台帳へ一意に記録し、本書へ条件を複製しない。現時点の使用可能なminer/driver行・実機安全値は未確定のまま。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-35` | 同じPCI位置に別device、hwmon番号だけ一致、欠損温度、公式READMEだけを根拠に同梱 | 再同定/unknown/配布審査待ち。位置や検出成功の対応認定・共通安全値・未確認同梱なし |
+
 | 判断ID | 残る判断・根拠 | 影響 |
 |---|---|---|
-| `D07-01` | 機器IDごとの能力/温度ポリシーと試料を対応付ける案を推奨。所有者は実機の値域/単位/精度・外部API版を決定。集約最大温度へ一つの共通閾値を当てる案は採らない | 機器対応・安全制御 |
-| `D07-02` | 機器別設定/UTC時間帯/必須明示入力を推奨。所有者は全値域・能力参照・運転許可と旧設定移行を決定。時間帯は許可の代替ではなく、更新対象も選択済み計画へ限定 | サービス生成・更新 |
-| `D07-03` | 単一の全状態表・機器別試料・要求キー/receipt照合を推奨。所有者は保存/再起動後照合と制御実行器を決定。試料正常だけで停止保持や未確認要求を解除しない | 運転判定・自動復旧 |
-| `D07-04` | miner/config変更とOS/driver変更の別step化を推奨。所有者は採用版/再配布条件・正常版資材と実機試験境界を各正本で決定。内製制御の作成承認を外部エンジン使用許可にしない | 導入・配布・実機受入 |
+| `D07-01` | [機器検出](#機器検出と採用能力行の区分)に案あり。実機ごとのsensor/単位/精度/安全値と外部APIの根拠が未確定 | 機器対応・温度制御 |
+| `D07-02` | 機器別設定とUTC時間帯に案あり。運転許可・全値域/能力参照・旧設定移行の採用判断が残る | 採掘設定・サービス生成 |
+| `D07-03` | 全状態表と[永続監視記録](#監視記録の保存と再同定)に予約/消費/再同定案あり。固定制御adapterと再起動/保存失敗の成立根拠・採用判断が残る | 自動制御・再試行 |
+| `D07-04` | miner/設定とOS/driverの別stepに案あり。実機・採用版・正常版/再配布条件と試験境界は未確定。検出成功を対応認定にしない | 導入・配布・採掘受入 |
 
 現段階ではfixtureによる受入の設計のみで実採掘・実機操作は行っていない。各未達と共通契約・非機能要求を解消するまで完全仕様は成立しない。

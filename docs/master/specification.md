@@ -79,13 +79,17 @@ SSH切断、マスター停止、対象再起動で結果を受け取れなか�
 
 ## 未確定契約
 
-採用審査用の台帳・CLI・同居・喪失時復旧の候補は[Phase 8](../complete/PHASE_08.md#型とapiの詳細案)、遠隔配送の候補は[Phase 9](../complete/PHASE_09.md#型とapiの詳細案)、OS未導入時の入力は[Phase 10](../complete/PHASE_10.md#型とapiの詳細案)を参照する。候補は採用未承認。本書の定義と未確定状態を維持し、同じ型・工程を本文へ複製しない。
+採用審査用の具体案は次表だけを案内先とする。候補は未採用で、本書の未確定状態や既存のCLI/保存形式を切り替えない。対象登録・接続・変更権限・制御主体の移行はそれぞれ別の判定を必要とする。
 
-台帳値と五つのCLI構文は[管理入力の詳細](../complete/PHASE_08.md#入力と保存形式の詳細案)、ローカル排他/喪失時切替は[復旧候補](../complete/PHASE_08.md#実行と復旧の確定候補)、固定要求/受理記録は[遠隔保存形式](../complete/PHASE_09.md#入力と保存形式の詳細案)へ集約する。これらの案は対象登録・遠隔実行・制御権切替を別に扱い、登録済みというだけで変更権限や旧主体の失効を証明しない。採用時に本節の未達項目と対応させ、本書のCLI・保存形式を無承認で切り替えない。
-
-候補の同一対象/構成/操作対応は[マスターCLIと台帳](../complete/PHASE_08.md#入力と保存形式の詳細案)、[遠隔要求と取消](../complete/PHASE_09.md#データ契約の具体化案)を単一の参照先とする。マスターの主体IDと対象ID、要求hashと計画digestを混同しない。採用前は本書の既存動作を切り替えず、喪失時の制御権移行は対象別の失効・未確認要求照合が必要な未決事項として維持する。
-
-候補の台帳編集は[RegistrySnapshotと既知実体](../complete/PHASE_08.md#型とapiの詳細案)、機能集計は[readiness](../complete/PHASE_08.md#データ契約の具体化案)、配送は[RemoteSessionと取消/結果回収](../complete/PHASE_09.md#型とapiの詳細案)へ照合する。初回搬入は[固定一式](../complete/PHASE_09.md#p09-ssh)、復元時の対象別証拠は[ControlTransfer](../complete/PHASE_08.md#p08-backup)を参照する。型・検査値・確認手順を本書へ複製せず、stdoutの表示・純粋集計・外部収集・対象変更を分ける。
+| 担当する具体案 | 定義先 |
+|---|---|
+| 台帳・編集・readiness・型 | [Phase 8の入力](../complete/PHASE_08.md#入力と保存形式の詳細案)、[型/API](../complete/PHASE_08.md#型とapiの詳細案)、[集計](../complete/PHASE_08.md#データ契約の具体化案) |
+| CLI解析・必須選択・応答 | [マスターCLI](../complete/PHASE_08.md#マスターcliの解析と応答全集合) |
+| 同居資源・測定 | [測定と割当算定](../complete/PHASE_08.md#同居資源の測定と割当算定) |
+| 管理情報保全・主体喪失 | [P08-BACKUP](../complete/PHASE_08.md#p08-backup)、[単一制御主体の移行](../complete/PHASE_08.md#単一制御主体の移行候補) |
+| 遠隔要求・取消・結果回収 | [Phase 9の型/API](../complete/PHASE_09.md#型とapiの詳細案)、[保存形式](../complete/PHASE_09.md#入力と保存形式の詳細案)、[両側保存](../complete/PHASE_09.md#両側の配送保存と容量上限) |
+| 通常SSHと初回搬入 | [固定一式](../complete/PHASE_09.md#p09-ssh)、[起動と搬入の分離](../complete/PHASE_09.md#ssh起動と初回搬入の分離) |
+| OS未導入Cloud | [Phase 10の入力](../complete/PHASE_10.md#型とapiの詳細案)、[Curtin比較](../complete/PHASE_10.md#curtin-adapterの比較入力)、[新OS信頼](../complete/PHASE_10.md#新os信頼根拠の引渡し) |
 
 次の具体的な入力・形式・判定値は未確定であり、[仕様充足の判定](../POLICIES.md#実装着手と仕様充足の判定)を満たすまで依存する機能は実装しない。
 

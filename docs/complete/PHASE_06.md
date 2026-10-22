@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B7`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B8`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB7）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB8）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -62,7 +62,7 @@ P06-DATAの採用審査はアプリ名/正確な版/Compose全サービス/diges
 | アプリ適用の型付き境界 | [依存と受入](#依存と受入の確定候補)のAppPlan[]→ChangeResultに集約。開始後の部分位置を保持 |
 | `check_app(plan: &AppPlan, context: CommandContext<'_>) -> Result<HealthResult, ContractError>` | 許可された検査だけ。自動修復なし、ReadOnly時は個別の非変更契約が必須 |
 
-ComposeEvidence候補の全項目はname・compose_sha256・service_names・image_digests・contract。service_namesとimage_digestsのキーは同じ空でない集合、nameはAppConfigと一致、contractは採用済みのCompose観測契約とする。plan_serverは取得済み証拠しか使わず、浮動image解決やpullを行わない。apply_serverの結果列は入力AppPlan順と一対一に対応し、先行失敗後も後続をnot_startedのOperationReceiptとして保持する。HealthResultがpassでも必須のデータ検査/記録が不足すればAppResultを全体成功へ集約しない。
+ComposeEvidence候補の全項目はname・project_name・compose_sha256・service_names・image_digests・contract。project_nameの生成/同定条件は[Composeの範囲](#composeの範囲とデータ方法行)だけを参照する。service_namesとimage_digestsのキーは同じ空でない集合、nameはAppConfigと一致、contractは採用済みのCompose観測契約とする。plan_serverは取得済み証拠しか使わず、浮動image解決やpullを行わない。apply_serverの結果列は入力AppPlan順と一対一に対応し、先行失敗後も後続をnot_startedのOperationReceiptとして保持する。HealthResultがpassでも必須のデータ検査/記録が不足すればAppResultを全体成功へ集約しない。
 
 公開型はP02-MODELを参照し、リクエスト・結果の厳密な全集合はD06-01〜03に含める。難易度は構成解析が中、アプリ固有のデータ互換・復旧が高。新設案で旧実装は存在しない。将来のcrate抽出にはP06-DATAと共通保全の境界、呼出元、共通契約テストと移行順序を先に確定する。
 
@@ -75,7 +75,7 @@ ComposeEvidence候補の全項目はname・compose_sha256・service_names・imag
 | CommandInput | executable: 絶対パスstring、args: string[]、timeout_seconds: 同フェーズの操作上限内integer。秘密情報の値を引数に含める契約は追加しない |
 | HealthInput | kind: http・command、http: HttpInputまたはnull、command: CommandInputまたはnull、interval_seconds: 1〜300、attempts: 1〜10のinteger |
 | HttpInput | url: string、expected_status: 200〜299のinteger[]、timeout_seconds: 1〜300のinteger、body_limit_bytes: 0〜1,048,576のinteger |
-| AppPlan | name・compose_file・compose_sha256: string、service_names: string[]、image_digests: サービス名→digestのobject、operation: install・update・recover、health: HealthInput、backup_method: ContractRefまたはnull、resources: P03-RESOURCEの資源集合 |
+| AppPlan | name・project_name・compose_file・compose_sha256: string、service_names: string[]、image_digests: サービス名→digestのobject、operation: install・update・recover、health: HealthInput、backup_method: ContractRefまたはnull、resources: P03-RESOURCEの資源集合 |
 | HealthResult | name: string、status: pass・fail・unknown、attempts_used: 0以上integer、checks: Check[]、error: Diagnosticまたはnull |
 | AppResult | name: string、receipt: OperationReceipt、health: HealthResult、data_verified: booleanまたはnull |
 
@@ -266,10 +266,46 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 
 ## 未決事項と成立判定
 
+### health URLと外部adapter
+
+HttpInput.urlの候補はASCII http/httpsだけとし、単一のDNS名/IPv4/角括弧IPv6、port省略時80/443、/始まりpathと任意queryを受理する。userinfo/fragment/空白/制御文字/不正percent escape/percent復号後の制御文字を拒否し、hostnameやpathをshellへ渡さない。採用済みアプリのhealth契約が許可するorigin/path範囲へ一致させ、任意の外部URLを設定できるという意味にしない。HTTPSの証明書/名前検証は維持する。
+
+HTTP実行器の第一候補はP04で個別審査する同じcurl実行物。全argv候補は固定path、--disable、--globoff、--proto、=http,https、--request、GET、--connect-timeout、当該試行の残通常秒、--max-time、同じ値、--retry、0、--silent、--show-error、--header、Accept-Encoding: identity、--dump-header、/dev/stderr、--write-out、固定のstderr用完了印とresponse_code、--url、検証済みURL。--location/--compressed/--insecureなし、環境LANG=C/LC_ALL=Cだけ、cwd=/、stdin空。/dev/stderrは当該子の取得pipeへの既知経路としてのみ使い、任意file出力は指定しない。
+
+stdoutは本文だけ、stderrはheader/trailerと固定完了印/エラーの一時取得へ分ける候補。通常captureの各1 MiB上限を維持し、追加で本文をbody_limit、HTTP header/trailerを64 KiBへ計数する。body_limit=0の際も一byte受信で超過を検出し、curlの0=無制限optionへ変換しない。ヘッダー到着順と1xx/最終応答/trailerを構造化して検査し、stderr末尾の固定完了印も一件だけ要求する。未知の診断混入・不完全応答・非ゼロ・停止不明をpassにしない。本文/header/URLの生出力はレポートへ出さない。
+
+上記は個別固定版での比較契約であり、curl出力の版別文法、HTTP/1.1/2のframingとtrailerの表現、/dev/stderr経路の保護、ReadOnly契約への適合をfixtureで照合する必要がある。採用版で完了印と応答を一意に分離できなければこのadapterは不成立で、自由な外部HTTP clientへ置換しない。P04の配布取得とは異なり、healthは保存fileを作らない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-30` | userinfo/encoded改行URL、body_limit=0へ一byte、header上限、完了印なし/重複、TLS名前不一致 | URL/量/完了/TLSを個別拒否。file保存・curlの無制限0・生応答公開・別client自動選択なし |
+
+### Composeの範囲とデータ方法行
+
+ComposeEvidence/AppPlanへproject_nameを必須追加する候補。値はss-とアプリ名の元UTF-8 byte列のSHA-256全64桁。既存の大文字/小文字を区別するnameをlowercaseへ潰さず、hashの外部取得証拠を計画前に照合する。異なるnameで同じproject名または既存の別所有projectへ対応したらAPP_PROJECTで停止。plan_server自身はhash実行/接続をしない。
+
+docker argvの共通prefix候補は固定path、--config、保護された採用済みDocker設定directory、compose、--ansi、never、--parallel、1、--project-name、project_name、--project-directory、固定composeの親、--env-file、/dev/null、--file、固定compose path。環境はLANG=C/LC_ALL=C/DOCKER_HOST=unix:///var/run/docker.sockだけ、cwdは固定親directory、stdin空。ユーザーのHOME/COMPOSE_*やリモートdaemonを継承しない。
+
+| 操作 | prefix後のargvと照合候補 |
+|---|---|
+| 設定観測 | config、--format、json、--no-interpolate、--no-env-resolution。未展開変数・env_file/include/extendsの未固定参照は拒否し、暗黙読取り/取得しない |
+| 稼働観測 | ps、--all、--format、json。全サービス名と固定image/所有label/稼働状態を対応付け、同project名だけで所有認定しない |
+| 資材準備 | pull、--、固定した全サービス列。変更計画内だけ、digestと取得後の実imageを再照合 |
+| 適用 | up、--detach、--no-build、--pull、never、--no-deps、--、計画対象サービス列。未計画のbuild/pull/依存起動なし |
+| 停止/復帰 | stopまたはstart、--、元状態/保全計画で確定したサービス列。down/rm/prune/remove-orphans/volume削除なし |
+
+[Compose config](https://docs.docker.com/reference/cli/docker/compose/config/)と[up](https://docs.docker.com/reference/cli/docker/compose/up/)へ照合した候補。終了0でも全サービス/health/data/journalの照合を必要とする。compose内部のhooks・privileged・host共有・bind mount等もアプリの採用範囲へ含め、引数配列で呼ぶだけで安全としない。固定版でoption/出力/副作用が異なる場合は不成立で、別版へ自動切替しない。
+
+アプリ別データ方法行の必須キー候補はapp_name・exact_version・compose_sha256・image_digests・data_format_version・method・source_entries・isolated_target_ref・expected_checks・restore_ttl_seconds・compatibility_ref。methodはApplicationDataMethod一件だけ、source_entriesはBackupEntryの明示集合、expected_checksは契約付き検査IDの非空集合とする。行の新設は対象アプリ/版の所有者指定と外部依存の個別採用を必要とする。現時点の対応行は0件で、任意DBを「ファイルコピー」で自動的に対応済みにしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-31` | nameがApp/app、未固定env_file、未計画service、image版だけ異なるデータ方法行 | caseを保つ別projectとし、未固定/範囲外/方法不一致は拒否。環境継承・依存の暗黙起動・任意DB対応の認定なし |
+
 | 判断ID | 所有者の採用判断・調査対象 | 依存範囲 |
 |---|---|---|
-| `D06-01` | 型付きAppConfigと単一の工程名を推奨。所有者はserver/apps新形式の採用と旧形式の移行可否を決定。enabled=falseは検証後に計画対象外とし、既存アプリの停止/除去を意味しない | 設定・実行入力 |
-| `D06-02` | 固定GET・2xx期待・redirect非追従・厳密本文上限を推奨。所有者はURL/TLS/応答完了とadapter版/全引数、commandの非変更性を採用判断。本文0を無制限/読捨てへ解釈しない | ヘルスチェック・成功判定 |
-| `D06-03` | アプリ版別の一意なデータ方法行を推奨。所有者はDocker/Composeと各アプリの個別採用、全コマンド/権限・隔離復元の合否を決定。空アプリの成功を未選定アプリの対応証拠にしない | 導入・更新・保全 |
+| `D06-01` | AppConfigと工程名に案あり。新形式/旧形式の移行、全子型閉包と採用判断が残る。enabled=falseを停止/除去へ変換しない | サーバ入力 |
+| `D06-02` | [health adapter](#health-urlと外部adapter)にURL/argv案あり。固定版のHTTP構文/出力分離・終了観測とcommandの非変更性の根拠が残る | health判定 |
+| `D06-03` | [Composeとデータ方法行](#composeの範囲とデータ方法行)に形式/argv案あり。実アプリ未指定、採用済み方法行0件。Docker/アプリ版・隔離/復元/TTLの個別確定が必要 | アプリ導入・更新・保全 |
 
 既存構成別仕様の未確定部分は維持する。共通契約と候補の採用承認、非機能要求の不足が残るため、本案だけでサーバ機能を完全仕様成立・実装着手可能とはしない。

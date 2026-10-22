@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B7`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B8`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB7）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB8）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -283,11 +283,61 @@ P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はReci
 
 ## 未決事項と成立判定
 
+### Subiquity入力生成の対応表
+
+生成器候補generate_autoinstallは検証済みMediaRequest/RecipeInput/資材カタログを借用し、UTF-8 YAML byte列と入力hashを所有して返す純粋処理とする。action=installだけを受け、既存OSのadopt/update/backup/recoverには生成しない。全キーを次表から生成し、利用者から任意YAML/early/late shell断片を受け取らない。外部ツールのschemaとServerSeed側の未知キー拒否を別に照合する。
+
+| 外部キー | 候補の生成規則 |
+|---|---|
+| autoinstall.version / interactive-sections / refresh-installer | 1 / 空配列 / update=false。必須選択はServerSeed側で完了済み、installerでの最新版探索なし |
+| source | recipeの固定ベースISO内install-sources対応ID一件、search_drivers=false。対象OS/CPU/配布条件を照合し、実IDを推測しない |
+| storage | action-based config。disk一件に固定したserialと実device対応、ptable=gpt、preserve=false。UEFIはESP/root、BIOSはbios_boot/rootを生成し、寸法は共通InstallPayloadそのもの |
+| network | netplan version=2、ethernets一件。match.macaddress、set-name、mtuを固定、dhcp4またはstatic addresses/routes/nameserversを相互排他で生成。別interfaceの自動補完なし |
+| ssh | install-server=true、authorized-keysは検証済み公開鍵集合、allow-pwは認証保護条件に従う。未確認のまま既存認証を削除しない |
+| user-data | 空objectだけの比較候補。identityによる秘密password/hashの埋込みを使わず、対象ユーザーの準備を固定の対象側処理へ分離。cloud-initを利用者の別の開始経路にしない |
+| early-commands | 空配列。選択/消去確認前に対象を変更するscriptを置かない |
+| late-commands | 検証済み同一本体の固定内部入口に、同期済みhandoffを照合させる一つのargv配列。動的入力は記録を読ませ、shell文字列へ連結しない |
+| shutdown | poweroff。ServerSeedの同期/媒体解除確認を経ずにinstallerが内蔵OS再起動を開始する候補にはしない |
+
+storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_bootはformat/mountなし。disk選択の自由なmatch/最大容量指定を使わない。採用storage版がoffsetを保証しない場合、共通の厳密start_bytes契約と両立する証拠を必要とする。[Curtin storage](https://curtin.readthedocs.io/en/latest/topics/storage.html)の版1と版2でoffsetの意味が異なるため、version=1へoffsetを書いただけで厳密配置を保証しない。採用版/生成schema/寸法fixtureが一致しない場合は実行前保留する。
+
+対象ユーザー生成/公開鍵登録/昇格、late入口の設置と安全な起動はP10-OSの対象準備契約とP05-HANDOFFへ対応付ける。identity省略と空user-dataの対応は[Subiquity公式入力](https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html)への比較案で、採用ベースISOでの成立・cloud-initの許可用途との適合判断は未完了。生成器がファイルを出せることを、実行可能な完全なinstaller連携の証明にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-34` | adoptへ生成要求、storage v1でoffsetだけ指定、source ID未固定、late-commandへ文字列 | 生成/適用前拒否。既存OS消去・無視される寸法の保証・shell評価・既定source選択なし |
+
+### 内蔵OS継続unitと二回の起動証拠
+
+継続unit候補の固定名はserverseed-media-continue.service、配置は対象の/etc/systemd/system/同名、実行本体は検証済み/usr/local/bin/serverseedとする。unitはType=oneshot、RemainAfterExit=yes、Restart=no、UMask=0077、WorkingDirectory=/、StandardInput=null、After=local-fs.target、WantedBy=multi-user.target。ExecStartは`/usr/local/bin/serverseed __internal media-continue --record /var/lib/serverseed/media-handoff.json`の固定argv。外部からrecord pathや追加actionを選ばせない。ログには固定診断IDだけを出し、要求/設定/鍵をjournalへ流さない。
+
+同居機能の起動はこのunitの準備検査後に行う。pending記録がある場合は通常setup/updateを並行起動せず、継続workerが新しいguardとPID/bootを取得し、既存operation_id/plan_id/request/recipe/実配置と実対象を照合する専用resume_media契約へ渡す。これは一般beginによる中断上書きではない。recordがない正常運用では対象変更なしで終了、completeなら記録不変で通常起動へ渡す。unknown/failed/別対象/未対応版は通常変更を始めず復旧待ち。ConditionPathExistsだけで実行権限/採用済み計画を証明しない。
+
+BootProof候補の全キーはmedia_id、plan_id、target_operation_id、disk_id、root_identity、boot_id、observed_at、media_absent、required_services、checks。required_servicesは当該構成の固定unit名→実状態のmap、media_absentは採用観測器で確認したbool。boot1/boot2を対象側operations/OperationId/media-boot-1.jsonとmedia-boot-2.jsonへ同期する。boot2はboot1と異なるboot_id・同じdisk/root/操作を要求し、通常サービスと媒体非依存の全必須Checkを再検証する。同一bootの二観測やreboot要求の受付は二回目の証拠にしない。
+
+boot1後の再起動は確認済み計画と再起動許可を照合し、許可がなければ内蔵consoleで利用者に案内する。USBの再接続、SSH保守への切替、allow_rebootの書換えを要求しない。再起動前に継続位置を同期し、boot2と構成検証/必須記録の一致後だけhandoff.completeを確定する。実行期限が再起動を跨いで判定不能なら未実施の変更は開始せず、照合/表示だけ行う。boot証拠の取得不能を現在時刻や旧PIDで補完しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-35` | unit再起動、complete記録、boot1と同じboot_idのboot2、再起動許可なし | 再setupなし/記録不変/二回目拒否/console案内。媒体再接続・guardコピー・自動許可変更なし |
+
+### RAM実行と媒体解除の測定契約
+
+RAM起動の候補測定入力は固定ISO hash/recipe hash、CPU、仮想firmware、RAM量、操作/構成、固定fixtureとする。必要量は同じISOの起動/選択/導入/preboot検証/取外し準備の全工程における最大使用量を測り、ram_required_bytesへ結合する。予約量の候補算定はmax(512 MiB, ceil(必要量/4))、整数bytesのchecked演算。メモリーavailableは起動前の割当可能量と有効cgroup制限の小さい方。測定対象にない構成・boot条件へ値を自動流用しない。
+
+媒体解除の観測集合候補は、全mount namespaceのmountinfo、SquashFS/overlayのlower/upper/work参照、loop backing、swap、関連プロセスの開いたFDとmemory map、起動/継続資材の実配置。媒体のdevice/FSと依存グラフを辿り、参照が一つでも残る/読めない/採取中に世代が変わる場合はmedia_unmountedをtrueにしない。見える一つのnamespaceだけのumount、未取得PID/FDの省略、ファイル名の文字列一致だけでは解除を認定しない。
+
+解除順候補は新しい媒体参照の開始を止める→対象書込み終了/同期→必要資材のRAM/内蔵配置を再検証→関連処理終了→参照グラフを葉から解除→mount/loop/swap/FD/map集合を再採取→全条件照合。解除不能なら媒体を外さず理由を表示する。取り外した後の動作はVMで実際に仮想媒体を切断して確認し、切断直前の観測だけで検証を終えない。採用ベースISOのRAM起動設定、観測APIの固定版、namespace/FDを漏れなく読める実現条件はD05-01/03の方式審査へ残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-36` | RAMが必要量+予約量の直前/同時、別namespaceにloop/FD参照、PID情報が読めない | 容量条件と参照解除を独立判定。情報欠損・一namespaceの成功でremovableへ進めず、実切断後の検証を要求 |
+
 | 判断ID | 必要な具体化・採用判断 | 影響 |
 |---|---|---|
-| `D05-01` | tools_refと固定環境を持つrecipe/RAM起動を推奨。所有者はベースISO/ツール/起動unit・先行導入抑止とRAM測定根拠を採用判断。未確認の資材版は台帳で保留 | ISOの実生成・起動 |
-| `D05-02` | 初回Selection/継続保存構成を区別するMediaRequestを推奨。導入値はP10-OSの単一InstallPayload、媒体固有の生成対応はSubiquity採用版へ照合して決定する | OS導入と取り込み |
-| `D05-03` | preboot終了と内蔵継続unitの一方向切替を推奨。所有者は継続入口/権限・対象記録の同期/再取得・二回の媒体なし起動の証拠方式を決定。OS成立性不足を工程名で埋めない | 全媒体保守 |
-| `D05-04` | FirmwareContractの公式手段/完全一致方式を推奨。所有者は対応行、値域、個別実行物と安全ポリシーの試験境界を決定。現行VM専用条件を変更せず実機操作は保留 | ファームウェアと実機受入 |
+| `D05-01` | [RAM測定](#ram実行と媒体解除の測定契約)に算定/参照解除案あり。固定ベースISOとboot設定、全参照の観測方法・測定条件/根拠が残る | ISO生成・媒体取外し |
+| `D05-02` | [Subiquity生成対応](#subiquity入力生成の対応表)に案あり。固定版でのstorage v2/ユーザーhelper、cloud-init用途制限との両立を確認して採用判断 | 物理OS導入 |
+| `D05-03` | [内蔵継続unit](#内蔵os継続unitと二回の起動証拠)に保存/再開/二回起動の案あり。実起動主体・同期/引渡し・権限の成立根拠と採用判断が残る | 媒体導入・保守 |
+| `D05-04` | FirmwareContractに案あり。実機の対応行/公式操作/値域とセキュリティの試験境界は未確定。VM専用規定を実機許可へ変更しない | firmware・復電受入 |
 
 各候補の所有者判断と共通契約の承認、非機能要求の確定が必要。本文案の作成は媒体・OS導入・実機対応の成立を示さず、製品試験は未実施。

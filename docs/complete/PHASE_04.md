@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B7`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B8`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB7）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB8）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -328,11 +328,82 @@ lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障
 
 ## 未決事項と成立判定
 
+### 配布取得と専用file-sink
+
+FetchRequestの候補全キーはrequest_id: OperationId、source: 検証済みHTTPS URL、destination_ref: 新規保存先ID、expected_bytes: 正整数、expected_sha256: hex64、kind: metadata/binary/iso、authentication_ref: stringまたはnull、allowed_redirects: 固定originの一意配列。URLはASCIIのhttps、DNS/IPv4/角括弧IPv6と明示port（省略443）、空でない/始まりpath、queryだけを受理し、userinfo/fragment/空白/制御文字/不正percent escapeを拒否する。保存path・自由curl optionは要求キーにしない。
+
+file-sinkの候補は親が保護directoryにcreate_newで開いた通常fileだけを渡し、開始時長0・同FS・nlink=1・対象実体固定を照合する。bodyを書ける実行物のworkerにLimitFSIZE=許可bytesを設定し、設定読戻しと上限+1の拒否試験を必要とする。LimitFSIZEは各fileのサイズ制限であり、総disk使用量制限ではない。stderr/capture/別file/子孫は別の量制約を維持し、disk予約と書込み失敗も検出する。子の終了・file同期・実長・SHA-256照合後だけFetchResultを生成する。renameで既存物を上書きしない。
+
+curlの全argv候補は、固定実行path、--disable、--globoff、--proto、=https、--proto-redir、=https、--connect-timeout、30、--max-time、残通常秒の十進値、--retry、0、--silent、--show-error、--fail、--max-filesize、許可bytes、--output、固定一時path、--write-out、固定書式、--url、検証済みURLの順。書式はhttp_code/size_download/redirect_urlを各一行とする。URL/pathは固定構築した一引数、--locationなし、cwdは当該作業directory、環境はLANG=C/LC_ALL=Cだけ、stdinは空。API認証が必要なら登録済み認証参照から生成したheaderをstdinへ渡す--header/@-の二引数だけを追加する候補とし、秘密値をargv/環境/記録へ置かない。
+
+redirect比較方式では3xxの応答を完成bodyへ昇格せず、Location由来のredirect_urlを元URLとの相対解決後に再検証する。origin許可・最大三段・循環・認証の非転送を全段に適用する。各段は新しい空の一時fileを使い、3xx bodyを最終payloadへ連結しない。固定write-outの量/行数/整数/URLを検証し、外部出力をコマンドとして評価しない。curlの非ゼロ、取得量の相違、HTTP 200以外の最終応答はFETCH_RESPONSE。採用版で全option・TLS・容量強制を実証するまで実行不可。
+
+metadataのplan/dry-run取得はP02のReadOnly文脈とメモリーcaptureだけで、file-sinkを作らない。gpgvへHTTPS由来のmanifestとdetached署名の二つのメモリー入力を渡す、temp file不要の実現契約は未選定である。gpgvの存在だけでこの制約を解消せず、候補の二入力配送と基本仕様の非保存条件の両立をD04-01へ明示的に残す。計画作成を理由に無承認の一時保存・署名検証省略を追加しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-39` | 128 MiB/+1のbody、第三/第四redirect、秘密header、metadata planでtemp必須 | 厳密量/三段制限/非公開stdin/方式未成立を照合。通常capture上限解除・認証転送・plan中の保存なし |
+
+### 公開鍵暗号化バックアップの形式候補
+
+第一比較候補をGnuPGの公開鍵暗号化とする。gpgvは署名検証用であり、この用途の代わりにしない。EncryptionBindingの全キー候補はmaterial: MaterialRef、recipient_primary_fingerprint: string、recipient_subkey_fingerprint: string、public_keyring_ref: string、decryption_ref: string、mode: cfb_mdc/ocb、cipher: AES256、format_version: 1、verification_ref: string。fingerprintはGnuPGの完全な値を検査してから固定し、短縮ID/メールアドレスによる鍵選択なし。暗号profileと固定版/鍵方式は安全ポリシーの採用対象とする。
+
+暗号化する平文container候補はmagicのASCII8bytes SSBK0001、続いてmanifest長のunsigned little-endian64bit、UTF-8のmanifest、昇順entryのfile内容を順に連結する。manifestの全キーはformat_version: 1、schema_version: 1、backup_id、source、profile、data_kind、entries、method、restore_ttl_seconds、recipient_primary_fingerprint、recipient_subkey_fingerprint。共通項目の型はBackupSetを参照し、destinationや秘密鍵参照は入れない。JSONはP02のキー順/escape、末尾LFなしで固定する。format_versionはcontainer形式、schema_versionはBackupSetの版として区別する。
+
+manifest長は1 MiB以下、entriesは最大4,096件、各fileは最大16 GiB、平文全量（16byte header+manifest+全file）は最大64 GiBを候補とする。directoryは内容0bytes。全量はchecked加算で暗号化前に算定し、実streamが宣言量と一致することを復号後にも検査する。各entryの実hash・順序を照合し、末尾の一byteでも余剰があれば拒否する。圧縮・tar・シンボリックリンク・外部URLを内包しない。別アプリの整合性はcontainerでは保証せずP06-DATAへ従う。暗号後容量の上界は選定するOpenPGP packet形式とchunk設定から別途証明する必要があり、平文64 GiBだけでfile-sink容量を確定しない。
+
+平文は対象側の固定entryから64 KiB以下のbufferで匿名pipeへ直列に送り、ディスク/USBに平文一時archiveを作らない。これは通常run_commandの1 MiB stdinとは別のBackupStream契約で、入力実量/最大量・同一性を全区間検査する専用adapter。buffer再利用と取得対象の固定を要求し、無制限Vecへ集めない。暗号化stdoutは保護されたfile-sink、status/診断はstderr各1 MiB上限へ分け、秘密断片を診断に転記しない。書込み中断・source変化は全体失敗とし、平文へのfallbackなし。
+
+暗号化argv候補は固定gpg path、--no-options、--homedir、公開鍵専用の固定home、--batch、--no-tty、--no-auto-key-retrieve、--auto-key-locate、clear、--no-default-recipient、--trust-model、always、--recipient、完全subkey fingerprintに!を付けた値、--personal-cipher-preferences、AES256、--compress-algo、none、--status-fd、2、--set-filename、空文字、--output、-、--encrypt。cwdは保護作業領域、環境はLANG=C/LC_ALL=Cだけ。alwaysは独立に検証した当該公開鍵だけの選択に限定する審査候補で、信頼根拠を省略する包括許可ではない。候補modeは鍵の能力/固定gpg版と照合し、異なるmode/cipherで生成された物を無条件受理しない。
+
+復号argv候補は固定gpg path、--no-options、--homedir、登録済み復号環境、--batch、--no-tty、--no-auto-key-retrieve、--auto-key-locate、clear、--status-fd、2、--max-output、平文許可bytes、--output、-、--decrypt、--、固定暗号物path。秘密鍵の解錠は安全なagent/token参照を必要とし、passphraseを引数/環境/設定へ渡さない。復号の途中出力は未検証であり、完全性成功前に本番復元へ使わない。隔離された非永続検証領域へ流し、全体検査後だけ復元計画へ渡す。
+
+[GnuPG操作](https://gnupg.org/documentation/manuals/gnupg/Operational-GPG-Commands.html)、[入力/出力](https://gnupg.org/documentation/manuals/gnupg/GPG-Input-and-Output.html)、[OpenPGP option](https://gnupg.org/documentation/manuals/gnupg/OpenPGP-Options.html)へ照合した候補。force-mdcは現在の資料では無効な旧optionであり、完全性の証明に使わない。終了0だけでなく、暗号処理完了・復号完全性・宣言cipher/mode・信頼済み保全物hash・全entryの対応を別に要求する。採用版のstatus全集合/packet互換・容量overheadの根拠は個別審査し、候補argvだけで使用可能にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-40` | 正常containerの往復、暗号文1byte破損、復号途中EOF、別recipient、余剰entry/末尾 | 完全性/鍵/内容対応を個別検査。不完全な復号の本番適用・平文保存・任意path復元なし |
+
+### 共通設定の復元確認方法
+
+configuration用の方法候補configuration-v1は、[管理ファイル一覧](../BASIC_SPEC.md#管理ファイル一覧)のconfig/policy/選択機能の設定、対応するversion/managed/machine-id、公開検証keyringと署名済みrelease検証情報を対象とする。選択機能の必須設定はP06/P07/P08の各validatorで決め、未適用機能のファイルを黙って採取しない。秘密鍵/認証token/アプリデータ/DB/実行中lock・PID・媒体の状態をこの方法へ追加しない。master用の固有情報はP08-BACKUPへ渡す。
+
+復元確認は新規の隔離rootへ全entryを復号し、実量/hash/属性を一対一照合→共通と構成別のvalidator→構成/revision/対象の横断整合→署名済み本体が各設定を読める診断、の順。ネットワーク接続や本番サービス起動を行わない。machine-id/managedの保存値は整合確認だけに使い、別機器の現在IDを上書きしない。実復元先が元root/アプリdataへ解決する場合はBACKUP_ISOLATIONで拒否する。
+
+この方法のTTL候補は86,400秒、通常は一日以内に復元確認を更新する。有効性にはTTLに加え、対象ID・構成・設定revision・方法/暗号/鍵参照・全設定content hashの一致を要求する。一項目の変化で旧verifiedを無効にし、TTL内でも新しい保全/確認が必要。アプリ/DB/masterデータへこの期限を一般化しない。別方法の有効期限は、その一意なデータ契約で確定した値を使う。
+
+復元確認が終わった隔離領域は、全子処理停止・証拠確定・参照が残らないことを確認した後、当該計画で作成した領域だけを閉じる。失敗/不明時は非公開で保全し、任意の再帰削除へ進まない。保持は自動削除なしを初期候補とし、容量不足では新しい保全/更新を停止する。保持期間と復元確認TTLを同じ意味にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-41` | 設定の隔離往復、TTL未満で設定hash変更、master情報をconfigurationへ混入、本番rootへの復元 | 同一物だけ有効、変更後無効、方法/隔離違反を拒否。共通期限のアプリ流用・ID上書き・失敗領域の無条件削除なし |
+
+### packageとunitの実行テンプレート
+
+外部adapter候補は次表の固定テンプレートだけとする。package名はDebianの名前規則と対象CPUを検証し、option開始・空白・wildcard・shell記号を受理しない。版は実際の署名付き採用package/indexへ完全一致、依存を含む変更予定package集合と版/取得元/容量をPlanへ固定する。自由なapt設定を利用者入力から受けない。
+
+| 操作 | argv候補と照合 |
+|---|---|
+| package観測 | 固定dpkg-query path、--show、--showformat=${db:Status-Abbrev}\\t${binary:Package}\\t${Version}\\n、--、package名。書式全体は一引数でshell評価しない。終了1の不在とDB読取り失敗を別扱い |
+| package計画 | 固定apt-get path、--simulate、--no-remove、--no-install-recommends、install、--、固定name=version列。locale固定、対象版の出力文法を検査し、未知行/追加変更/除去予定はblocked |
+| package適用 | 固定apt-get path、--assume-yes、--no-remove、--no-install-recommends、-o、Dpkg::Use-Pty=0、-o、DPkg::Lock::Timeout=0、-o、Dpkg::Options::=--force-confold、install、--、同じ固定name=version列。DEBIAN_FRONTEND=noninteractiveを明示。対話選択・消去確認の代行には使わない |
+| unit観測 | 固定systemctl path、--no-pager、--no-ask-password、show、--property=Id,LoadState,UnitFileState,ActiveState,SubState,FragmentPath、--、unit名。各key一件/未知/欠損を検査 |
+| unit変更 | 固定systemctl path、--no-pager、--no-ask-password、enable/disable/start/stop/reloadのうち計画した一語、--、unit名。任意のrestartへ置換しない |
+| 定義再読込み | 固定systemctl path、--no-pager、--no-ask-password、daemon-reload。変更したunit定義と全同居機能への影響が計画にある場合だけ一回 |
+
+unit名候補はASCII英数字で始まる英数字/underscore/dot/hyphen、128bytes以内、末尾.service/.timer/.sliceの一件とし、glob/空白/slash/任意instance展開は拒否する。file資源で固定した定義hashとFragmentPath、drop-inの検証を必要とする。enableとactiveは独立の状態で、起動要求0をactiveの証明にしない。
+
+cwd=/、基本環境LANG=C/LC_ALL=C/PATH=/usr/sbin:/usr/bin:/sbin:/bin、stdin空を候補とし、aptだけ表の非対話変数を追加する。PATHは選定済みOSの子コマンド集合に限定し、実行物の探索/動的追加の許可ではない。package全変更集合とDB/index/構成hashを適用直前に再照合し、別apt稼働・版変化・未知conffile選択があれば停止する。package操作は自動再投入/自動ダウングレード/除去0回。部分導入は実DBとjournalへ残し、元状態への復元可能性を個別に判定する。採用版の出力/依存/maintainer script副作用の契約が未評価なら、テンプレートがあっても適用可能とはしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-42` | simulateに未計画package/除去、適用前DB変更、enable成功/active失敗、未知drop-in | 計画破棄または実結果不成立。全体verified・apt自動再投入・未計画サービス再起動なし |
+
 | 判断ID | 残る具体化・採用判断 | 未達の影響 |
 |---|---|---|
-| `D04-01` | metadataメモリー/本体専用file-sinkとFetchResultを推奨。所有者は取得実行物・全argv・容量/停止の成立性・redirectが必要な公式取得先の扱いを決定。現行の非追従候補でGitHub取得成功を保証しない | 本体の準備・適用 |
-| `D04-02` | OS暗号実行物を第一、内製形式を第二候補として比較。所有者は暗号/鍵の担当ポリシー、保存形式、対象別隔離復元/TTL、保持・除去の条件を一括で決定する。候補作成は鍵運用/平文保存の承認ではない | 全バックアップ・復元・重要更新 |
-| `D04-03` | MigrationRuleの一意照合方式を推奨。所有者は実revision・対応する対象形式・不可逆性/復元方法を決定する。旧二択/構成変更を通常の同版行に紛れ込ませない | 更新・本体互換性 |
-| `D04-04` | 種別adapter・資源journalと拡張型を推奨。所有者は拡張形式版、全外部argv/例外、同期と復旧不能範囲を決定する。root固定D03-02の成立前にfile適用成功を認定しない | IaC適用と構成機能 |
+| `D04-01` | [配布取得](#配布取得と専用file-sink)に固定curl/redirect/sink案あり。ReadOnlyの二メモリー入力署名検証、強制容量/停止と固定版の成立根拠が残る | 資材準備・本体導入 |
+| `D04-02` | [公開鍵暗号形式](#公開鍵暗号化バックアップの形式候補)と[設定復元方法](#共通設定の復元確認方法)に案あり。GnuPGのpacket/cipher/mode/暗号量上界・鍵保護の採用、個別アプリ/master復元方法が残る | 保全・復元・重要更新 |
+| `D04-03` | MigrationRuleの照合案あり。実revisionと旧二択/三構成移行の全対応、不可逆性/復元条件と採用判断が残る | 更新互換性 |
+| `D04-04` | [package/unit](#packageとunitの実行テンプレート)に固定argv案あり。推移実行物/maintainer scriptの範囲、外部版と同期/復旧不能範囲の成立根拠が残る。root固定はD03-02 | IaC・構成適用 |
 
 共通契約の未承認、セキュリティ設定の未確定条件、外部依存の採用情報、非機能の定量条件も残る。これらに依存する契約は完全仕様未成立とし、文書案の検査を製品受入へ転用しない。
