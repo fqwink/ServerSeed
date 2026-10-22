@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B8`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B9`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB8）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB9）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -142,6 +142,10 @@ pub struct MaterialRef {
     bytes: u64, architecture: String,
 }
 pub enum MediaAction { Install, Adopt, Update, Backup, Recover }
+pub struct ReleaseArtifactRef {
+    release_version: String, binary_manifest_sha256: String, path: String,
+    sha256: String, bytes: u64, architecture: Option<String>,
+}
 pub enum HandoffStage {
     Prepared, TargetStarted, TargetVerified, ReadyForRemoval,
     BootPending, Complete, Failed, Unknown,
@@ -149,7 +153,7 @@ pub enum HandoffStage {
 pub struct RemovalResult {
     media_operation_id: OperationId, writes_complete: Option<bool>,
     sync_complete: Option<bool>, target_stopped: Option<bool>,
-    media_unmounted: Option<bool>, removable: bool, checks: Vec<Value>,
+    media_unmounted: Option<bool>, removable: bool, checks: Vec<Check>,
 }
 ```
 
@@ -157,7 +161,11 @@ MaterialRef.bytesは外部integerの上限をさらに適用し0を拒否する�
 
 ServerSeed自身の本体/manifest/署名を外部例外IDへ偽装しないため、独自成果物の参照候補をReleaseArtifactRefとして分ける。全項目はrelease_version・binary_manifest_sha256・path・sha256・bytes・architecture。前四つは既存の版/hash/配布ファイル名制約、bytesは正の共通整数、architectureは本体なら既存CPU値、それ以外の共通情報はnullとする。独自成果物は署名付きリリース集合との対応、MaterialRefは個別例外台帳との対応をそれぞれ検証する。どちらも名前一致だけを真正性根拠にせず、第三者資材へReleaseArtifactRefを割り当てて台帳照合を省略しない。
 
-RemovalResult.checksはP02-CLIのCheck形式へvalidatorで照合するValueだけを保持する。Option<bool>のNoneをfalseと同じ根拠へ潰さず、表示では「未確認」とする。HandoffRecordの実行前情報とtarget_receiptは異なる段階で確定し、target_started後の欠損を未実行へ戻す生成関数を設けない候補とする。
+RemovalResult.checksはP02-CLIの検証済みCheckだけを保持し、Valueのまま渡さない。必須IDはP05-HANDOFF/writes_complete・sync_complete・target_stopped・media_unmountedの4件で、同名boolのtrue/false/nullをそれぞれpass/fail/unknownへ対応させる。Option<bool>のNoneをfalseと同じ根拠へ潰さず、表示では「未確認」とする。HandoffRecordの実行前情報とtarget_receiptは異なる段階で確定し、target_started後の欠損を未実行へ戻す生成関数を設けない候補とする。4件の欠損・重複・boolとの矛盾をMEDIA_BINDINGで拒否する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-37` | media_unmounted=nullなのに対応Check=pass、必須4件中1件欠損 | MEDIA_BINDING、removableを生成しない。Value経由の型検査省略・不明の成功化なし |
 
 ## 状態と中断の詳細案
 
@@ -221,6 +229,12 @@ P05-MEDIAの入力をMediaRequestとして閉じる候補。対象OSへ渡す導
 installはaction=installだけ非null、既存OSへのadopt/update/backup/recoverではnull。selectionはinstall/adoptだけ必須、継続管理のupdate/backup/recoverはnullとして保存済み構成とplan.profileの一致を要求する。非nullのselectionはplan/target/profileがplanと一致する必要がある。backupが必要な操作は保全計画参照を省略できず、action=backupはbackup非null。確認は利用者の当該計画への応答で、USB接続や--yesで生成しない。MediaSelectionは画面入力、MediaRequestは検証後の配送値とし、確認文字列の収集結果を検証済みConfirmationに変換してから渡す。
 
 MediaRequestの検証候補順序は形式/版→actionごとのnull条件→target/Plan/Selectionの同一性→保存構成→必須の保全/確認→InstallPayload→操作前提とする。install/adoptはsetup計画、update/backup/recoverはそれぞれ当該操作の計画へだけ結合し、adoptにpartition工程を含めない。Confirmationのshown_digestはPlan.digestと完全一致、target_disk_idは再同定した対象、confirmed_atは計画作成以降かつ期限内を要求する。確認文字列の一致だけで別action・別計画への同意へ転用しない。失敗はMEDIA_INPUTまたはMEDIA_BINDING、選択不足は共通CLIの停止へ対応付け、Subiquity・保存・対象変更を呼ばない。
+
+保守操作は[P02-MODELのMaintenanceAction](PHASE_02.md#入力と保存形式の詳細案)とし、一般CLIのActionとは区別する。MediaActionのinstall/adoptはSetup、updateはUpdate、backupはBackup、recoverはRecoverへ一対一変換する。Plan/operation/historyのcommandは順にsetup/update/backup/recoverを保存する候補で、backupは媒体またはマスターの必須選択からだけ生成する内部操作名である。一般CLIにserverseed backupを追加せず、parse_argsの未知コマンド拒否を維持する。独立backupはupdateを実行せず、共通のbegin/finishとP04-BACKUPを使用する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-38` | 媒体でbackup選択、一般CLIでbackup指定、backup要求にupdate計画 | 独立保全/未知コマンド/結合拒否を区別。更新への置換・一般CLIの暗黙拡張なし |
 
 確認入力の具体候補ConfirmationInputはplan_responseとerase_responseの二キーだけ。短い確認コードは当該Plan.digestの先頭12桁とし、plan_responseは表示したAPPLYとspace一つとコードの完全一致を要求する。消去を含むPlanだけ追加でERASEとspace一つと同じコードをerase_responseへ入力させ、消去なしはnull。コードは[基本仕様の許す生成確認コード](../BASIC_SPEC.md#ディスク消去の確認表示)の具体化候補であり、シリアル等の必須表示は省略しない。大文字小文字変換・trim・--yes・媒体接続から応答を生成しない。Planが変われば両確認を失効させ、コード一致だけを計画の同一性・認証の証明にしない。
 
@@ -309,9 +323,17 @@ storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_boot
 
 ### 内蔵OS継続unitと二回の起動証拠
 
-継続unit候補の固定名はserverseed-media-continue.service、配置は対象の/etc/systemd/system/同名、実行本体は検証済み/usr/local/bin/serverseedとする。unitはType=oneshot、RemainAfterExit=yes、Restart=no、UMask=0077、WorkingDirectory=/、StandardInput=null、After=local-fs.target、WantedBy=multi-user.target。ExecStartは`/usr/local/bin/serverseed __internal media-continue --record /var/lib/serverseed/media-handoff.json`の固定argv。外部からrecord pathや追加actionを選ばせない。ログには固定診断IDだけを出し、要求/設定/鍵をjournalへ流さない。
+継続unit候補の固定名はserverseed-media-continue.service、配置は対象の/etc/systemd/system/同名、実行本体は検証済み/usr/local/bin/serverseedとする。unitはType=oneshot、RemainAfterExit=yes、Restart=no、UMask=0077、WorkingDirectory=/、StandardInput=null、After=local-fs.target、WantedBy=multi-user.target。ExecStartは`/usr/local/bin/serverseed __internal media-continue --stage prepare --record /var/lib/serverseed/media-handoff.json`の固定argv。外部からrecord pathや追加actionを選ばせない。ログには固定診断IDだけを出し、要求/設定/鍵をjournalへ流さない。
 
 同居機能の起動はこのunitの準備検査後に行う。pending記録がある場合は通常setup/updateを並行起動せず、継続workerが新しいguardとPID/bootを取得し、既存operation_id/plan_id/request/recipe/実配置と実対象を照合する専用resume_media契約へ渡す。これは一般beginによる中断上書きではない。recordがない正常運用では対象変更なしで終了、completeなら記録不変で通常起動へ渡す。unknown/failed/別対象/未対応版は通常変更を始めず復旧待ち。ConditionPathExistsだけで実行権限/採用済み計画を証明しない。
+
+prepareと通常サービスの実起動検証を同じoneshotで待ち合わせない。選択構成が管理する全通常unitにはRequires/After=serverseed-media-continue.serviceを生成し、prepare失敗時は起動させない。prepareは対象照合と許可された残りの構成準備までで終了し、通常unitのactiveを待たない。boot証拠の採取は別のserverseed-media-boot-verify.service（Type=oneshot、Restart=no、WantedBy=multi-user.target）から同じ内部入口の--stage verifyだけで行う。verifyはprepareと全通常unitをAfter/Wantsで列挙し、Requiresは付けず、起動失敗した通常unitも失敗として採取できるようにする。共通のUMask/cwd/stdin/秘匿化はprepareと同じ。
+
+verifyは新たなsetupを開始せず、操作別の照合guard下でboot証拠/継続位置だけを確定する。失敗・欠損・非稼働ならhandoff.completeにせずconsoleへ固定診断を表示する。prepareを成功に見せるためにサービス検査を省略せず、verifyから通常unitを再起動しない。両unitと依存辺を生成時に循環検査し、boot1/boot2後もcompleteの読み取りだけで正常終了できる状態を維持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-39` | prepare失敗、通常unit一件起動失敗、prepareが通常unit active待ちを要求 | 順に通常起動抑止/verifyで失敗保持/生成契約拒否。oneshotとサービスの循環待ち・失敗の完了化なし |
 
 BootProof候補の全キーはmedia_id、plan_id、target_operation_id、disk_id、root_identity、boot_id、observed_at、media_absent、required_services、checks。required_servicesは当該構成の固定unit名→実状態のmap、media_absentは採用観測器で確認したbool。boot1/boot2を対象側operations/OperationId/media-boot-1.jsonとmedia-boot-2.jsonへ同期する。boot2はboot1と異なるboot_id・同じdisk/root/操作を要求し、通常サービスと媒体非依存の全必須Checkを再検証する。同一bootの二観測やreboot要求の受付は二回目の証拠にしない。
 

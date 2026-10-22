@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B8`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B9`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB8）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB9）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -129,6 +129,13 @@ file内容は、組込み資材または検証済み保全領域にある不変b
 
 ```rust
 pub struct ContentRef(String);
+pub struct FileAttributes {
+    content_ref: ContentRef, content_bytes: u64, content_sha256: String,
+    uid: u32, gid: u32, mode: u16,
+}
+pub struct DirectoryAttributes { uid: u32, gid: u32, mode: u16 }
+pub enum AdoptionKind { New, Recorded, Confirmed }
+pub struct Adoption { kind: AdoptionKind, evidence_ref: Option<String> }
 pub enum ResourceAttributes { File(FileAttributes), Directory(DirectoryAttributes) }
 pub struct Resource {
     resource_id: String, owner: String, path: std::path::PathBuf,
@@ -140,6 +147,11 @@ pub struct ResourceObservation {
     resource_id: String, presence: Presence,
     attributes: Option<ResourceAttributes>, identity: Option<String>, reason: Option<String>,
 }
+pub enum ResourceAction { Unchanged, Create, Modify, Blocked }
+pub struct ResourceChange {
+    resource_id: String, action: ResourceAction, before: ResourceObservation,
+    after: ResourceAttributes, changed_attributes: Vec<String>, blocked_by: Vec<Diagnostic>,
+}
 pub struct ContentBlob { reference: ContentRef, bytes: Vec<u8>, sha256: String }
 pub fn resolve_content<'a>(reference: &ContentRef, available: &'a [ContentBlob])
     -> Result<&'a ContentBlob, ContractError>;
@@ -148,6 +160,12 @@ pub fn resolve_content<'a>(reference: &ContentRef, available: &'a [ContentBlob])
 resolve_contentは収集器が所有する検証済みContentBlob集合を借用する純粋な参照解決器候補。集合は組込み資材・検証済み保全物へ限定し、URL・任意path・未取得資材を登録しない。返却参照は集合より長生きできず、解決器は取得・hashコマンド・暗黙コピーを行わない。対応が0件または複数ならCONTENT_REFERENCE、長さ/hash不一致ならCONTENT_MISMATCH。資源のkindはenumから一意に求め、kindとattributesの不一致を構築時に拒否する。uid/gidはu32、modeは検証済みu16、外部の8進stringとの変換でも正確な桁・許可ビットを検証する。実ファイルの固定をこの型で代替しない。
 
 解析入力はvalidate_resourcesだけでValueから変換し、内部ではResourceSet・ResourceObservationを使う。型変換失敗時に観測・計画・適用を呼ばない。Planの形式・digest・全step payloadの採用判断はD03-03へ対応付ける。
+
+changed_attributesはfileならcontent/uid/gid/mode、directoryならuid/gid/modeの一意ASCII順集合とする候補。content_ref/bytes/hashの三項目を別々の部分変更へ分けずcontentとして一体比較する。before.presence=unknownはBlocked、AbsentはCreate、Presentで差なしはUnchanged、差ありはModifyだけを許可する。kind変更・未定義属性・不一致のactionをPLAN_RESOURCEで拒否する。Blockedには非空blocked_by、他actionには空blocked_byを要求する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-34` | directoryにcontent変更、unknownをCreate、同一属性をModify | PLAN_RESOURCE。部分contentの書換え、取得不能を不在へ変換、不要な再適用なし |
 
 ## 状態と中断の詳細案
 
@@ -242,6 +260,35 @@ P03-RESOURCEのvalidator→P03-FSの観測→純粋なdiff/plan→P04-APPLYの�
 
 PlanDraftはdigestを除くPlanの全検証済み値を所有する内部型で、配送・確認・保存のPlanとして使用できない候補。PlanDigestEvidenceの全項目はfixed_bytes: Vec<u8>、sha256: string、verification_ref: string。seal_planはdraftから同じ固定byte列を再生成して完全一致を確認し、採用済みhash検証契約の証拠と結合する。任意のhex64を渡すだけのsealや、空digestのPlanを適用器へ渡す経路を設けない。
 
+内部所有型の候補を次へ固定する。PlanBodyの各項目は[外部Plan形式](#入力と保存形式の詳細案)の同名キーへ平坦に出力し、body/identityという外部キーを新設しない。
+
+```rust
+pub struct PlanIdentity {
+    plan_id: PlanId, created_at: UtcMillis, command: String, target_state: String,
+    definition_revision: u32, profile: Option<Profile>, contracts: Vec<ContractRef>,
+    requires_confirmation: bool, requires_reboot: bool,
+}
+pub struct PlanBody {
+    schema_version: u32, identity: PlanIdentity, target: TargetEvidence,
+    resources: Vec<Resource>, observations: Vec<ResourceObservation>,
+    steps: Vec<PlanStep>, blocked_by: Vec<Diagnostic>,
+}
+pub struct PlanDraft { body: PlanBody }
+pub struct Plan { body: PlanBody, digest: String }
+pub struct PlanStep {
+    id: String, title: String, destructive: bool, requires_network: bool, required: bool,
+    contract: ContractRef, depends_on: Vec<String>,
+    resource_change: Option<ResourceChange>, payload: Option<StepPayload>,
+}
+pub struct PlanDigestEvidence { fixed_bytes: Vec<u8>, sha256: String, verification_ref: String }
+```
+
+schema_versionは1だけ。PlanBodyはvalidator/計画器が所有し、外部から無検証で作らせない。ResourceSet.targetを計画targetへ一度だけ移し、identityから別targetを受けない。command・profile・requires_confirmationは担当操作/必須選択と照合し、呼出元がfalseを指定しただけで確認不要にしない。seal後のbody変更は不可、変更には新しいPlanDraftと再封印/再確認を要求する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-33` | 封印後にprofile変更、外部JSONにbodyキー、対象の異なる資源集合を結合 | PLAN_PAYLOADまたは対象不一致。封印済み型の再利用・別形式の受理・確認省略なし |
+
 PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資源IDとは別の名前空間とする。全step ID・依存先は一意に解決し、資源一件は一stepにだけ結合する。非資源stepは担当契約のpayload validatorを必須とし、resource_change/payloadの両方null・両方非nullを拒否する。任意stepをrequired=falseにして必須の保全・検証・記録を省略することはできない。
 
 上記の型付きAPIを本案の唯一の内部境界とする。初期の観測器と純粋計画器は別module、将来の抽出でも模擬観測と実FS試験を分離する。新旧でResourceObservation全フィールド・差分・順序・blocked理由・固定byte列を比較し、root固定方式の変更時はP03-FSの反証試験を再実施する。
@@ -281,6 +328,25 @@ PlanStep.payloadの候補は下表の担当型だけとする。kindの選択は
 | 各担当の検証step | CheckStepPayload: check_ids（重複なしstring[]）、expected_refs（ContractRef[]）、execution_refs（ContractRef[]）。空集合・未採用の変更実行を検査と偽装した参照を拒否 |
 
 payloadの型は仕様上の担当フェーズが定義し、共通で運ぶdata型はsrc/core/model/payload.rsに置く候補。Coreからprofilesの実行器へ依存するenumにはしない。生成器は型付き値を検証してから固定JSONへ変換し、受信側は同じ契約のvalidatorで検証済み型へ戻す。入力と同じPlanを含む再帰payload、未知の自由object、二契約のキーの混在はPLAN_PAYLOADで拒否する。上記各型の採用・全外部実行契約が不足するstepはblockedを維持する。
+
+```rust
+pub enum StepPayload {
+    SelfChange(PreparedSelf), Update(UpdatePayload), Backup(BackupSet), Restore(RestoreRequest),
+    Package(PackageResource), Unit(UnitResource), MediaInstall(InstallPayload),
+    App(AppPlan), AppData(ApplicationDataMethod), MiningControl(ControlRequest),
+    MiningUpdate(MiningUpdateBinding), Registry(RegistryChange), Capacity(CapacityInput),
+    OsInstall(InstallStepPayload), Check(CheckStepPayload),
+}
+pub struct CheckStepPayload {
+    check_ids: Vec<String>, expected_refs: Vec<ContractRef>, execution_refs: Vec<ContractRef>,
+}
+```
+
+外部payloadにはvariantのtagを増やさず担当契約とstep区分から一意に復号する。CheckStepPayloadの全check_idsを担当の固定検査集合へ照合し、expected_refsは期待結果、execution_refsは非変更の採取/照合だけを許可する。StepPayload::Checkへ変更実行の契約を入れた場合はPLAN_PAYLOAD。型の参照閉包に未宣言の子型が一件でもあれば当該stepは未成立であり、enumの存在だけを閉包完成に数えない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-35` | Check payloadに更新実行参照、未登録check ID、外部variant tag | PLAN_PAYLOAD。検査名を根拠に変更を実行せず、未知キーを黙認しない |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

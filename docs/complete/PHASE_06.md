@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B8`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B9`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB8）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB9）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -130,11 +130,17 @@ HTTP検査の通信と[inspectの通信禁止](../POLICIES.md#読み取り専用
 
 ```rust
 pub enum HealthMethod { Http(HttpInput), Command(CommandInput) }
+pub struct HttpInput {
+    url: String, expected_status: Vec<u16>, timeout_seconds: u32, body_limit_bytes: u64,
+}
+pub struct CommandInput {
+    executable: std::path::PathBuf, args: Vec<String>, timeout_seconds: u32,
+}
 pub struct HealthInput { method: HealthMethod, interval_seconds: u32, attempts: u8 }
 pub enum HealthStatus { Pass, Fail, Unknown }
 pub struct HealthResult {
     name: String, status: HealthStatus, attempts_used: u8,
-    checks: Vec<Value>, error: Option<ContractError>,
+    checks: Vec<Check>, error: Option<Diagnostic>,
 }
 pub struct ServerConfig { schema_version: u32, operation_timeout_seconds: u32 }
 pub struct AppConfig {
@@ -142,6 +148,25 @@ pub struct AppConfig {
     healthcheck: HealthInput, backup: AppBackup,
 }
 pub struct AppBackup { required: bool, method: Option<ApplicationDataMethod> }
+pub struct ApplicationDataMethod {
+    contract: ContractRef, data_kind: String, consistency: String,
+    stop: Option<CommandInput>, capture: CommandInput, restore: CommandInput,
+    verify: CommandInput, restart: Option<CommandInput>,
+    restore_ttl_seconds: u32, isolated_target_ref: String,
+}
+pub struct ComposeEvidence {
+    name: String, project_name: String, compose_sha256: String, service_names: Vec<String>,
+    image_digests: std::collections::BTreeMap<String, String>, contract: ContractRef,
+}
+pub struct AppPlan {
+    name: String, project_name: String, compose_file: std::path::PathBuf,
+    compose_sha256: String, service_names: Vec<String>,
+    image_digests: std::collections::BTreeMap<String, String>, operation: String,
+    health: HealthInput, backup_method: Option<ContractRef>, resources: ResourceSet,
+}
+pub struct AppResult {
+    name: String, receipt: OperationReceipt, health: HealthResult, data_verified: Option<bool>,
+}
 pub struct ServerInput { config: ServerConfig, apps: Vec<AppConfig> }
 pub fn validate_server(config: &Value, apps: Option<&Value>)
     -> Result<ServerInput, ContractError>;
@@ -149,7 +174,19 @@ pub fn validate_server(config: &Value, apps: Option<&Value>)
 
 外部HealthInputのhttp/commandの片方が非nullという形式から一つのenumへ変換し、両方・両方なしを拒否する。HealthResult.attempts_usedは要求のattempts以下、開始前停止は0、開始済みで結果不明の試行も1回へ数える。検査結果不明を再試行未消費へ戻さない。ServerConfigはserver.yml候補のキー全集合とし、未知キー・null・未指定の補完なし。apps欠損は既存どおり空集合へ対応するが、読取り不能を欠損にしない。
 
+HealthResultのchecks/errorは[共通CLI型](PHASE_02.md#検査観測の固定集合)を使い、契約内部のContractErrorを外部Diagnosticの別形式として出さない。passはattempts_used>=1、error=None、全必須Check=passを必要とする。failは確定した不一致とDiagnostic、unknownは取得不能/停止不明のDiagnosticを必要とする。検査集合欠損をpassにせず、実開始した失敗試行数を保持する。初回pass後の余分な試行は行わない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-32` | attempts_used=0でpass、errorに未知キー、必須Check一件unknown | 応答validatorで拒否またはunknownを保持。Value経由の未検証出力・未実施成功なし |
+
 AppPlanのimage_digestsのRust表現は`BTreeMap<String, String>`。キーはCompose内のサービス名、値は固定したイメージdigest。サービス集合と完全一致が必要で、サービスが複数でも一つのdigestで代表しない。
+
+AppResult.nameとhealth.nameは対応するAppPlan.nameへ完全一致させる。OperationReceiptは親全stepを持つため、アプリ固有stepの対応はPlanStep.contractと担当アプリ名で照合し、他アプリの成功receiptを転用しない。data_verified=Noneは当該操作でデータ検証を要求しない明示根拠がある場合だけで、必要な検証が未実施ならSome(false)と未達Checkを保持する。判定不能はCheckのunknownへ残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-33` | app aへbのhealth、必須データ検証未実施なのにdata_verified=null | APP_BINDINGで応答拒否。正常な別アプリ結果・nullで検証不足を隠さない |
 
 ## 状態と中断の詳細案
 

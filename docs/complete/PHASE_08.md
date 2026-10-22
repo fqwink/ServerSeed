@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B8`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B9`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB8）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB9）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -127,7 +127,7 @@ configured/applied/verifiedは工程の検証済み事実で、verified=trueな�
 
 | ケースID | 区分・前提と入力 | 期待結果・確認方法 |
 |---|---|---|
-| `A08-09` | 異常。FeatureReadinessがserver/miningの2件だけ、またはmaster重複 | MasterReadiness.ready=false。欠損機能を省略した縮退成功なし |
+| `A08-09` | 異常。FeatureReadinessがserver/miningの2件だけ、またはmaster重複 | READINESS_INPUTでMasterReadinessを生成しない。欠損機能の補完・縮退成功なし |
 | `A08-10` | 正常。三機能の必須検査成功、target_count=0 | 機能の準備状態はready候補、遠隔接続・実行の成功証拠は0件として分離 |
 | `A08-11` | 境界。cpu_total=8、予約2/server2/mining4とmining5、加算overflow | 式は前者だけ成立。後者とoverflowは拒否。前者も最低資源・実負荷の未達を充足扱いにしない |
 | `A08-12` | 異常。同じ検証済み機器を別target_idへ登録、未確認要求ありで解除 | 重複登録・無確認解除を拒否。対象OSの削除を行わない |
@@ -145,6 +145,24 @@ pub struct RegistryEntry {
 }
 pub struct TargetRegistry {
     schema_version: u32, master_machine_id: MachineId, targets: Vec<RegistryEntry>,
+}
+pub struct FeatureReadiness {
+    feature: String, configured: bool, applied: bool, verified: bool,
+    status: String, checks: Vec<Check>,
+}
+pub struct MasterReadiness {
+    machine_id: MachineId, features: Vec<FeatureReadiness>, target_count: u32, ready: bool,
+}
+pub struct MasterProgress { receipt: OperationReceipt, features: Vec<FeatureReadiness> }
+pub struct CapacityInput {
+    cpu_total: u32, cpu_reserved: u32, cpu_server: u32, cpu_mining: u32,
+    memory_total_bytes: u64, memory_reserved_bytes: u64,
+    memory_server_bytes: u64, memory_mining_bytes: u64, evidence: TargetEvidence,
+}
+pub struct CapacityProfile {
+    profile_id: String, os_architecture_ref: String, workload_ref: String,
+    minimum_cpu_reserved: u32, minimum_memory_reserved_bytes: u64,
+    server_requirement_ref: String, mining_requirement_ref: String, measurement_ref: String,
 }
 pub struct RegistrySnapshot {
     registry: TargetRegistry, source_bytes: Vec<u8>, sha256: String, verification_ref: String,
@@ -239,6 +257,12 @@ P08-COHOSTの一操作内で各機能を直列に適用し、同じ共通guard�
 
 CapacityInputのcpu_*は論理CPU相当数の整数とし、既存の算定式・受入入力と同じ単位を使う。メモリーは同型のbyte整数式、ストレージはP04の操作別必要容量へ照合する。cgroup等の強制制限の実現性も検証対象とし、入力値の和だけで保証しない。最低資源・負荷プロファイルは所有者が対象機器で測定して決める未達である。
 
+CapacityInputのtotalを含む全数値は符号/範囲検証後にchecked加算し、予約+server+miningがtotal以下であることをCPU/memoryで独立に照合する。CapacityProfileの参照は同じtarget/OS/architecture/負荷の測定資料へ完全一致させる。測定値・最低要求・実効制限の取得不能を0へ補完せず、型上0が許される割当でも三機能の最低要求は別に満たす。論理CPU数のu32への変換overflowもCAPACITY_INPUTとする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-34` | 各CPU値はu32内だが和overflow、memory合計が1byte超過、別負荷profileの測定 | CAPACITY_INPUTまたは資源unknown。wrap/単位混用/別負荷の結果再利用なし |
+
 マスター喪失後は旧master_idの失効証拠と全pending要求の対象側照合を先に確定する。新しい物理マスターには新MachineIdを発行し、旧IDを自動継承しない候補。同じ対象への管理権限の切替は信頼ポリシーの審査対象で、旧主体を失効できないなら遠隔変更を再開しない。旧マスターを残した二台運用へ移行しない。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -285,7 +309,7 @@ P08-MASTERは台帳/対象選択、COHOSTは三機能の集約、BACKUPは管理
 |---|---|
 | list | registry_sha256: hex64、targets: RegistryEntry[]。一意なtarget_id昇順。不在/読取り不能は空一覧でなく開始前エラー |
 | add/remove | before_sha256・after_sha256: hex64、changed_target_ids: TargetId[]。一件だけ。dry-runのafterは予定byte列のhash、実保存済みと表示しない |
-| run | DeliveryRecord。配送前エラーは共通error_stage/prerequisites、配送開始後はRemoteFailureの既知位置を保持 |
+| run | delivery: DeliveryRecord、request_may_have_arrived: bool。配送前エラーは共通error_stage/prerequisites、配送開始後は下記の既知位置を保持 |
 | reconcile | ReconcileResult。記録不在/不明の根拠を保持し、成功したQueryを元操作成功へ変換しない |
 | help/解析/未実装 | P02-CLIの専用data。未知の語や入力file内容をmessageへ連結しない |
 
@@ -309,7 +333,22 @@ pub enum MasterInvocation {
     Run { target: TargetId, request_file: std::path::PathBuf },
     Reconcile { target: TargetId, request_id: OperationId },
 }
+pub enum MasterData {
+    List(MasterListData), Registry(MasterRegistryData),
+    Run(MasterRunData), Reconcile(ReconcileResult),
+}
+pub struct MasterListData { registry_sha256: String, targets: Vec<RegistryEntry> }
+pub struct MasterRegistryData {
+    before_sha256: String, after_sha256: String, changed_target_ids: Vec<TargetId>,
+}
+pub struct MasterRunData { delivery: DeliveryRecord, request_may_have_arrived: bool }
 ```
+
+各MasterDataをEnvelope.commandのmaster targets list/add/remove、master run、master reconcileへ対応させ、外部へvariant tagを追加しない。RemoteFailureは内部結果であり、生のContractErrorをdataへ直列化しない。配送開始後はそのdeliveryを保持し、未受理/到達不明でdeliveryがない場合だけ、検証済み要求のID/plan/hashからstatus=unknown・last_confirmed_status=null・operation_id=null・receipt=nullのDeliveryRecordを作る。これは受理の証拠を生成する処理ではない。errorは共通Diagnosticへ分類し、request_may_have_arrivedはP09の根拠に従い不明もtrue。開始後を開始前ErrorDataへ置換しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-33` | 送信途中EOFでRemoteFailure.deliveryなし、target/hashは既知 | runのunknownと到達可能性trueを返し、共通errorsへ分類。受理成功・自動再送・生内部エラー公開なし |
 
 ### 同居資源の測定と割当算定
 

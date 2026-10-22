@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B8`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B9`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB8）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB9）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -155,6 +155,38 @@ pub struct ActualCase {
     evidence: Vec<EvidenceRef>,
 }
 pub struct VerifiedEvidence { reference: EvidenceRef, verification_ref: String }
+pub struct EvidenceRef {
+    evidence_id: String, relative_path: String, sha256: String, bytes: u64,
+    commit: String, environment_id: String, scope_id: String,
+}
+pub struct ExpectedArtifact {
+    name: String, architecture: Option<String>, producer_contract: ContractRef, required: bool,
+}
+pub struct AcceptanceRow {
+    requirement_id: String, contract: ContractRef, case_id: String, architecture: String,
+    profile: Option<Profile>, entry: String, environment_ref: String, artifact_sha256: String,
+    expected_ref: String, result: String, actual_ref: Option<String>, reason: Option<String>,
+}
+pub struct AcceptanceMatrix {
+    schema_version: u32, implementation_commit: String, rows: Vec<AcceptanceRow>, complete: bool,
+}
+pub struct ArtifactEvidence {
+    name: String, sha256: String, bytes: u64, producer_ref: String, verification_refs: Vec<String>,
+}
+pub struct ReleaseEvidence {
+    schema_version: u32, tag: String, commit: String, build_environment_ref: String,
+    artifacts: Vec<ArtifactEvidence>, acceptance: AcceptanceMatrix, publishable: bool,
+}
+pub struct ReleaseSet {
+    schema_version: u32, tag: String, commit: String, manifest: EvidenceRef,
+    artifacts: Vec<EvidenceRef>, acceptance_scope: EvidenceRef, acceptance_result: EvidenceRef,
+    draft_release_id: Option<u64>,
+}
+pub struct ReleaseCheck { checks: Vec<Check>, publishable: bool }
+pub struct ReleaseDestination {
+    owner: String, repository: String, tag: String, target_commit: String,
+    release_id: Option<u64>, asset_ids: std::collections::BTreeMap<String, u64>,
+}
 pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>,
     catalog: &[VerifiedEvidence])
     -> Result<AcceptanceMatrix, ContractError>;
@@ -163,6 +195,12 @@ pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>,
 resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseのkeyに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。戻り値のcompleteは関数が算出し、呼出元のtrueを信頼しない。
 
 結合の候補順はrequirement_id・contract.contract_id・case_id・architecture・profile・entry・environment_refのUTF-8バイト辞書順で、profile=nullはstringより前とする。残るContractRef全項目・expected_ref・requiredも固定scopeと完全一致させ、同じ結合キーで内容だけ変えた行を受理しない。Scopeのcase_id集合は担当本文の全受入設計へ照合し、同一ケースの全直積を自動生成しない。各ケースの適用行/拒否行が未決ならscope未成立とし、集計器の成功と分ける。
+
+ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_refは同じ証拠のevidence_idだけを保持する。ActualCase.keyから既定の識別組を複写し、実結果を照合してrowを作る。参照を丸ごと別の自由stringへ直列化しない。not_runの実artifactが存在しない場合にゼロhashを生成せず、その行のartifact_sha256は期待する成果物hashとしてscopeの証拠から照合し、実取得の有無はactual_ref/evidenceで区別する。未確定の成果物を必要とするscopeは生成せず、document_draftの検査結果で製品scopeを補完しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A11-33` | expected_refのIDだけ一致しhash違い、not_runへ架空の実hash、publishable入力true | ACCEPT_EVIDENCEまたは公開不可。参照名・入力bool・未実施データの捏造による完了なし |
 
 集計内部は上記collect_acceptanceだけを使用し、別のValue返却APIを実装しない。verify_releaseも純粋評価に分離する。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
 
@@ -308,9 +346,39 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 
 ExpectedCaseの生成入力候補を`CaseBinding`の固定集合とする。全キーはcase_id・source（ContractRef）・requirement_ids（既存要件IDの空でない一意配列）・contracts（検証対象ContractRefの空でない一意配列）・execution_class・lanes・expected_ref。execution_classはdocument/pure/adapter/vm/hardwareの一つ。lanesの各要素はarchitecture/profile/entry/environment_ref/required/applicability_refの六キーで、CPU・構成・入口は本書の対応表へ照合する。applicability_refは適用/拒否/非適用を区別する固定根拠であり、能力未確認や未実施を非適用へ変換しない。
 
+```rust
+pub enum CaseExecutionClass { Document, Pure, Adapter, Vm, Hardware }
+pub struct CaseLane {
+    architecture: String, profile: Option<Profile>, entry: String,
+    environment_ref: String, required: bool, applicability_ref: ContractRef,
+}
+pub struct CaseBinding {
+    case_id: String, source: ContractRef, requirement_ids: Vec<String>,
+    contracts: Vec<ContractRef>, execution_class: CaseExecutionClass,
+    lanes: Vec<CaseLane>, expected_ref: EvidenceRef,
+}
+pub struct CaseCatalog { schema_version: u32, specification_commit: String, bindings: Vec<CaseBinding> }
+pub fn validate_case_catalog(input: &Value, sources: &[ContractRef])
+    -> Result<CaseCatalog, ContractError>;
+pub fn expand_expected_cases(catalog: &CaseCatalog)
+    -> Result<Vec<ExpectedCase>, ContractError>;
+```
+
+CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindings。両APIは検証済み参照と入力値だけを扱う純粋処理で、ファイル取得・時計取得・実試験を開始しない。sourceは担当受入行を含む節の固定参照、expected_refは期待内容の資料であり実結果ではない。lanesは空不可、同じ六値の重複を拒否し、同じ結合キーで根拠/requiredだけ違う行も競合とする。意味を未確認のままケース名の単語からclass/laneを自動認定しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A11-32` | 同一laneのrequiredだけ相違、空lanes、実結果から作ったexpected_ref | ACCEPT_SCOPE/ACCEPT_EVIDENCE。重複の後勝ち・空直積の完了化・期待と実結果の循環なし |
+
 検証順序は、担当本文に現存する全ケースID集合との完全一致→ID一意性→source/expectation/要件/契約の参照閉包→execution_classと環境の適合→全lane→ExpectedCase展開→結合キー重複と必要経路の不足、とする。展開は各Bindingのrequirement_ids×contracts×lanesだけを使い、全製品の無条件直積を作らない。ケースが複数の要件/契約を扱う場合も省略せず別行へ対応付ける。構文/純粋fixtureの実行成功を同じケースのVM/実機成功へ転写しない。
 
 仕様にケースを追加したときは、case_idをカタログへ追加してlane/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、展開後ExpectedCase 100,000行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
+
+専用入力は[P02-PARSEのparse_acceptance_json](PHASE_02.md#解析の入力と上限)へ一回だけ渡し、次に選択済みのCatalog/Scope validatorへ対応付ける。rootの自己申告で一般設定の用途を切り替えない。構文解析後の展開も同じ15秒の外側予算へ含め、行生成前のchecked乗算/加算で100,000行と論理512 MiBを検査する。入力byte/ノード/展開行の全上限を独立に満たす必要があり、100,000行が常に16 MiBへ収まるという保証ではない。超過時は部分scopeを返さない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A11-31` | 1 MiB超/16 MiB内のCatalog、同byte列を通常設定へ、展開100,001行 | 専用profileだけ解析可能、通常設定と行超過は拒否。汎用上限緩和・自動間引きなし |
 
 本項はカタログの全形式・展開/欠損検出の契約案である。実対象のenvironment_ref、各ケースの実行区分/lane、採用済み期待資料を揃えた全行の固定は未完了で、実施済みのAcceptanceScopeを捏造しない。D11-01の残りは集計器の型だけではなく、この固定集合と環境の成立根拠を含む。
 

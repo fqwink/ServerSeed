@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B8`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B9`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB8）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB9）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -138,6 +138,43 @@ service単位の復旧も[P02-STORE](PHASE_02.md#p02-store)の排他・未完了
 pub enum Engine { Cpu, Gpu }
 pub enum MonitorPhase { Preparing, Warming, Running, RetryWait, ThermalStop, Stopped, Unknown }
 pub enum ControlAction { None, Start, Stop, Restart }
+pub struct MiningSample {
+    engine: Engine, device_ids: Vec<String>, epoch: String, elapsed_ms: u64,
+    process_alive: Option<bool>, connected: Option<bool>, algorithm: Option<String>,
+    hashrate_milli: Option<u64>, temperature_milli_c: Option<i64>,
+    temperatures_by_device: std::collections::BTreeMap<String, Option<i64>>,
+}
+pub struct MonitorState {
+    engine: Engine, epoch: String, state: MonitorPhase, entered_ms: u64,
+    last_sample_ms: Option<u64>, attempts_used: u32,
+}
+pub struct ControlProposal {
+    engine: Engine, action: ControlAction, reason: String, sample_epoch: String,
+    sample_elapsed_ms: u64, state_before: MonitorPhase, state_after: MonitorPhase,
+}
+pub struct ControlRequest {
+    target: TargetEvidence, proposal: ControlProposal, config_sha256: String, request_id: String,
+}
+pub struct TemperaturePolicy { stop_milli_c: Option<i64>, resume_milli_c: Option<i64> }
+pub struct MonitorConfig {
+    interval_seconds: u32, warmup_seconds: u32, failure_seconds: u32,
+    retry_wait_seconds: u32, retry_limit: u32,
+    temperature_policies: std::collections::BTreeMap<String, TemperaturePolicy>,
+    temperature_stable_seconds: u32, temperature_unknown_action: String, allow_service_recovery: bool,
+}
+pub struct MaintenanceWindow {
+    timezone: String, start_minute: u16, end_minute: u16,
+    allow_auto_update: bool, allow_os_reboot: bool, update_targets: Vec<String>,
+}
+pub struct EngineConfig {
+    capability_ref: ContractRef, material_ref: MaterialRef, algorithm: String, pool: String,
+    wallet: String, backup_pools: Vec<String>, device_ids: Vec<String>, threads: Option<u32>,
+    power_milli_watts: Option<u64>, minimum_hashrate_milli: u64,
+}
+pub struct MiningConfig {
+    schema_version: u32, mode: String, cpu: Option<EngineConfig>, gpu: Option<EngineConfig>,
+    monitor: MonitorConfig, maintenance: MaintenanceWindow,
+}
 pub struct MonitorMemory {
     target: TargetEvidence, config_sha256: String,
     state: MonitorState, failure_since_ms: Option<u64>,
@@ -145,12 +182,18 @@ pub struct MonitorMemory {
     last_control_receipt: Option<String>, pending_control: Option<String>,
     reserved_retry: Option<String>, stop_latched: bool,
 }
+pub struct MiningUpdateBinding {
+    before_miner: MaterialRef, after_miner: MaterialRef,
+    before_config_sha256: String, after_config_sha256: String,
+    before_config_revision: u32, after_config_revision: u32,
+    capability_ref: ContractRef, restore_method: ContractRef, engines: Vec<Engine>,
+}
 pub struct ControlReceipt {
     request_id: String, epoch: String, action: ControlAction,
-    accepted: bool, started: Option<bool>, elapsed_ms: u64,
+    accepted: bool, started: Option<bool>, elapsed_ms: u64, steps: Vec<StepReceipt>,
 }
 pub struct Evaluation {
-    next: MonitorMemory, proposal: ControlProposal, checks: Vec<Value>,
+    next: MonitorMemory, proposal: ControlProposal, checks: Vec<Check>,
 }
 pub fn evaluate_monitor(previous: &MonitorMemory, sample: &MiningSample, config: &MiningConfig)
     -> Result<Evaluation, ContractError>;
@@ -160,7 +203,19 @@ pub fn observe_control(previous: &MonitorMemory, request: &ControlRequest, recei
 
 MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#データ契約の具体化案)へ参照し、engineはEngine、時刻は検証済みu64、温度はi64、hashrateはu64を内部表現にする。外部整数の上限も保持する。evaluate_monitorは純粋処理で、observe_controlだけが検証済み要求・実施receiptを照合して次状態を生成する。last_control_receiptは重複消費防止用ID、pending_controlは未確定の要求ID。提案を出しただけでは回数・開始時刻を確定しない。
 
+MiningConfig/MonitorConfigのString列挙と整数は[入力形式](#入力と保存形式の詳細案)の範囲へ検証し、Rust型の全値域を許可しない。ControlProposal.state_beforeは入力memory.state.stateへ一致させ、state_afterは純粋評価のnextと一致させる。前提が違うproposalをcontrolへ渡さず、機器別温度の集合欠損を総合温度だけで補わない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-38` | proposalのstate_beforeだけ相違、u32内だが設定の秒上限超過、温度の機器一件欠損 | MONITOR_INPUT/設定拒否/unknown。型変換だけの検証済み認定・総合温度への代替なし |
+
 監視器内部のAPI候補は上記に統一する。MonitorMemoryの保存・再起動後の継承は別の契約が必要で、経過時刻の値だけを永続化して同じepochとして復元しない。
+
+MonitorState.entered_msはengine/epoch/stateの組が変わった試料時刻だけで更新する。同じretry_waitを継続する正常な試料では不変、last_sample_msだけを進める。最初の状態は明示セッション開始時刻、時刻逆行/epoch不一致では既定のunknown処理へ移し、旧epochのentered_msを新しい待機計算へ使わない。failure_since/cool_since/healthy_sinceはそれぞれの連続条件の開始時刻であってentered_msの別名ではない。checksは検証済み共通Checkだけを返す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-36` | retry_wait entered=1000、試料2000/3000/6000、待機5秒 | enteredは1000のまま、6000でだけ期限条件成立。試料ごとの待機延長・連続条件の時刻混用なし |
 
 保存レコードが対応する操作/計画の対象と設定hashを、MonitorMemory.target/config_sha256へ復元時に照合する候補。レコードに未定義のトップレベルtargetを追加せず、対応する操作記録を取得できなければ復元を保留する。要求の照合はこの確認済み値を参照し、request自身のtarget/hashだけで正しさを認定しない。設定変更は新しい監視セッションの明示確認と保存互換の審査へ戻し、記憶内のhashだけを差し替えて旧receiptを再利用しない。
 
@@ -168,9 +223,19 @@ MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#�
 
 ControlRequest候補の全項目はtarget（TargetEvidence）・proposal（ControlProposal）・config_sha256・request_id。request_idは本書のengine/epoch/sample_elapsed_ms/action/config_sha256の組を一意に束縛する参照で、衝突時はMONITOR_COLLISION。evaluate_monitorは一試料につき状態表を上から一度だけ評価し、未確定要求中・保持中・unknownの条件を後段の正常試料で上書きしない。observe_controlは同じ要求ID/epoch/actionを一度だけ消費し、別要求のreceiptはMONITOR_RECEIPTとして状態不変で拒否する。制御開始後の失敗では実開始の確証または未確認をpartialへ保持し、再試行枠を未消費へ戻さない。
 
+ControlReceiptのstepsはStartならcontrol.start、Stopならcontrol.stop、Restartならcontrol.stop/control.startの順に全工程を保持する候補。各StepReceiptは同じP07-RUN契約/要求へ結合し、拒否/後続未開始もnot_startedとして省略しない。accepted/startedは要求全体の受付/変更開始であり、実起動確認はcontrol.startのverifiedと必須Checkの成功から照合する。observe_controlはreceipt.stepsからこの証拠を検査し、外側のstarted=trueだけでwarmingへ進めない。stopだけ開始後の失敗は回数を消費した停止/不明として保持する。
+
 observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/epoch/actionと保存memory、request.config_sha256と固定設定を照合する候補。同じIDでも別対象・設定・試料に束縛されている要求は拒否する。accepted=falseならstarted=false、accepted=trueでもstarted=nullは未確認としてpendingを保持し、started=trueの確認なしでwarmingへ遷移しない。初回以外の開始可能性が残る場合は回数を保守的に予約し、実開始なしの確証なしに枠を再利用しない。
 
 制御receiptの候補照合ではelapsed_msを要求試料のelapsed_ms以上かつ同じepochへ限定する。action=noneからControlRequestを生成せず、noneのreceiptもMONITOR_RECEIPT。accepted=false/started=falseは未開始の確証としてpendingを解除するが、処理済みrequest_idを保持して同じ試料の再発行・再消費を防ぐ。stopのstarted=trueは停止要求の開始だけで、process_alive=false等の実停止確認なしに停止完了としない。start/restartの開始とstopの開始は別の遷移へ結び付け、stopのreceiptからwarmingを作らない。
+
+RestartはOSの未定義なrestart argvへ直結せず、同一要求・guard・120秒の親予算内でStop→実停止確認→Start→実開始確認の二工程へ分解する候補。対象は同じengineの固定unitだけ、P04のunit stop/start実行契約を再利用する。stop失敗/停止不明ではstartを呼ばず、start未開始の確証と停止済み事実を別に保持する。制御全体のstartedは最初の変更要求を実際に開始した時点でtrueとし、再試行枠を消費する。warmingへの遷移にはさらにstart工程の実開始証拠が必要で、集約receiptのstarted=trueだけでは足りない。stop/startの各StepReceiptと検証参照をControlLedgerへ結合する。
+
+二工程とも同じ外側期限を使い、各工程へ120秒を新たに与えない。親の停止/記録予約を差し引いて次工程の開始可否を判定する。stop成功後に残量不足なら停止済みの失敗位置を保持し、自動start・元稼働への無確認復帰を行わない。None/Start/StopをRestartへ自動昇格させない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-37` | restartでstop開始後不明、stop完了後に予算不足、start開始確証なし | start0回/停止済み失敗/warming不可。再試行枠を未消費へ戻さず、二重予算・任意restart argvなし |
 
 ## 状態と中断の詳細案
 
@@ -201,7 +266,11 @@ observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/ep
 | thermal_stop、連続安定期間成立・許可あり・残回数あり・保持なし | start提案。受理結果まではthermal_stop |
 | 上記以外で許可・必須値が不足 | 現状態を保持しnone。理由をchecksへ残す |
 
-start/restartの受理と実開始を同じ要求IDで確認してからwarmingへ遷移する。通常の初回開始を除き、障害restartと温度停止後の自動startはいずれも1回を消費する候補。拒否・未開始の確証では消費せず、開始後の結果不明は消費済み・unknownとする。受理済みで開始自体が不明ならpending_controlを保持して照合まで次の制御を始めない。同じreceiptは再消費しない。retry_wait中の自然解消も、保持なし・未確定要求なしで起動不要と確認できる場合だけrunningへ戻る。
+start/restartの受理とcontrol.startの実起動証拠を同じ要求IDで確認してからwarmingへ遷移する。通常の初回開始を除き、障害restartと温度停止後の自動startはいずれも最初の変更工程開始で1回を消費する候補。拒否・全工程未開始の確証では消費せず、開始後の結果不明は消費済み・unknownとする。受理済みで開始自体が不明ならpending_controlを保持して照合まで次の制御を始めない。同じreceiptは再消費しない。retry_wait中の自然解消も、保持なし・未確定要求なしで起動不要と確認できる場合だけrunningへ戻る。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-39` | restartのstarted=true、control.stopだけverified、control.start=not_started | 一回の消費と停止済み位置を保持、warming不可。observe_controlは同じreceiptの工程証拠を必要とする |
 
 正常継続・過熱/冷却・プロセス再起動・自動的なepoch変更では回数やstop_latchedを解除しない候補。リセットは運用上の明示選択・必要確認を経た新しい監視セッションだけとし、開発の仕様採用承認とは区別する。ControlReceiptの対象・epoch・要求ID・時刻・実状態の対応が不明ならunknownを維持し、receiptの自己申告だけで実開始を認定しない。
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B8`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B9`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB8）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB9）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -45,6 +45,27 @@ OSパッケージ操作は1回3,600秒以内、サービス操作は1回120秒�
 移行の審査入力候補MigrationRuleはsource_profile・target_profile・source_config_revision・target_config_revision・source_migration_revision・target_migration_revision・method・reversible・restore_methodを全キーとする。構成は既存enum、revisionはP02共通範囲、methodはContractRef、reversibleはbool、restore_methodだけnull可。reversible=trueなら復元方法と新旧双方の読取り互換が必須。適用済み版と一致する行が0件または複数ならblocked。同じ採用版への無変更行とデータ移行行を区別し、版の大小から変換を推測しない。具体的revision値は所有者の別採用を必要とする。
 
 MigrationRuleの候補照合はsourceの三値（構成/config/migration）と計画で固定したtargetの三値の完全一致とする。通常updateではsource_profile=target_profileが必須で、構成変更の行を選択しない。self単独では行を実行せず現在revisionの互換範囲だけを判定する。無変更行もmethodが指定する非変更検証を通す。不可逆行は保全・復元可能な範囲と不可逆な損失を計画へ明示し、reversible=falseを保護免除にしない。開始後の失敗は移行後の実形式・revision・step位置を記録し、設定の数値だけを旧値へ戻さない。
+
+```rust
+pub enum UpdateLayer { Os, Configuration, Application, Miner, Body }
+pub enum UpdateMaterial { External(MaterialRef), Owned(ReleaseArtifactRef) }
+pub struct UpdatePayload {
+    layers: Vec<UpdateLayer>, materials: Vec<UpdateMaterial>,
+    migration: Option<MigrationRule>, backup_id: Option<OperationId>,
+}
+pub struct MigrationRule {
+    source_profile: Profile, target_profile: Profile,
+    source_config_revision: u32, target_config_revision: u32,
+    source_migration_revision: u32, target_migration_revision: u32,
+    method: ContractRef, reversible: bool, restore_method: Option<ContractRef>,
+}
+```
+
+UpdatePayloadは子stepの索引であり、それ自身から同じupdateを再帰実行しない。layersは上記宣言順の一意集合、materialsは参照種別と固定識別子で一意とし、消去/OS再導入を含めない。bodyだけのself操作は本payloadでなくPreparedSelfを使う。通常update内のbody子stepは最後の変更stepだけに対応させる。migration=Noneはrevision不変のときだけ、backup_id=Noneは該当層の保全が明示非適用である根拠があるときだけ許可し、未取得の保全をNoneにしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-44` | revision変更でmigration=None、body後にapp変更、updateの自己呼出し | UPDATE_BINDINGで変更前拒否。独立selfとの混同・保全未取得の非適用化・再帰実行なし |
 
 ## P04-BACKUP
 
@@ -161,6 +182,38 @@ BackupReceipt.restoreは[P06-DATA](PHASE_06.md#p06-data)・[P08-BACKUP](PHASE_08
 ```rust
 pub enum StepPhase { NotStarted, Started, Applied, Verified, Failed, Unknown }
 pub enum RecoveryAvailability { NotNeeded, Available, Unavailable, Unknown }
+pub enum SelfAction { Install, Update, Uninstall, Recover }
+pub struct PackageResource {
+    resource_id: String, owner: String, package_name: String, exact_version: String,
+    adoption: Adoption, depends_on: Vec<String>,
+}
+pub struct UnitResource {
+    resource_id: String, owner: String, unit_name: String, definition_ref: ContentRef,
+    enabled: bool, active: bool, reload_required: bool,
+    adoption: Adoption, depends_on: Vec<String>,
+}
+pub struct PreparedSelf {
+    target: TargetEvidence, plan_id: PlanId, action: SelfAction, release_version: String,
+    binary_sha256: Option<String>, metadata_sha256: String, source: Option<String>, checks: Vec<Check>,
+}
+pub struct StepReceipt {
+    step_id: String, contract: ContractRef, phase: StepPhase,
+    before_ref: Option<String>, after_ref: Option<String>, backup_ref: Option<String>,
+    checks: Vec<Check>, error: Option<Diagnostic>,
+}
+pub struct OperationReceipt {
+    operation_id: OperationId, plan_id: PlanId, target: TargetEvidence,
+    steps: Vec<StepReceipt>, recovery: RecoveryAvailability, record: RecordReceipt, checks: Vec<Check>,
+}
+pub struct RestoreEvidence {
+    method_ref: ContractRef, artifact_sha256: String, target_ref: String,
+    verified_at: UtcMillis, valid_until: UtcMillis, checks: Vec<Check>, verified: bool,
+}
+pub struct BackupReceipt {
+    backup_id: OperationId, operation_id: OperationId, target: TargetEvidence,
+    profile: Profile, data_kind: String, location: String,
+    bytes: u64, sha256: String, restore: RestoreEvidence,
+}
 pub struct BackupRequest {
     target: TargetEvidence, profile: Profile, data_kind: String,
     destination: BackupDestination, method: ContractRef,
@@ -169,6 +222,25 @@ pub struct BackupRequest {
 pub struct BackupDestination {
     device_id: String, filesystem_id: String, path: std::path::PathBuf,
     expected_available_bytes: u64, artifact_name: String,
+}
+pub enum BackupEntryKind { File, Directory }
+pub struct BackupEntry {
+    entry_id: String, relative_path: String, kind: BackupEntryKind,
+    bytes: u64, sha256: Option<String>, mode: u16, uid: u32, gid: u32,
+}
+pub struct BackupSet {
+    schema_version: u32, backup_id: OperationId, source: TargetEvidence,
+    profile: Profile, data_kind: String, entries: Vec<BackupEntry>,
+    method: ContractRef, destination: BackupDestination, restore_ttl_seconds: u32,
+}
+pub struct ResourceJournalEntry {
+    resource_id: String, step_id: String, sequence: u32, phase: StepPhase,
+    before: ResourceObservation, expected: Resource, backup_ref: Option<String>,
+    after: Option<ResourceObservation>, error: Option<Diagnostic>,
+}
+pub struct ResourceJournal {
+    schema_version: u32, operation_id: OperationId, plan_id: PlanId,
+    target: TargetEvidence, entries: Vec<ResourceJournalEntry>,
 }
 pub struct RestoreRequest {
     source: BackupReceipt, destination: TargetEvidence, method: ContractRef,
@@ -189,6 +261,12 @@ pub fn apply_resources(ctx: &mut ExecutionContext, plan: &Plan)
 ```
 
 BackupRequest.profileは構成選択済みのデータ保全だけを対象とする候補。本体専用の退避は既存selfトランザクションの責務とし、架空のprofileでBackupReceiptを生成しない。BackupDestinationは保存先の識別済み値であり、そのパスを復元時の書込み先へ無条件転用しない。BackupProgressは途中位置を持ち、正式なBackupReceiptは全保存・復元確認の成功後だけSomeとする。stageの遷移と一時物の取扱いは中断契約の採用対象として具体化し、未完了の保存物を正常なreceiptへ変換しない。
+
+BackupReceipt.backup_idはBackupRequest.backup_idと同じOperationId形式で、親operation_idと同一である必要はない。sha256は保存した暗号物、restore.artifact_sha256も同じ暗号物へ一致させる。検証前の平文hashをその欄へ代入しない。子OperationReceipt.recordは[P02のRecordReceipt](PHASE_02.md#記録確定と実行結果)を参照し、親finish前のprepared/history_committedをcompleteへ補完しない。step失敗時はerror必須、verified時はerrorなし・担当必須checks成功が必要。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-43` | 子だけverified、親recordはprepared、保存暗号hashとrestore参照hashが異なる | 親完了不可、BackupReceipt拒否。子の成功と親記録確定・復元対象を混同しない |
 
 ## 状態と中断の詳細案
 
@@ -255,6 +333,12 @@ restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測�
 BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各pathは空でない相対成分列で、directory自身のbytes=0・sha256=null、fileは実byte数/hashを必須とする。親directoryを含むことを未列挙の子の取得許可にしない。復元時は全entryと保全物の版/暗号/方法を先に検証し、全pathの出力先を固定してから変更する。復元確認が失敗した保存物は参照と検証失敗をBackupProgressへ残すが、正式BackupReceiptは生成しない。verified=falseの途中結果は成功receiptではなく検査証拠として扱い、更新前提にも保持期限による削除根拠にも使用しない。
 
 BackupEntryの親子検証候補は、pathの成分列を比較して重複を拒否し、列挙したfileの配下へ別entryが存在する場合も拒否する。列挙directory配下は明示したentryだけを取得し、再帰探索で未管理データを追加しない。検査から取得までに種別・同一性・内容が変わったらBACKUP_CHANGED。総量はfileのbytesのchecked合計に形式/暗号/作業領域を加えてFS別に計算し、暗号形式の上限が未確定なら容量検査を成功にしない。
+
+BackupSet→BackupRequestはsourceをtargetへ改名して移す唯一の内部変換とし、schema_versionを検証してから残る値を無変更で移す。target識別やentriesを再収集して別内容へ差し替えない。ResourceJournalEntry.expectedはResource全体、afterは実観測であり、期待値をafterへ複製して適用成功を捏造しない。journalのentriesは資源stepのsequence順、欠損を未開始と推測して新しい空行を自動作成しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-45` | BackupSet.sourceと変換後target不一致、directoryにhash、未観測afterへexpectedを複製 | 変換/型/証拠不一致で拒否。別対象保全・暗黙取得・期待値だけの適用成功なし |
 
 保存先名の候補はartifact_nameをbackup_idの表記そのものへ固定し、拡張子・任意の利用者名・path成分を追加しない。形式の識別は保存内容の採用版/方法で行い、名前から暗号方式を推測しない。保存先directoryと取得する全entryについて実device/FSを照合し、sourceの取得範囲内へ解決する保存先、同じ消去予定disk上の保存先、同一性不明をBACKUP_DESTINATIONで拒否する。expected_available_bytesは観測証拠であって実容量の保証ではなく、書込み前の再測定と実書込み時の失敗を検出する。既存同名を新しい保全物で上書きしない。
 

@@ -32,7 +32,7 @@ CPU・GPUのサービス分離は[マイニングの実行基盤](../PRINCIPLES.
 |---|---|
 | 設定・pool・許可・時間帯・温度入力 | [Phase 7の入力形式](../complete/PHASE_07.md#入力と保存形式の詳細案) |
 | 状態遷移と観測不明時の優先順 | [単一状態表](../complete/PHASE_07.md#状態と中断の詳細案) |
-| 監視APIと対象/epoch/receipt | [型/API](../complete/PHASE_07.md#型とapiの詳細案) |
+| 全設定型・監視API・待機時刻・停止/開始のreceipt | [型/API](../complete/PHASE_07.md#型とapiの詳細案) |
 | 永続記録・再試行の予約と消費 | [監視記録](../complete/PHASE_07.md#監視記録の保存と再同定) |
 | 機器同定・能力行・対応認定 | [機器検出](../complete/PHASE_07.md#機器検出と採用能力行の区分)、[DeviceCapability](../complete/PHASE_07.md#依存と受入の確定候補) |
 | 更新前後の資材・設定 | [MiningUpdateBinding](../complete/PHASE_07.md#p07-update) |

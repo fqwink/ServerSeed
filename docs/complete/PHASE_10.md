@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B8`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B9`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB8）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB9）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -30,7 +30,7 @@
 
 導入機構の第一候補は、対応する一時環境からUbuntu公式の導入基盤を起動し、確認済み設定で対象へ適用する方式。別候補は公式root filesystem資材の展開と起動構成だが、追加の責務・復旧・資材検証が必要になる。どちらも採用・動作確認済みではない。対応する実行環境、実行物、資材、ブート能力は`D10-01`で比較・決定し、Ubuntu以外の実行環境を根拠なく使用可能・一律対象外にしない。
 
-導入方式の選定入力候補InstallerBindingはkind: A/B、execution_contract: ContractRef、materials: MaterialRef[]、execution_environment_ref: string、supported_architectures・supported_boot_modes: string[]を全キーとする。能力行はこの一件と実環境を照合し、方式ごとに固定工程と外部実行/期待結果を対応付ける。第一候補はA、Aの公式対応/非対話契約が成立しない場合は自動でBへ移らず所有者へ選定を戻す。Bを採るなら展開/FS/loader/network/userの全契約を別に揃える。SSH以外の入口を増やさず、実行環境の必要能力と対象OSの対応を別に判定する。
+導入方式の選定入力候補InstallerBindingはkind: A/B、adapter: curtin/direct、execution_contract: ContractRef、materials: MaterialRef[]、execution_environment_ref: string、supported_architectures・supported_boot_modes: string[]を全キーとする。kind=Aはadapter=curtin、Bはdirectだけを許可する。能力行はこの一件と実環境を照合し、方式ごとに固定工程と外部実行/期待結果を対応付ける。第一候補はA、Aの公式対応/非対話契約が成立しない場合は自動でBへ移らず所有者へ選定を戻す。Bを採るなら展開/FS/loader/network/userの全契約を別に揃える。SSH以外の入口を増やさず、実行環境の必要能力と対象OSの対応を別に判定する。
 
 能力評価の候補順序は実行環境同定→選定済みInstallerBinding一件→必要実行物と資材→権限→対象ストレージの除外/識別→消去外の記録/排他→起動能力→導入後の管理経路。BootstrapCapability.checksは六つの能力検査に加え、その根拠となるP10-OS/journal.durableを明示参照する。未確定のinstaller_refや必須Check欠損はinstallable=falseとし、判定不能を非適用へ落とさない。実行環境が非Ubuntuでも対象OSの対応判定を流用せず、選定済みexecution_contractへの一致だけで能力可否を決める。方式の自動選択・不足コマンドの無承認導入は行わない。
 
@@ -151,6 +151,24 @@ pub struct NetworkInput {
 }
 pub struct UserInput { name: String, public_keys: Vec<String>, privilege_method: String }
 pub enum InstallEntry { Media, SshBootstrap }
+pub struct BootstrapCapability {
+    target: TargetEvidence, installer_ref: Option<ContractRef>, checks: Vec<Check>, installable: bool,
+}
+pub struct InstallStage {
+    name: String, status: String, evidence_ref: Option<String>, error: Option<Diagnostic>,
+}
+pub struct InstallProgress {
+    plan_id: PlanId, operation_id: OperationId, target: TargetEvidence,
+    stages: Vec<InstallStage>, reconnect: Option<ReconcileResult>,
+}
+pub enum InstallerKind { A, B }
+pub enum InstallerAdapter { Curtin, Direct }
+pub struct InstallerBinding {
+    kind: InstallerKind, adapter: InstallerAdapter, execution_contract: ContractRef,
+    materials: Vec<MaterialRef>, execution_environment_ref: String,
+    supported_architectures: Vec<String>, supported_boot_modes: Vec<String>,
+}
+pub struct InstallStepPayload { install: InstallPayload, binding: InstallerBinding }
 pub struct BootInput { mode: String, loader_material: MaterialRef, next_endpoint: Option<String> }
 pub struct InstallPayload {
     storage: StorageInput, network: NetworkInput, user: UserInput, boot: BootInput,
@@ -162,6 +180,12 @@ pub fn validate_install_payload(input: &Value, capability: &BootstrapCapability,
 許容候補はlayout=`whole_disk_uefi`または`whole_disk_bios`、network.method=`dhcp`または`static`。UEFI/BIOSは対象の確認済み方式と一致させ、未確認を既定方式へ補完しない。dhcpはaddresses/dnsが空でgateway=null、staticはアドレス1件以上・DNS1件以上とし、IP族・prefix・gatewayの到達条件は方式別外部契約で検証する。DHCP成功を導入後の接続先固定の証明にしない。
 
 UserInputは秘密値を含めず、管理ユーザー名・公開鍵・選定した昇格方式の識別だけを保持する。対象ユーザー名の候補範囲は`[a-z_][a-z0-9_-]{0,31}`、rootは拒否、公開鍵は空集合不可。鍵の形式検証・昇格の実現性・ネットワーク生成・レイアウト内のパーティション寸法は未決として明示し、String型を自由入力の許可にしない。検証不能なら消去前停止。物理媒体の導入入力へ共通化する範囲も、Subiquityの正式契約へ照合してから決定する。
+
+InstallProgress.stagesは固定十工程を定義順でちょうど一件ずつ保持する。後続not_startedを削除せず、statusは既定の五値だけ、verifiedには根拠evidence_ref、failedにはDiagnosticを必要とする。reconnect=Noneは未実施/未確認であり成功を示さない。BootstrapCapability.installableの入力boolは信用せず必須Check集合から再算定する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-33` | installable=trueだが能力一件unknown、工程一件欠損、根拠なしverified | INSTALL_BINDING。bool・型名・省略した工程で導入可/完了を認定しない |
 
 ## 状態と中断の詳細案
 
@@ -290,7 +314,11 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 
 ### Curtin adapterの比較入力
 
-導入機構Aの具体候補をCanonical Curtinとし、InstallerBindingのmethodを`curtin`、execution_contractを採用版・実行環境ごとのContractRefへ束縛する。候補argvは`curtin --config <固定設定path> --log-file <固定log path> install`、cwdは専用作業領域、stdinは空、環境は固定LANG/LC_ALL/PATHのみ。自動依存導入のoption、自由なshell command、外部URLを設定へ追加しない。実際の絶対path・版・Python/partition/FS/loader等の推移依存は例外台帳への個別登録が必要で、Rust crateに分類しない。
+導入機構Aの具体候補をCanonical Curtinとし、InstallerBindingのadapterを`curtin`、execution_contractを採用版・実行環境ごとのContractRefへ束縛する。候補argvは`curtin --config <固定設定path> --log-file <固定log path> install`、cwdは専用作業領域、stdinは空、環境は固定LANG/LC_ALL/PATHのみ。自動依存導入のoption、自由なshell command、外部URLを設定へ追加しない。実際の絶対path・版・Python/partition/FS/loader等の推移依存は例外台帳への個別登録が必要で、Rust crateに分類しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-32` | kind=A/adapter=direct、未知キーmethod、対応外CPUのInstallStepPayload | INSTALL_BINDINGで消去前拒否。方式の自動fallback・未定義キーの黙認なし |
 
 生成設定の担当値を次表へ限定する候補。既定のdisk自動選択・simple layoutを利用せず、未知項目を拒否する内製validatorを外側へ置く。
 

@@ -84,10 +84,10 @@ SSH切断、マスター停止、対象再起動で結果を受け取れなか�
 | 担当する具体案 | 定義先 |
 |---|---|
 | 台帳・編集・readiness・型 | [Phase 8の入力](../complete/PHASE_08.md#入力と保存形式の詳細案)、[型/API](../complete/PHASE_08.md#型とapiの詳細案)、[集計](../complete/PHASE_08.md#データ契約の具体化案) |
-| CLI解析・必須選択・応答 | [マスターCLI](../complete/PHASE_08.md#マスターcliの解析と応答全集合) |
+| CLI解析・必須選択・型付き応答・送信後の未確認 | [MasterInvocation/MasterData](../complete/PHASE_08.md#マスターcliの解析と応答全集合) |
 | 同居資源・測定 | [測定と割当算定](../complete/PHASE_08.md#同居資源の測定と割当算定) |
 | 管理情報保全・主体喪失 | [P08-BACKUP](../complete/PHASE_08.md#p08-backup)、[単一制御主体の移行](../complete/PHASE_08.md#単一制御主体の移行候補) |
-| 遠隔要求・取消・結果回収 | [Phase 9の型/API](../complete/PHASE_09.md#型とapiの詳細案)、[保存形式](../complete/PHASE_09.md#入力と保存形式の詳細案)、[両側保存](../complete/PHASE_09.md#両側の配送保存と容量上限) |
+| 遠隔要求・取消・結果回収・配送正本と合成上限 | [Phase 9の型/API](../complete/PHASE_09.md#型とapiの詳細案)、[保存形式](../complete/PHASE_09.md#入力と保存形式の詳細案)、[両側保存](../complete/PHASE_09.md#両側の配送保存と容量上限) |
 | 通常SSHと初回搬入 | [固定一式](../complete/PHASE_09.md#p09-ssh)、[起動と搬入の分離](../complete/PHASE_09.md#ssh起動と初回搬入の分離) |
 | OS未導入Cloud | [Phase 10の入力](../complete/PHASE_10.md#型とapiの詳細案)、[Curtin比較](../complete/PHASE_10.md#curtin-adapterの比較入力)、[新OS信頼](../complete/PHASE_10.md#新os信頼根拠の引渡し) |
 

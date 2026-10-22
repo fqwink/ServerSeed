@@ -38,21 +38,21 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 | フェーズ | 基本仕様・完全仕様の策定と承認 | 実装 | 受入検証 |
 |---|---|---|---|
 | Phase 0 | 基本仕様と文書体系を整理中。未達は[移行状況](#文書体系の移行)を参照 | 対象外（文書整備） | 文書検査を継続。基本仕様の策定完了は未判定 |
-| Phase 1 | [本文案B8](complete/PHASE_01.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 2 | [本文案B8](complete/PHASE_02.md)。共通契約全体の詳細案あり。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 3 | [本文案B8](complete/PHASE_03.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 4 | [本文案B8](complete/PHASE_04.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 5 | [本文案B8](complete/PHASE_05.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 6 | [本文案B8](complete/PHASE_06.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 7 | [本文案B8](complete/PHASE_07.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 8 | [本文案B8](complete/PHASE_08.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 9 | [本文案B8](complete/PHASE_09.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 10 | [本文案B8](complete/PHASE_10.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
-| Phase 11 | [本文案B8](complete/PHASE_11.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 1 | [本文案B9](complete/PHASE_01.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 2 | [本文案B9](complete/PHASE_02.md)。共通契約全体の詳細案あり。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 3 | [本文案B9](complete/PHASE_03.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 4 | [本文案B9](complete/PHASE_04.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 5 | [本文案B9](complete/PHASE_05.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 6 | [本文案B9](complete/PHASE_06.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 7 | [本文案B9](complete/PHASE_07.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 8 | [本文案B9](complete/PHASE_08.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 9 | [本文案B9](complete/PHASE_09.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 10 | [本文案B9](complete/PHASE_10.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
+| Phase 11 | [本文案B9](complete/PHASE_11.md)。採用承認・完全仕様成立は未達 | 未着手 | 未実施 |
 
 担当要件は各フェーズの計画上の対象を示す。要件から本文案の契約への対応は[受入と追跡](BASIC_SPEC.md#受入と追跡)、既存の未達は[要件別の受入・未達参照](BASIC_SPEC.md#要件別の受入未達参照)を参照する。案のファイル・節・契約IDへの対応と、採用承認・承認済み版への対応を区別する。
 
-本文案B8は全38契約を対象とし、具体的な型/API・入力検証・部分失敗・状態/記録・復旧と受入設計は[各本文](DOCUMENT_INDEX.md#フェーズ別完全仕様)が正本。全体の経路/CPU/構成は[受入集合](complete/PHASE_11.md#p11-accept)、13必須項目の不足は[充足照合案](complete/PHASE_11.md#受入条件の充足照合案)を参照する。候補が定義済みの箇所と、採用判断・方式の成立根拠・残る契約具体化が不足する箇所を分け、文書検査や反復回数を完全仕様成立の根拠にしない。
+本文案B9は全38契約を対象とし、具体的な型/API・入力検証・部分失敗・状態/記録・復旧と受入設計は[各本文](DOCUMENT_INDEX.md#フェーズ別完全仕様)が正本。全体の経路/CPU/構成は[受入集合](complete/PHASE_11.md#p11-accept)、13必須項目の不足は[充足照合案](complete/PHASE_11.md#受入条件の充足照合案)を参照する。候補が定義済みの箇所と、採用判断・方式の成立根拠・残る契約具体化が不足する箇所を分け、文書検査や反復回数を完全仕様成立の根拠にしない。
 
 ### 採用審査と残る具体化の順序
 
@@ -60,9 +60,9 @@ Phase 1ではCIの開発基盤を整備し、機能別の検証・配布ジョ�
 
 | 順序 | 確認する担当案 | 残る作業・停止対象 |
 |---|---|---|
-| 1 | [共通形式](complete/PHASE_02.md#共通スキーマの型対応)、[監督](complete/PHASE_02.md#変更workerの固定起動契約)、[FS](complete/PHASE_03.md#内容カタログとrootbindingの失効) | 全子型/形式移行、root固定と停止不能I/Oの成立根拠を確認。論理予算・型宣言だけで実メモリー/安全な操作を保証しない |
+| 1 | [共通形式](complete/PHASE_02.md#共通スキーマの型対応)、[型付き応答](complete/PHASE_02.md#検査観測の固定集合)、[監督](complete/PHASE_02.md#変更workerの固定起動契約)、[FS](complete/PHASE_03.md#内容カタログとrootbindingの失効) | 応答/計画/資源/記録/三構成/遠隔/受入の型宣言と対応を審査。形式移行、root固定とOS側監督の成立根拠は別途必要。論理予算・宣言だけで実メモリー/安全な操作を保証しない |
 | 2 | [暗号/保全](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補)、[設定復元](complete/PHASE_04.md#共通設定の復元確認方法)、[ポリシー候補](POLICIES.md#完全仕様化に伴うバックアップ設定の審査候補) | GnuPG固定版でのpacket/暗号量上界、鍵保護・個別データ方法、revision移行を確定。設定用方法をDB/masterへ流用しない |
-| 3 | [媒体生成/引渡し](complete/PHASE_05.md#subiquity入力生成の対応表)、[RAM測定](complete/PHASE_05.md#ram実行と媒体解除の測定契約)、[Cloud adapter](complete/PHASE_10.md#curtin-adapterの比較入力) | Subiquity/Curtin固定版の完全設定・user/helper・起動/監督/永続journalの成立根拠を確定。資料や工程名だけでは不足 |
+| 3 | [媒体生成/引渡し](complete/PHASE_05.md#subiquity入力生成の対応表)、[準備/起動後検証unit](complete/PHASE_05.md#内蔵os継続unitと二回の起動証拠)、[RAM測定](complete/PHASE_05.md#ram実行と媒体解除の測定契約)、[Cloud adapter](complete/PHASE_10.md#curtin-adapterの比較入力) | 起動順/二回証拠/InstallerBindingの対応案を審査。Subiquity/Curtin固定版の完全設定・user/helper・RAM解除/監督/永続journalの成立根拠は未確定 |
 | 4 | [サーバadapter](complete/PHASE_06.md#composeの範囲とデータ方法行)、[採掘機器](complete/PHASE_07.md#機器検出と採用能力行の区分)、[同居測定](complete/PHASE_08.md#同居資源の測定と割当算定) | アプリ/機器/負荷の入力と外部版・方法行・安全値を確定。検出/空アプリ/算定式だけで対応や最低資源を認定しない |
 | 5 | [SSH起動/初回搬入](complete/PHASE_09.md#ssh起動と初回搬入の分離)、[両側保存](complete/PHASE_09.md#両側の配送保存と容量上限)、[主体移行](complete/PHASE_08.md#単一制御主体の移行候補) | 未準備入口を前提にしない初回搬入・昇格、切断後監督と旧資格失効の成立根拠を確定 |
 | 6 | [例外台帳](DEPENDENCY_EXCEPTIONS.md)、[安全審査](SECURITY_POLICY.md#完全仕様化に伴う審査候補)、[受入カタログ](complete/PHASE_11.md#受入カタログの閉包と更新) | 個別版/許諾/保護条件と全ケースのclass/lane/実環境/期待資料を固定。全判断の採用と成立判定を所有者へ求める |

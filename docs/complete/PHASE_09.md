@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B8`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B9`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB8）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB9）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -150,6 +150,34 @@ pub struct QueryRequest { request_id: OperationId, target_id: TargetId }
 pub struct CancelRequest { request_id: OperationId, target_id: TargetId, plan_id: PlanId }
 pub enum RemoteMessage { Submit(RemoteRequest), Query(QueryRequest), Cancel(CancelRequest) }
 pub enum DeliveryStage { Accepted, Started, ResultReady, Unknown }
+pub struct PlanReference {
+    plan: Plan, plan_sha256: String, selection: Option<Selection>,
+    install_payload: Option<InstallPayload>, backup_set: Option<BackupSet>,
+}
+pub struct RemoteRequest {
+    schema_version: u32, request_id: OperationId, master_machine_id: MachineId,
+    target_id: TargetId, target: TargetEvidence, plan_id: PlanId,
+    plan_ref: PlanReference, action: RemoteAction, contracts: Vec<ContractRef>,
+}
+pub struct DeliveryRecord {
+    request_id: OperationId, target_id: TargetId, plan_id: PlanId, request_digest: String,
+    operation_id: Option<OperationId>, status: DeliveryStage,
+    last_confirmed_status: Option<DeliveryStage>, receipt: Option<OperationReceipt>,
+}
+pub struct ReconcileResult {
+    request_id: OperationId, target_id: TargetId, delivery: Option<DeliveryRecord>,
+    identity_match: Option<bool>, lock_observed: Option<bool>, checks: Vec<Check>,
+    resubmit_allowed: bool, request_sha256: Option<String>, record_consistent: Option<bool>,
+}
+pub struct CancelResult {
+    request_id: OperationId, target_id: TargetId, plan_id: PlanId,
+    delivered: Option<bool>, acknowledged: Option<bool>, stopped: Option<bool>,
+    receipt: Option<OperationReceipt>, checks: Vec<Check>,
+}
+pub struct RemoteRequestRecord {
+    schema_version: u32, request_sha256: String, request: RemoteRequest,
+    delivery: DeliveryRecord, cancel: Option<CancelResult>,
+}
 pub struct RemoteFailure {
     error: ContractError, delivery: Option<DeliveryRecord>,
     request_may_have_arrived: bool,
@@ -164,6 +192,12 @@ pub fn cancel_change(session: &mut RemoteSession, request: &CancelRequest)
 ```
 
 各メッセージのschema_version候補は1、kindはsubmit/query/cancelで、kindとpayloadは一つだけ対応させる。QueryRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
+
+last_confirmed_statusのSome(Unknown)は型上表現可能でもvalidatorで拒否する。status=Unknownだけが直前の通常段階またはNoneを保持し、statusが通常段階なら同値を要求する。OperationReceiptを含む全子型も担当validatorへ照合し、再帰的なPlan/Request/CommandDataをreceiptへ内包しない。これらは外部全キー表のRust表現であって第二の配送形式ではない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-35` | last_confirmed_status=unknown、Cancel receiptは別Plan、RemoteRequestRecordの子型に未知キー | REMOTE_BINDING。型名だけの受理・他要求結果の転用・再帰payloadなし |
 
 RemoteFailure.request_may_have_arrivedはboolの候補で、到達可能性が不明な場合もtrueへ保守的に結合し、falseを既定値にしない。Queryは対象のremote/operation/history/監督単位を取得してReconcileResultをメモリー上で生成するだけで、欠損記録の作成・deliveryの修復・取消を行わない。同じSubmit ID/hashを再受信しても既存結果の読取りだけ、同ID別hashはREMOTE_COLLISIONで保持済み記録不変。Cancelのdelivered/acknowledged/stoppedは独立の証拠を要し、acknowledged=trueかつstopped=nullから終了確定へ進めない。部分受理後の保存失敗はRemoteFailure.deliveryに最後の確認済み段階を保持する。
 
@@ -221,7 +255,7 @@ SSHは信頼/認証/固定入口、REMOTEは型/配送/排他・記録、RECONNE
 
 ## 入力と保存形式の詳細案
 
-P09-REMOTEの配送形式候補をschema_version・kind・payloadの三キーへ閉じる。JSON UTF-8、末尾LF一つ、入力と応答各1 MiB以内、圧縮・複数JSON・余分なstdout文字列を拒否する。payloadの型はkindごとの既存Rust型に一致させる。
+P09-REMOTEの配送形式候補をschema_version・kind・payloadの三キーへ閉じる。JSON UTF-8、末尾LF一つ、入力wrapper全体512 KiB以内・応答全体1 MiB以内、圧縮・複数JSON・余分なstdout文字列を拒否する。payloadの型はkindごとの既存Rust型に一致させる。P02の通常上限を拡張せず、本配送の入力だけをさらに狭める。
 
 RemoteRequestのplan_refは曖昧な文字列を廃し、Planを所有するplanと、その固定byte列のplan_sha256を持つ参照へ具体化する候補。全体のキーはschema_version・request_id・master_machine_id・target_id・target・plan_id・plan_ref・action・contracts。PlanReferenceの全キーはplan・plan_sha256・selection・install_payload・backup_set。planはP03のPlan、plan_sha256はhex64。plan_sha256はPlanの全キー（plan_id/created_at/digestを含む）をP02のキー順JSON・末尾LFなしで直列化したbyte列のSHA-256とし、P03の前提比較用Plan.digestとは別の照合値とする。selectionは初回setup/install_osだけ必須で継続管理/self単独はnull、install_payloadはinstall_osだけ必須、backup_setは独立backupと保全を伴う計画で必須。他はnullとする。対象・plan_id・構成・採用版の全一致を対象側で再検証する。入力上限を超えるPlanは配送前に拒否し、外部URL参照へ自動変更しない。
 
@@ -301,11 +335,29 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 
 ### 両側の配送保存と容量上限
 
-マスター側の送信記録候補は`/var/lib/serverseed/master/remote/<request_id>/request.json`、同じディレクトリの`delivery.json`・`observations.json`とする。対象側のRemoteRequestRecordは`/var/lib/serverseed/remote/<request_id>/request.json`へ集約する。前者の全キーはschema_version=1・request_sha256・request・sent_bytes・last_delivery・observation_refs、後者の全キーは既存のRemoteRequestRecordを参照し、別の受理形式を作らない。sent_bytesは確認できた送信byte数で、0であっても送信開始後の未確認を未配送の確証にしない。
+マスター側の送信記録候補は`/var/lib/serverseed/master/remote/<request_id>/request.json`一つへ集約し、delivery.json/observations.jsonという第二の正本を作らない。対象側のRemoteRequestRecordは`/var/lib/serverseed/remote/<request_id>/request.json`へ集約する。前者の全キーはschema_version=1・request_sha256・request・sent_bytes・last_delivery・observation_refs、後者の全キーは既存のRemoteRequestRecordを参照し、別の受理形式を作らない。last_deliveryはDeliveryRecordまたは未取得時null、observation_refsは所有者管理下の検証済み証拠IDの一意配列で、外部URL/任意path/未保存の資料を受けない。sent_bytesは確認できた送信byte数で、0であっても送信開始後の未確認を未配送の確証にしない。
+
+送信記録の置換はP02の原子的保存を使い、sent_bytesは0から送信したwrapperの全byte数までの単調非減少値とする。last_deliveryの後退・既知operation IDの変更はREMOTE_COLLISION。Queryはこのファイルを変更せず、所有者が選択した照合結果保存工程だけがobservation_refs/last_deliveryを更新する。全量未送信でも一部受理の可能性を保持し、送信量を到達/適用量に読み替えない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-34` | last_deliveryはstarted、旧accepted応答を後受信、sent_bytesが減少 | 正本の後退を拒否して既知startedを保持。二ファイルの後勝ち・Query修復・部分送信の未配送化なし |
 
 マスターは要求の同期保存→送信→応答検証→last_delivery同期の順。対象は共通guard取得→ActiveController照合→同ID/hash検索→新規要求同期→accepted→operationと監督unitの対応同期→started→必須結果同期→result_readyの順。受理後の一段だけの保存成功は段階の不一致として保持する。Queryは両側の欠損・hash・operation・unit・実対象の照合結果だけを返し、保存の補修を行わない。照合結果を保管する行為はマスター側の変更工程として区別する。
 
-配送記録の候補上限は両側それぞれ1,000要求かつ専用領域64 MiB、新規要求・原子的保存の一時byteを含む。各要求1 MiB、各delivery 64 KiB、観測一覧は64 KiB以内。上限のいずれかへ達する計画は受理前停止し、古い未完了要求の自動削除・ID再利用をしない。完了記録の退避・除去は別の明示保守計画で、対象のoperation/historyと対応を失わない条件を要求する。これらはP02の履歴保持条件を緩和しない。
+配送記録の候補上限は両側それぞれ1,000要求かつ専用領域64 MiB、新規要求・原子的保存の一時byteを含む。要求payloadは入力wrapper込み512 KiB内、各delivery/cancel/観測一覧はそれぞれ64 KiB以内、合成した各request.json全体は1 MiB以内とする。JSONの実byte列（escape/区切り/末尾LFを含む）で評価し、512 KiBの要求が1 MiBの記録へ無条件に収まるとは仮定しない。受理前に合成上限と当該Planの結果上界を照合し、上界を確定できない場合もREMOTE_CAPACITYで受理を拒否する。開始後の予期しない超過では元の対象側証拠と最後の配送段階を保持し、receiptのstepを切り詰めてresult_readyにしない。
+
+上限のいずれかを超える計画は受理前停止し、古い未完了要求の自動削除・ID再利用をしない。上限ちょうどは許容するが、新規/一時byteを含む合計を別途満たす必要がある。完了記録の退避・除去は別の明示保守計画で、対象のoperation/historyと対応を失わない条件を要求する。これらはP02の履歴保持条件を緩和しない。
+
+byte数に加え、wrapper・両側保存記録・応答の完成した各文書をP02の通常profileで検査する。内包Plan単体の深さ/ノードが上限内でも、外側objectの階層/キーと結果集合を合算し直す。要求の一部だけにprofileを適用せず、受入専用16 MiB profileを遠隔保存へ使用しない。事前算定する結果上界にもこの深さ/ノード/文字列/論理予算を含め、未確認なら受理前停止とする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-36` | Plan単体depth=32、wrapper全体depth=35、保存記録はbyte内だがnode超過 | REMOTE_CAPACITY/共通解析上限で受理前拒否。内包物だけの検査・専用profileの転用なし |
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-33` | wrapper 512 KiB/+1、合成記録1 MiB/+1、結果上界が不明 | 境界内だけ次段へ。超過/不明は受理前拒否し、共通パーサー上限解除・部分receipt成功化なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
