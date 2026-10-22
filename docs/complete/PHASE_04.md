@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B2`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B3`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB2）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB3）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -148,9 +148,11 @@ pub enum RecoveryAvailability { NotNeeded, Available, Unavailable, Unknown }
 pub struct BackupRequest {
     target: TargetEvidence, profile: Profile, data_kind: String,
     destination: BackupDestination, method: ContractRef,
+    backup_id: OperationId, entries: Vec<BackupEntry>, restore_ttl_seconds: u32,
 }
 pub struct BackupDestination {
     device_id: String, filesystem_id: String, path: std::path::PathBuf,
+    expected_available_bytes: u64, artifact_name: String,
 }
 pub struct RestoreRequest {
     source: BackupReceipt, destination: TargetEvidence, method: ContractRef,
@@ -165,7 +167,7 @@ pub fn backup(ctx: &mut ExecutionContext, request: &BackupRequest)
     -> ChangeResult<BackupProgress>;
 pub fn restore(ctx: &mut ExecutionContext, request: &RestoreRequest)
     -> ChangeResult<OperationReceipt>;
-pub fn apply_resources(ctx: &mut ExecutionContext, plan: &Value)
+pub fn apply_resources(ctx: &mut ExecutionContext, plan: &Plan)
     -> ChangeResult<OperationReceipt>;
 ```
 
@@ -214,6 +216,67 @@ SELFは既存置換/復旧とPreparedSelf、UPDATEは層別工程と互換表、
 | `A04-18` | 異常。selfは互換範囲外、構成移行行だけが存在 | self単独では移行せず停止。確認済み通常updateへの判断が必要 |
 
 設定値の未確定動作は[担当ポリシーの審査候補](../POLICIES.md#完全仕様化に伴うバックアップ設定の審査候補)へ集約する。暗号・鍵・保存/削除・復元期限・アプリ別形式を決めずに取得成功だけを完全仕様成立としない。対象外である本体専用退避へ架空のprofileを追加せず、既存self保全と構成データの独立バックアップを区別する。
+
+## 入力と保存形式の詳細案
+
+P04-BACKUPの保存単位をBackupSetとする候補。既存BackupReceiptは検証結果として維持し、保存対象の定義と混同しない。形式・鍵の審査は[セキュリティ審査候補](../SECURITY_POLICY.md#完全仕様化に伴う審査候補)へ接続する。
+
+| 型 | 全キーと制約 |
+|---|---|
+| BackupSet | schema_version: 1、backup_id: OperationId、source: TargetEvidence、profile: 構成enum、data_kind: 既存enum、entries: BackupEntry[]、method: ContractRef、destination: BackupDestination、restore_ttl_seconds: 1以上u32 |
+| BackupEntry | entry_id: ASCII資材ID、relative_path: string、kind: file/directory、bytes: u64、sha256: hex64またはdirectory時null、mode: P03属性、uid/gid: 同属性。symlink・特殊file・絶対path・親逸脱・重複を拒否 |
+| BackupDestination | device_id・filesystem_id・path: string、expected_available_bytes: u64、artifact_name: string。pathは選択した保存directory、名前はbackup_idに結合、既存同名への上書きなし |
+| ResourceJournal | schema_version: 1、operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、entries: ResourceJournalEntry[]。配置候補は操作ID別のiac-journal.json |
+| ResourceJournalEntry | resource_id: string、sequence: u32、phase: StepReceiptのphase、before: ResourceObservation、expected: Resource、backup_ref: stringまたはnull、after: ResourceObservationまたはnull、error: Diagnosticまたはnull |
+
+BackupRequestは検証済みBackupSetのsourceをtargetへ対応付け、残る同名の値をそのまま所有する内部型とする。BackupEntryは本表の検証済み各値を非公開フィールドに持つstruct。pathの外部表現はUTF-8絶対パス、内部はPathBufとし、保存先の同一性を文字列だけで認定しない。
+
+restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測既定値を作らない。valid_untilは確認時刻にTTLをchecked加算して求め、overflow・時計後退・方法の変更は無効。候補保存先は利用者が選んだローカルのmount済みFSだけ。ネットワーク転送・暗号方式の未選定を、平文保存や任意tar実行の許可にしない。
+
+互換表は旧二択形式→三構成形式を自動変換不可、三構成形式→同じ採用版を検証後のみ可、未知revisionを不可とする候補。server/miningからmasterへの変更も単なるprofile書換えでは不可。対象revisionの実値・移行方法・切戻し可能範囲を所有者が決定するまで更新計画をblockedにする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-19` | BackupEntryに../経路、TTL加算overflow、旧二択からmasterへの無定義移行 | 保存・更新開始前に拒否。既存データと構成記録を変更しない |
+
+## 実行と復旧の確定候補
+
+P04-APPLYのjournal確定単位を一資源一工程とする候補。各変更前にbefore/backup_refとstartedを同期し、変更後に実観測を保存しapplied、全期待属性一致後にverifiedへ進める。startedの保存失敗なら変更しない。適用後の保存失敗はunknownとして最後の保存済み根拠と実適用位置をChangeFailureへ返す。
+
+| 資源 | 適用直後に照合する事実 | 復旧の限界 |
+|---|---|---|
+| file | 内容hash/長さ、mode/uid/gid、対象rootとentryの同一性 | 元内容・属性と復元先が一致する場合だけ計画。新しい第三者変更は上書きしない |
+| directory | 種別、所有属性、所有範囲 | 新規作成でも未管理の子があれば自動削除しない |
+| package | 固定版と管理DBの実状態、途中設定の有無 | package操作の非ゼロを未変更にせず、自動再投入・ダウングレードなし |
+| systemd | 定義hash、load/enabled/activeの各実状態、対象unit | 起動要求成功と稼働確認は別。未確認状態で次のサービス変更なし |
+
+バックアップはcapturing中の成果物を正式名にしない。保存・hash確認・対象固有の隔離復元・必須記録の確定を終えた同一物だけcompleteへ進める。取得のため停止したサービスを復帰させる場合は、その事前計画・元稼働状態・復帰結果を記録し、バックアップ失敗は維持する。保存失敗の後処理として未確認物を無断で消去しない。
+
+通常更新と復旧は同じ親guard内の別stepとし、元失敗を上書きしない。再起動が必要でも必須記録未確定なら成功の終了10へ変換せず、未完了位置を報告する。消去を伴うOS再導入はこの復旧の自動分岐へ含めない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-20` | file置換成功後journal同期失敗、packageは途中設定、サービス復帰だけ成功 | 元操作は失敗/照合待ち。各実位置を保持し、再適用・全体成功なし |
+
+## 依存と受入の確定候補
+
+P04-SELFの取得adapterは取得・hash・署名の三責務に分ける候補。判断器はPreparedSelfと検証済みmetadataだけを受け、外部実行物の生出力を適用指示として評価しない。各実行物は例外台帳の個別採用前に使用不可。
+
+| 外部境界候補 | 固定する入力/上限と成功条件 |
+|---|---|
+| HTTPS取得 | curl比較候補。最初の引数--disable、--globoff、--proto =https、--connect-timeout 30、--max-timeは担当期限、--retry 0、--silent、--show-errorをargvで渡す。proxy等の継承を除きTLS検証を維持。初期案はredirect非追従、別URLは固定候補の再審査が必要 |
+| 配布物量 | metadata一件1 MiB、本体128 MiB、ISO8 GiBを上限候補。manifest記載sizeとも一致必須。大容量はP02専用file-sinkとOS強制容量制限の採用後だけ使用 |
+| hash | OSの採用済みSHA-256実行物へ固定pathを一引数で渡す。出力はhex64一値と対象対応を検証。自己申告版・ファイル名をhashの代わりにしない |
+| 署名 | gpgv等の採用実行物、固定keyring、detached署名と署名対象byte列の三参照を対応付ける。終了0・鍵適用範囲・hash群を別検査。鍵条件はSECURITY_POLICYに集約 |
+| アーカイブ/暗号 | 暗号化バックアップの形式・鍵参照・復元検査は未採用。tar.gzを暗号形式や任意抽出許可に流用しない |
+
+[curl公式資料](https://curl.se/docs/manpage.html)は設定読込みの無効化とprotocol制限の意味の確認に使用した。上限値と非追従は製品の候補であり、Ubuntu採用版でのオプション・file-sink・GitHub配布先への適用可能性は未検証。取得先がredirect必須なら無確認追従せずD04-01へ戻す。
+
+lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障注入点でStepReceipt/partial/実書込み集合を比較し、旧コード除去前に復元可能範囲を再確認する。暗号等を高難易度のまま未採用とすることと、平文へ代替することを区別する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-21` | 取得先302、宣言size一致だが実byte+1、署名成功だが別metadata | 固定取得条件/実量/内容照合で停止。候補起動・配置・自動追従なし |
 
 ## 未決事項と成立判定
 

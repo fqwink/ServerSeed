@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B2`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B3`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB2）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB3）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -131,11 +131,15 @@ P09-RECONNECTの同一性・信頼・対象OSの起動確認を終えてから�
 ```rust
 pub struct StorageInput {
     disk_id: String, expected_bytes: u64, erase_confirmed_for_plan: PlanId,
-    layout: String,
+    layout: String, sector_bytes: u32, partitions: Vec<PartitionInput>,
+}
+pub struct PartitionInput {
+    number: u32, start_bytes: u64, size_bytes: u64,
+    purpose: String, filesystem: String, mountpoint: Option<String>,
 }
 pub struct NetworkInput {
     interface_id: String, method: String, addresses: Vec<String>,
-    gateway: Option<String>, dns: Vec<String>,
+    gateway: Option<String>, dns: Vec<String>, mac_address: String, mtu: u32,
 }
 pub struct UserInput { name: String, public_keys: Vec<String>, privilege_method: String }
 pub struct BootInput { mode: String, loader_material: MaterialRef, next_endpoint: String }
@@ -192,6 +196,66 @@ BOOTSTRAPは接続と能力を分離し、OSは具体payloadと全工程、RECOV
 | `A10-16` | 異常。マスターにはpartition開始、対象一時環境の記録欠損 | 対象を未消去と推測しない。再消去0回、実ディスクと残存証拠の照合待ち |
 
 パーティション寸法・FS/loader・ネットワーク/公開鍵・昇格の全契約、導入前の永続記録と排他、実対象への信頼の根拠を確定するまで完全仕様未成立とする。空ディスクへのOS導入、OS起動、本体導入、構成適用、データ復元を別結果にし、どれか一つで全経路の成功を代表させない。
+
+## 入力と保存形式の詳細案
+
+P10-OSのInstallPayloadについて、先述の型に対応するレイアウト・ネットワークの全集合を次の採用候補へ閉じる。物理経路からも同じ値を参照するが、導入機構は各経路で別に採用・検証する。
+
+| 入力 | 具体化する候補 |
+|---|---|
+| StorageInput | 既存4キーにsector_bytes: 512または4096、partitions: PartitionInput[]を追加。expected_bytesと実disk容量・sectorが完全一致しない場合は停止 |
+| PartitionInput | number: 1以上u32、start_bytes・size_bytes: u64、purpose: esp/bios_boot/root、filesystem: fat32/ext4/none、mountpoint: /boot/efi・/・null。開始/寸法は1 MiB境界、重複・終端超過・予約領域との重複を拒否 |
+| whole_disk_uefi | GPT、espは先頭1 MiB後から512 MiB・fat32、rootはその直後から末尾予約1 MiBを除く残りの1 MiB切捨て・ext4。ESP/root以外なし |
+| whole_disk_bios | GPT、bios_bootは先頭1 MiB後から2 MiB・none、rootはその直後から同じ末尾予約を除く残り・ext4。採用loaderのBIOS/GPT対応が未検証なら使用不可 |
+| root容量 | 候補最小20 GiB。実OS・三構成・保全領域の必要容量を別に満たすこと。rootの最小値だけでmaster適合としない |
+| NetworkInput | 既存集合にmac_address: 小文字colon区切り6octet、mtu: 1280〜9000を追加。interface_idだけで再同定せずMACと対応 |
+| static | 初期候補はIPv4のみ。addressは1件のCIDR、gatewayは同一subnetの単一IPv4、dnsは1〜3件の一意IPv4。network/broadcast/unspecified/multicastを拒否。IPv6は方式別仕様待ち |
+| BootInput | modeとloader_materialとnext_endpointの既存集合を維持。next_endpointは登録済みRegistryEntry参照だけ。任意shell・loader設定断片を受理しない |
+
+これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-17` | 512/4096sector、末尾予約への1 MiB侵入、同じinterface名でMAC変更、IPv6-only | 前者は各寸法検査、他は消去前停止。余剰partition・別interface・IPv4代替の自動選択なし |
+
+## 実行と復旧の確定候補
+
+P10-BOOTSTRAPの事前記録は消去対象外の永続領域を対象一時環境から使用できることを候補条件とする。マスター側の要求・工程記録も固定し、双方のrequest/plan/disk/digest一致を確認してからpartitionを開始する。SSHだけを入口とし、事業者API・ISO接続・cloud-initを追加の必須入口にしない。一時環境の能力不足は実行不可として説明する。
+
+永続領域が消去対象内、RAMだけ、保存元の実機器不明、他プロセスとの対象排他不成立なら消去前停止。新しく領域を作るため先に対象を消去する循環を認めない。SSHに接続できるすべての環境へ導入可能とは保証しない。
+
+| 保存・応答の位置 | 中断後の照合 |
+|---|---|
+| 両者prepared、partition開始前 | 再観測したdiskと記録の一致、対象排他、確認期限を検査。新規変更の自動投入なし |
+| 片側started・他方prepared | startedを優先して実ディスク照合。未消去と扱わない |
+| partition以後の記録欠損 | unknown。再partition・再format・再展開を禁止し、残存表/FS/資材を読む |
+| OS設定済み・再起動応答欠損 | 新OS側の信頼・同一disk/root/OSを照合。旧IPの疎通だけではhandoff不可 |
+| 起動不能・SSH利用不能 | 自動化の実行経路なしとして停止。保全資料と手動で必要な復旧条件を提示 |
+
+初期案の導入機構A/Bの選定は未完了。Aは公式installerの対応可能な無人導入、Bは公式rootfsとloader構築の個別統合であり、互換な一方式として混在させない。bootloader・network・ユーザーの実生成と検証が確定するまでstageの名前だけで実行可能にしない。再導入には新planと消去確認が必要で、旧確認を再利用しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-18` | journal保存領域が同じ消去disk、片側のみpartition.started、再起動後SSH不能 | 前者は消去0回、後者は実位置照合/経路なしで停止。自動再消去・事業者API代行なし |
+
+## 依存と受入の確定候補
+
+P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工程記録/引渡しの調整とする候補。OS展開・partition/FS/loader・ネットワーク生成は外部契約の個別採用対象であり、Rust stdにない機能を未定義の自作crateへ丸投げしない。
+
+| 採用審査 | 決定に必要な比較 |
+|---|---|
+| installer A/B | 対応CPU/UEFI/BIOS、公式資材の取得・署名、root/boot/network/user生成、SSH切断後の監督、全実行物とargv、同じpayloadからの期待結果 |
+| 永続記録/排他 | 消去外の記録と対象diskの所有、親/SSH切断・再起動・記録片側欠損で再消去しない根拠 |
+| 新OSの信頼 | 初回公開鍵/host keyの独立した照合、期待endpointと実disk/root/OS/CPU、旧主体/一時環境の失効 |
+| 復旧限界 | SSHが残る場合の読取り/修復と、SSH喪失後に自動化できない範囲。事業者APIや物理媒体をCloud必須経路へ追加しない |
+
+必須検査ID候補はP10-BOOTSTRAP/capabilities.complete、P10-OS/storage.bound、P10-OS/journal.durable、P10-OS/payload.valid、P10-RECOVER/new_os.bound。全passだけで導入後構成まで完了にはせず、P09と各構成の受入へ接続する。
+
+将来のcrate差し替えは評価器と工程記録器を候補とし、installerの変更は外部依存の再採用として別評価する。同じ空/既存diskと中断点fixtureでstage・実書込み・partial・復旧不能範囲を比較し、OS起動後だけの比較で消去前安全性を認定しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-19` | installer変更で成功OSは同じ、消去前journal方式だけ未検証 | 互換認定不可。中断・再接続・再消去防止の受入を再設計し未達を保持 |
 
 ## 未決事項と成立判定
 

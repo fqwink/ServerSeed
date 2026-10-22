@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B2`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B3`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB2）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB3）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -222,6 +222,65 @@ DEVICEは機器/外部APIの能力、CONFIGは入力全集合と許可、RUNは�
 | `A07-16` | 異常。過熱かつprocess_alive=null、epoch変更後の古い正常時間、上限停止後の過熱→冷却 | 不明はunknown/none、連続時間無効。stop_latchedを保持し、冷却やepoch変更による自動再開なし |
 
 再試行の実開始回数はlast_control_receiptを重複消費せず更新する。監視用状態の保存・障害後の再同定・controlの冪等性キーは`D07-03`に残り、評価器の表だけで実制御を完全仕様成立としない。実機の温度/電力・採掘対応は模擬試料の成功から認定しない。
+
+## 入力と保存形式の詳細案
+
+P07-CONFIGのMiningConfig候補は次の全集合とする。従来の項目候補を型へ結合するもので、機器別の安全値やminerの引数を創作しない。
+
+| 型 | 全キー・型 |
+|---|---|
+| MiningConfig | schema_version: 1、mode: 既存3値、cpu・gpu: EngineConfigまたはnull、monitor: MonitorConfig、maintenance: MaintenanceWindow |
+| EngineConfig | capability_ref: ContractRef、material_ref: MaterialRef、algorithm・pool・wallet: string、backup_pools: string[]、device_ids: string[]、threads: u32またはnull、power_milli_watts: u64またはnull、minimum_hashrate_milli: u64 |
+| MonitorConfig | interval_seconds・warmup_seconds・failure_seconds・retry_wait_seconds・retry_limit: 先述の整数範囲、temperature_stop_milli_c・temperature_resume_milli_c: i64またはnull、temperature_stable_seconds: 1〜600、temperature_unknown_action: hold/stop、allow_service_recovery: bool |
+| MaintenanceWindow | timezone: UTCだけ、start_minute・end_minute: 0〜1439のinteger、allow_auto_update・allow_os_reboot: bool、update_targets: string[]。対象名はP07-UPDATEの計画対象から重複なし |
+
+cpuのみならgpu=null、gpuのみならcpu=null、combinedなら両方必須。CPUはthreads必須・power=null、GPUはthreads=null・device_ids非空、電力値は確認済みcapabilityの許容値に完全一致させる。最低hashrateは利用者の正整数入力とし、0や未取得を正常閾値にしない。pool/walletの許容文字と送信範囲は採用miner契約が確定するまで検証不能とする。
+
+温度二値は両方有効または両方nullとし、nullを監視不要と認定しない。temperature_unknown_actionの候補値は保護判断の審査入力であり、値があるだけで制御を許可しない。実際の未取得時動作はSECURITY_POLICYの判断待ちへ対応付ける。backup_poolsは0〜3件、主pool・相互の重複なし。自動切替の可否・順序はminer契約の採用待ちとする。時間帯は[start,end)とし、start=endは空時間帯、start>endは日跨ぎ。UTC以外と夏時間の推測は拒否する候補。既存運用許可の変更となる部分は採用審査待ちである。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-17` | combinedでgpu=null、minimum_hashrate=0、UTC時間帯23:00〜01:00の00:30/01:00 | 前二件は拒否。時間帯だけの評価では前者内・後者外。時間帯内でも実行許可を代行しない |
+
+## 実行と復旧の確定候補
+
+P07-RUNの制御記録候補はschema_version・operation_id・engine・epoch・sample_elapsed_ms・proposal・receipt・memory・config_sha256を全キーとし、エンジン別のmonitor-state.jsonへ同期保存する。receiptだけnull可。新旧記録を混合せず、保存不能時は新しいstart/restartを開始しない。過熱停止の必要性も担当安全条件へ照合し、保存失敗を正常運転へ変換しない。
+
+| 評価対象 | 遷移の補完候補 |
+|---|---|
+| process_alive=false | 既知の停止を記録。復旧許可と残回数がなければstopped、あればretry_wait。未知と同じ扱いにしない |
+| connected=false / algorithm不一致 / 最低hashrate未満 | failure_sinceを最初の不成立試料へ固定し、連続不成立時間が閾値に達してからretry_wait |
+| 全必須観測が正常 | failure_sinceを解除。retry_wait中でも実際の正常確認があればrunningへ戻すが、消費回数はリセットしない |
+| 試料欠損・epoch変更 | 連続時間を無効化しunknown/none。retry回数・stop_latchedは保持 |
+| pending_controlあり | 同じ要求を新規発行しない。receiptと実サービスを読取り照合 |
+| stopped/stop_latched | 新しい明示的運転セッションの選択・確認までstart/restartなし |
+
+requestキーはengine/epoch/sample_elapsed_ms/action/config_sha256の組へ固定する候補。同じキーの再観測は既存receiptの照合だけで、開始回数を二度消費しない。監視プロセス再起動後は保存memoryと実サービスを照合し、新epochで連続時間を再計測する。保存memory欠損から回数0や許可済み起動を生成しない。
+
+固定小数の切捨て候補は数学的floorとし、負温度も含めて明記する。例として-0.0005℃は-1 milli_c。元単位・範囲・精度を確認できない場合はnull。閾値・温度不明時制御の採用判断は機器安全審査に残し、この丸め候補を安全値の根拠にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-18` | 同じrestart receiptを二回配送、監視再起動、低hashrate後に一度unknown | 消費は一回、保存回数を保持、不成立の連続時間は無効。自動リセット/再発行なし |
+
+## 依存と受入の確定候補
+
+P07-DEVICEの能力入力候補をDeviceCapabilityとし、全キーはdevice_id・kind・vendor・model・driver_material・kernel_release・miner_material・algorithms・sensor_contract・temperature_range・power_rangeとする。kindはcpu/gpu、各materialはMaterialRef、範囲は単位付き最小/最大/stepの整数objectまたは未確認時null。全キー必須。未確認を空の対応表へ変換しない。
+
+sample adapterは選択device_idsのみに限定し、各機器hashrateのchecked合計と有効温度の最大を返す候補。必須機器一件でも観測欠損なら該当集約値null、別機器の正常値で補完しない。外部APIの意味・単位・精度をsensor_contractへ固定してから変換し、模擬データの成功で実機能力を認定しない。
+
+| 差し替え対象 | 同一fixtureで一致させる結果 |
+|---|---|
+| 機器adapter | 機器集合・単位・欠損/範囲外・丸め後の全MiningSample |
+| monitor | MonitorMemory・試料列・ControlReceipt列からの各state/proposal/待機/消費数 |
+| control | 同じ要求キー・許可・共通排他・実サービス状態に対する起動回数とreceipt |
+| update | 固定miner/config/driverの互換とStepReceipt。正常版への復元後も元失敗を維持 |
+
+初回は内製adapter/monitor/controlのmodule分離だけで、miner/driverのソースを取り込む内製crateは作らない。将来のcrate抽出は上記境界を一つずつ行い、能力/保存形式変更を伴えば採用仕様と移行計画を先に更新する。実採掘・温度/電力操作は今回未実施。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-19` | GPU二台の片方だけ温度欠損、hashrate和overflow、同じreceipt列を新旧へ入力 | 欠損集約はnull、overflow拒否、純粋評価の全列一致。実機安全性は別の受入 |
 
 ## 未決事項と成立判定
 

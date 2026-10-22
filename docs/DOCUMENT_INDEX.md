@@ -86,7 +86,7 @@
 | 本文案 | 担当する具体化 | 契約の確認先 |
 |---|---|---|
 | [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
-| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案B2](complete/PHASE_02.md#p02-cli)、[解析詳細案B2](complete/PHASE_02.md#p02-parse) |
+| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案B3](complete/PHASE_02.md#p02-cli)、[解析詳細案B3](complete/PHASE_02.md#p02-parse) |
 | [PHASE_03.md](complete/PHASE_03.md) | IaCの資源・観測・差分・計画 | [契約一覧](complete/PHASE_03.md#契約と共通参照) |
 | [PHASE_04.md](complete/PHASE_04.md) | 本体管理・更新・保全・復旧・IaC適用 | [契約一覧](complete/PHASE_04.md#契約と依存) |
 | [PHASE_05.md](complete/PHASE_05.md) | ISO・外部媒体・引継ぎ・ファームウェア | [契約一覧](complete/PHASE_05.md#契約と参照) |
@@ -99,7 +99,9 @@
 
 案の位置付け・照合元・案版と承認済み版の区別は[案の適用範囲](complete/PHASE_01.md#案の適用範囲)、策定・実装・受入の状態は[フェーズ別の進捗](ROADMAP.md#フェーズ別の進捗)を参照する。
 
-全フェーズの本文案B2には、型・API、状態/中断、依存/互換性、受入条件の充足照合を各本文の同名節へ収録する。共通参照の型は[Phase 2](complete/PHASE_02.md#型とapiの詳細案)、資材識別は[Phase 5](complete/PHASE_05.md#型とapiの詳細案)、全体の13必須項目と不足は[Phase 11](complete/PHASE_11.md#受入条件の充足照合案)へ案内し、本文を本索引へ複製しない。設定・保護条件の未採用案は[一般ポリシー](POLICIES.md#完全仕様化に伴うバックアップ設定の審査候補)、[セキュリティポリシー](SECURITY_POLICY.md#完全仕様化に伴う審査候補)、[例外候補](DEPENDENCY_EXCEPTIONS.md#追加の個別審査候補)の各担当箇所を参照する。
+全フェーズの本文案B3には、型・API、状態/中断、依存/互換性、受入条件の充足照合を各本文の同名節へ収録する。共通参照の型は[Phase 2](complete/PHASE_02.md#型とapiの詳細案)、資材識別は[Phase 5](complete/PHASE_05.md#型とapiの詳細案)、全体の13必須項目と不足は[Phase 11](complete/PHASE_11.md#受入条件の充足照合案)へ案内し、本文を本索引へ複製しない。設定・保護条件の未採用案は[一般ポリシー](POLICIES.md#完全仕様化に伴うバックアップ設定の審査候補)、[セキュリティポリシー](SECURITY_POLICY.md#完全仕様化に伴う審査候補)、[例外候補](DEPENDENCY_EXCEPTIONS.md#追加の個別審査候補)の各担当箇所を参照する。
+
+全11本文の「入力と保存形式の詳細案」「実行と復旧の確定候補」「依存と受入の確定候補」が、スキーマ・中断・内製境界を具体化する担当節である。共通の[形式と検査集合](complete/PHASE_02.md#依存と受入の確定候補)、[媒体からの導入入力](complete/PHASE_05.md#入力と保存形式の詳細案)、[遠隔payload](complete/PHASE_09.md#入力と保存形式の詳細案)、[証拠/期待集合](complete/PHASE_11.md#入力と保存形式の詳細案)へ直接参照できる。「確定候補」は採用審査に提出する内容であり、承認済み版を意味しない。
 
 ### 構成別仕様
 

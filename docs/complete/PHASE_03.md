@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B2`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B3`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB2）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB3）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -187,6 +187,54 @@ RESOURCEは型・属性・取り込み、FSは対象固定、PLANは依存グラ
 | `A03-16` | 境界。確認済み計画の経過599,999/600,000ms、依存資源だけ変化 | 期限未満かつ全前提一致だけ期限検査を通過。同時到達・依存変更は再計画 |
 
 安全なroot固定方式と計画全形式が未確定なら、差分の純粋評価の設計と実FS適用の成立を分ける。上記のuid/mode受理は権限変更の許可ではなく、操作の安全条件を別に満たす必要がある。未達は`D03-01`〜`D03-03`とPhase 2の依存へ追跡する。
+
+## 入力と保存形式の詳細案
+
+P03-PLANの固定形式を以下の候補へ具体化する。Resourceの既存属性は[資源のデータ契約](#データ契約の具体化案)を使用し、同じ属性を計画用の別形式へ再定義しない。
+
+| object | 全キー・型・条件 |
+|---|---|
+| Plan | schema_version: 1、plan_id: PlanId、created_at: UtcMillis、target: TargetEvidence、profile: 構成enumまたはself単独時null、contracts: ContractRef[]、resources: Resource[]、observations: ResourceObservation[]、steps: PlanStep[]、blocked_by: Diagnostic[]、digest: hex64string |
+| PlanStep | resource_id: string、action: unchanged/create/modify/blocked、changed_attributes: string[]、depends_on: string[]、before: ResourceObservation、after: Resource、required: bool |
+| Adoption | kind: new/recorded/confirmed、evidence_ref: stringまたはnull。newのみnull、既存資源のrecorded/confirmedには対象・所有範囲の証拠必須 |
+| ContentRef | 組込み資材はembedded:に続く資材ID、保全物はbackup:に続く検証済みIDと内部entry ID。参照表にないID、URL、絶対パス、親への逸脱を拒否 |
+
+resourcesとobservationsはresource_idで一対一、全資源を含み、stepsも一対一とする。contract_idの重複と同じpathの異なる資源を拒否する。差分属性の列は担当属性名のASCII順、depends_onもASCII順、stepsは依存を満たす安定トポロジカル順とする。blockedが一つでもあれば計画全体を適用不可にする。
+
+digest入力はPlanのうちschema_version・target・profile・contracts・resources・observations・steps・blocked_byだけ。target.observed_atを除き、観測時刻以外の証拠を省略しない。objectキーはP02-CLIの整形順、空白なし、末尾LFなし、数値は検証済み整数の十進表記、文字列は同契約のescapeとする。配列順を後で並べ替えない。ID・created_at・digestを除外しても有効期限や選択との照合は別に必須。hash取得はP04-SELFの外部境界であり、純粋計画器が外部プロセスを起動する案にはしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-17` | 同じ計画のplan_id/created_atだけ変更、次にunchanged資源のbeforeだけ変更 | 前者の固定byte列は同一、後者は異なる。後者を同じ計画として確認・配送しない |
+
+## 実行と復旧の確定候補
+
+P03-FSのrootはパス文字列ではなく観測したdisk/root/FS/bootの証拠へ結合する候補。各資源について対象root、全親directory、最終entryの種別・所有者・同一性を読み、P04-APPLY直前にも同じ集合を再照合する。symlink、mount境界、特殊FS、取得不能を通常fileへ変換しない。
+
+前後の再照合だけでは、二つの照合の間のパス交換を防げない。標準ライブラリだけで安全な相対操作を証明できない環境は適用不可とする。採用方式には、競合する書き手の排除根拠、固定したrootに対する全操作、交換後に別対象へ書かないことの反証試験が必要。保護された親directoryという前提も、同権限の他処理を除外できないなら充足としない。
+
+計画中の取消は以降の観測を中止し、完結した診断だけ返す。部分観測集合で適用計画を作らない。適用直前の期限切れは再計画・再選択/確認へ戻し、既に開始した操作はP04の中断照合へ渡す。計画器から自動復旧・ファイル修復を呼ばない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-18` | 前後の観測時だけ元に戻る親交換、root配下への別mount挿入 | 前後一致だけで安全認定しない。固定操作方式の反証試験未達なら適用不可 |
+
+## 依存と受入の確定候補
+
+P03-RESOURCEのvalidator→P03-FSの観測→純粋なdiff/plan→P04-APPLYの適用という一方向の境界を固定する候補。JSON/YAML解析・共通型はP02から再利用し、hash/TLS/圧縮の新規crateを追加しない。
+
+| APIの具体化候補 | 入力の所有・戻り値 |
+|---|---|
+| validate_resources(input: &Value, target: &TargetEvidence) | Result<ResourceSet, ContractError>。妥当な資源を所有して返す。OSを読まない |
+| observe_resources(resources: &ResourceSet) | Result<Vec<ResourceObservation>, ContractError>。OS読取りだけ。部分集合は完全計画へ渡さない |
+| build_plan(resources: ResourceSet, observed: Vec<ResourceObservation>, identity: PlanIdentity) | Result<Plan, ContractError>。PlanIdentityはplan_id/created_at/契約参照/対象構成を持つ検証済み値。時計・ID・digestを内部で捏造しない |
+| seal_plan(plan: Plan, fixed_digest: String) | Result<Plan, ContractError>。別に取得した固定byte列のdigestを対応付ける。hash処理の実行成功を自己申告だけで認めない |
+
+上記は既存Value境界を型付きに置換する採用候補で、旧表と同時に二つのAPIを実装する要求ではない。初期の観測器と純粋計画器を別moduleにし、将来の抽出時はobserve fixtureと実FS試験を分離する。新旧比較はResourceObservation全フィールド・差分・順序・blocked理由・固定byte列を対象にし、root固定方式を変える場合はP03-FSの反証試験を再実施する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-19` | 観測adapterだけ差替え、同一資源のidentity一件欠損、同じdiffだが順序が違う | 前者も同一契約を要求。欠損はunknown、順序差は互換不成立。実FS安全性は別検証 |
 
 ## 未決事項と成立判定
 

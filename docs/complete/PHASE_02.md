@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B2`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B3`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB2の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB3の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -649,6 +649,66 @@ MODELは[型とAPI](#型とapiの詳細案)、CLI/PARSEは各詳細節、STATE�
 | `A02-78` | 正常・異常。必須fail/任意fail/根拠あり非適用のCheckをキャッシュへ変換 | 候補対応のfail/warn/warnを照合。必須集合の欠損はwarnにせず、読取りコマンドの保存0件 |
 
 採用前に残る判断を、型/ID/時刻、CLI全検査と出力上限、全形式スキーマと移行、実行・排他寿命、複数記録確定、圧縮/取得の6判断へ対応付ける。特にstd::fs/processのAPIが存在することは、安全なroot固定・子孫停止・全I/Oの期限保証の実現根拠ではない。計測・反証試験の設計と実結果を分離し、未実施を自動検査の成功で閉じない。
+
+## 入力と保存形式の詳細案
+
+P02-PARSEの後段へ渡すスキーマ登録を以下の候補へ固定する。既存キーの値域はリンク先の定義だけを使用し、本表は未定義の必須性・型を補う。全objectで未知キー・重複・型強制変換を拒否する。日付はUtcMillis、版は基本仕様の製品版契約、revisionは0以上のu32とし、未対応版を自動変換しない。
+
+| 登録対象 | 完全なキー集合の所在と補完案 |
+|---|---|
+| config.yml | [基本設定](../BASIC_SPEC.md#configyml)の集合だけ。root.serverseed以外なし。省略可能項目だけポリシー既定値を使用。config_revisionは対応表へ完全一致 |
+| policy.yml | [共通設定](../BASIC_SPEC.md#policyyml)の集合だけ。root.policy以外なし。省略時とnullを区別しnullは型エラー |
+| managed | [マーカー](../BASIC_SPEC.md#管理マーカー)の7キーだけ。managedはbool、machine_idはMachineId、created_atはUtcMillis、両revisionはu32、profileは三構成enum。null不可 |
+| machine-id | MachineIdのASCII32桁とLF一つだけ。JSON・空白・OS machine-idの暗黙流用なし |
+| version | serverseed_version: 製品版string、config_revision・migration_revision: u32、profile: 構成enum、operation_id: OperationId、updated_at: UtcMillis。全キー必須、nullなし |
+| install.json | [導入情報](../BASIC_SPEC.md#本体導入と構成管理)の6キーだけ。architectureは既存2値、binary_sha256は小文字hex64桁、installed_atはUtcMillis。removedでも旧値を保持 |
+| state.json | [キャッシュ](../BASIC_SPEC.md#状態スナップショット)のキー集合。os/boot/serverseedの各子集合も例のキーで閉じる。未取得の観測stringはnull、revision/profileのnull条件は正本に従う。checksはid/result/messageの全キー必須 |
+| operation.json | [操作状態](../BASIC_SPEC.md#操作状態)のキーにboot_id: string、process_start_ticks: u64、target: TargetEvidenceを追加する案。pidは1以上u32。runningだけfinished_at=null、lock_pathは固定値 |
+| last-success・last-failure | operation_id・plan_id・target・finished_at・result・history_sha256を全キーとする。同名に対応するsuccess/failedだけ。hashは該当履歴行のLF込みbyte列。初回未作成は許容、破損は不在扱い不可 |
+| history.jsonl | [履歴](../BASIC_SPEC.md#実行履歴)の集合にtarget: TargetEvidence、plan_id: PlanIdを追加する案。両versionとprofileだけ未導入時null可。resultはsuccess/failed/interrupted、完結したJSONとLFを一行として扱う |
+| self-transaction/state.json | [本体取引](../BASIC_SPEC.md#本体の置換と復旧)の8キーだけ。phaseは同節の工程へ対応付ける。両hashはhex64桁または初回beforeだけnull。パスは固定生成先以外を拒否 |
+| ログ・成果物 | [ログ](../BASIC_SPEC.md#ログ形式)・P02-CLIのreport/plan/bundleを担当形式とする。状態記録をログ形式で代用しない |
+
+追加するoperation/historyのキーは採用前の既存記録へ書かない。形式の版変更と旧形式の移行可否はP04-UPDATEの互換表へ結合する。チェック集合はos.supported、architecture.supported、target.identity、records.consistent、profile.selected、operation.clear、dependency.approved、plan.currentを共通候補とし、各入口は担当契約の検査を加える。適用外は理由必須、欠損をpassへしない。実行環境だけのversion/helpには対象検査を要求しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-79` | managed.profileとconfigが不一致、operationに未知キー、last-successの履歴hash不一致 | 構文成功後も整合検査失敗。キャッシュ補完・不在扱い・成功記録なし |
+
+## 実行と復旧の確定候補
+
+P02-EXECの第一候補はOSの一時serviceで変更操作全体を監督する方式とする。CLI配送側ではなく対象側の同一本体workerを変更の親とし、このworkerが共通guardを取得し、operation開始から必須記録の確定まで保持する。常駐daemonや独立agentは新設しない候補。内部入口の具体構文・呼出し権限は公開CLIと分離して採用審査する。
+
+[systemd-run 255](https://www.freedesktop.org/software/systemd/man/255/systemd-run.html)の一時serviceはmanagerが親となる。[KillMode](https://www.freedesktop.org/software/systemd/man/255/systemd.kill.html)のcontrol-groupを候補にし、単一Childのkillやscopeへの置換を互換とはしない。unit名はOperationIdへ固定し、Type=exec、KillMode=control-group、SendSIGKILL=yes、TimeoutStopSecは呼出元grace、RuntimeMaxSecは停止・記録予約を除いた残時間へ対応付ける。未採用のOS機能を使用可能にしたものではない。
+
+| 中断位置 | 対象側の処理と次回の判定 |
+|---|---|
+| worker開始前 | 変更0件。開始不成立の証拠がある場合だけ未実行 |
+| guard取得後・begin失敗 | 対象変更0件。記録不足とエラーを返し、既存記録を削除しない |
+| 実適用後・history未確定 | runningと資源journalを保持。復旧照合まで後続変更不可 |
+| history確定・operation未確定 | 同じ操作行のhashと実状態を照合。履歴の再追加なし |
+| operation終了・補助記録未確定 | complete不可。last-result/version/stateの必要集合を照合して是正計画を提示 |
+| 親異常終了・子孫残存 | guardが解放されても新規操作を開始しない。残存unit・operation・実状態を照合する |
+
+履歴は候補上限64 MiB、各行64 KiB、超過予定ならbegin前停止とし、自動削除・退避で空けない。各記録の一時物・旧物・履歴全コピーの必要容量と親同期を事前計算する。記録容量の見積と書込み成功を区別する。ブロックしたFSや停止不能な子孫を時間内終了と偽らずstop_unknownへ移し、結果を失った要求の再適用を禁止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-80` | worker強制終了直後に子孫残存、次のCLIがlock取得成功、履歴64 MiB超過予定 | ロック取得だけでは続行不可。残存/中断照合または容量不足でbegin/適用0件 |
+
+## 依存と受入の確定候補
+
+P02-CLIのCheck.idは既存の契約ID/local形式を維持する。[共通集合](#入力と保存形式の詳細案)の省略名はP02-STATE/os.supported、P02-STATE/architecture.supported、P02-MODEL/target.identity、P02-STORE/records.consistent、P02-STATE/profile.selected、P02-STORE/operation.clear、P01-CHECK/dependency.approved、P03-PLAN/plan.currentへ対応付ける候補。これを裸のdot形式で直列化しない。
+
+status/inspect/doctorの必須集合は最初の六つ、planは依存採用と計画有効性を追加、変更操作は八つと担当全stepの検査を要求する。version/helpは対象の必須集合を持たず、versionの対象取得不能は理由付きで分離する。reportは記録整合、support-bundleは記録整合と収録/秘匿化検査、verifyは対象構成の全必須検査を結合する。検査不能な必須項目をnot_applicableへ変更しない。構成機能の追加検査IDは各担当で固定する。
+
+スキーマvalidatorは登録対象enumとValueを受け、検証済み設定/記録のenumを返す候補。未知登録型を汎用Valueのまま適用器へ通さない。解析器からOS観測器・保存器への依存を作らず、初期はparse/model/store/execを別moduleとして保つ。型を後でcrateへ抽出する場合、JSON/YAMLの成功木・失敗位置・既存記録互換を同じfixtureで新旧比較し、形式移行を単なるimport変更へ混入しない。
+
+外部コマンドの通常captureは従来の1 MiB上限を維持する。大きい配布物は新しい専用file-sink契約の採用が必要で、取得先・新規File・最大byte数・OS強制上限・同期/hash検査を固定する。単にstdout制限を解除する実装は禁止候補。Fileの[同期/排他API](https://doc.rust-lang.org/std/fs/struct.File.html)の存在だけでパス固定・複数記録確定・I/O停止可能性を充足としない。u64で表す外部整数もP02-PARSEのi64上限を超える値は拒否する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-81` | 必須check一件欠損、裸dotのid、通常captureへ128 MiB本体、u64::MAXの記録値 | それぞれ契約不一致/上限で拒否。大容量取得を通常capture成功へ変換しない |
 
 ## 未決事項と成立判定
 

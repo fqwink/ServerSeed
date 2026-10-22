@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B2`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B3`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB2）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB3）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -196,6 +196,57 @@ ISOは固定資材/生成/起動、MEDIAは選択/導入入力、HANDOFFは段�
 | `A05-17` | 正常・異常。各handoff遷移と、target_startedからcompleteへの飛越し | 必須証拠がある隣接遷移だけ受理。媒体なし起動・再起動を省略しない |
 
 必要なSubiquity/ブート設定、RAM実行環境、継続unitと全handoff保存形式が未確定なら媒体保守は未充足。通常CIのISO内容検査、専用VMでの起動/取り外し、実機の機種別動作はそれぞれ別の証拠とし、実機試験の許可境界が未決のまま実行しない。
+
+## 入力と保存形式の詳細案
+
+P05-MEDIAの入力をMediaRequestとして閉じる候補。対象OSへ渡す導入値は[InstallPayload](PHASE_10.md#型とapiの詳細案)を参照し、物理経路用にstorage/network/user/bootの第二定義を作らない。
+
+| 型 | 全キーと制約 |
+|---|---|
+| MediaRequest | schema_version: 1、media_id: hex32string、action: MediaSelectionのaction、target: TargetEvidence、selection: Selection、install: InstallPayloadまたはnull、plan: Plan、backup: BackupSetまたはnull、confirmation: Confirmationまたはnull |
+| Confirmation | plan_id: PlanId、target_disk_id: string、shown_digest: hex64string、response: string、confirmed_at: UtcMillis。消去の確認文字列は基本仕様を参照し、別の短縮確認へ変えない |
+| HandoffRecordの補完 | 既存キーにrequest_sha256: hex64string、recipe_sha256: hex64string、target_boot_id: stringまたはnull、removal: RemovalResultまたはnullを追加する案 |
+| 受渡し保存先 | 媒体側・対象側に同じmedia_id/plan_idのレコードを置き、対象側は候補/var/lib/serverseed/media-handoff.json。書込み先は外部requestから受け取らず固定生成する |
+
+installはaction=installだけ非null、既存OSへのadopt/update/backup/recoverではnull。backupが必要な操作は保全計画への参照を省略できず、action=backupはbackup非null。selectionのplan/target/profileとplan本体が完全一致しない場合は実行前に拒否する。確認は利用者のその計画への応答であり、USBの接続や--yesで生成しない。
+
+ISO recipeのtools配列はMaterialRefの識別集合を重複なしで固定し、baseと全tools、同梱本体の実hashをrecipeへ結合する。boot後にlatestを取得してrecipeだけ固定という扱いにはしない。RAM起動方式の採用前に必須RAM量と退避領域を測定する必要があり、本候補の形式だけで媒体取り外し可能とはしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-18` | selectionはdisk A、InstallPayloadはdisk B、confirmationは旧plan | 対象照合失敗。Subiquity起動・ディスク消去・確認の自動生成なし |
+
+## 実行と復旧の確定候補
+
+P05-HANDOFFの候補実行は、媒体上で選択・確認→対象側記録準備→内蔵側の継続処理→媒体依存解消→取り外し案内→内蔵起動→再起動確認の順とする。Liveを通常運用の実行環境へ残さない。
+
+Subiquityの[公式入力](https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html)へ渡す生成物はautoinstall/version=1を明示し、承認済みrecipeからだけ生成する候補。installer自身の更新を無効にする案と、late-commandを構造化argvへ限定する案を審査する。公式文書の対応構文の確認と採用ベースISOでの実行試験を区別する。任意の利用者shell断片を差し込まない。
+
+対象側の継続処理がguardを所有し、媒体側は対象の同じ操作を照合するだけとする。Liveと内蔵側がそれぞれ独立してsetupを始める設計にはしない。対象boot_idが変わったら旧PID/lockの観測を新OSへ流用せず、ディスク・root・操作記録の結合を再確認する。
+
+RAM起動案ではSquashFS・loop・overlay・swap・開いたFDを含む媒体参照が解消していることを確認する。対象処理終了、同期、参照解消、unmount確認の全成立前に取り外しを案内しない。実RAM容量不足、媒体参照の解除不能、対象側結果不明は取り外し不可。取り外し後の確認結果は内蔵OSに保存し、USBの再接続を完了条件にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-19` | late処理応答欠損、USB上のloopだけ残存、対象は内蔵起動成功 | 再setupなし、取り外し判定は未成立。内蔵起動の証拠だけで媒体依存を消したとしない |
+
+## 依存と受入の確定候補
+
+P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はRecipeInput/MaterialRefを使い、生成器が独自にbase/tool版を選ばない。P05-MEDIA/HANDOFFはMediaRequestと対象側OperationReceiptを受け、媒体の存在を通常運用の依存へ残さない。
+
+| 受入区分 | 必須にするfixture/比較 |
+|---|---|
+| 純粋処理 | 不整合MediaRequest、確認/plan/diskの組、handoffの隣接/飛越し遷移。生成byte列と拒否位置を比較 |
+| ISO内容 | 固定recipeと全MaterialRef、CPU、本体hash、manifest/署名の実byte対応。ISO名一致だけ不可 |
+| 隔離起動 | 採用VMのUEFI/BIOS、対応CPU、空/既存disk、外部通信なし、RAM不足、loop残存 |
+| 導入と通常運用 | 媒体を外した状態で同一内蔵OSの初回起動と再起動、三構成の該当検証。Live成功で代用しない |
+| 機種固有 | firmware読取りと許可設定のメーカー/機種/版別契約。VMでは実機の復電・Secure Bootを成功認定しない |
+
+入力生成器/引渡し評価器は同一package内の内製module、Subiquity・ISO・firmware操作は個別例外。内製部分をcrateへ抽出する際も外部実行物を同梱crateとして取り込まない。新旧には同じrecipe/MediaRequestを渡し、生成設定・拒否・引渡し記録を比較する。ISO生成方法やboot構成が変わったら内容/起動/媒体なし検証を再実施し、純粋比較だけでは旧結果を再利用しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-20` | 入力生成器は同出力だがbase ISO/boot設定だけ変更、VM起動pass | 旧取り外し/実機結果を自動流用しない。該当ISOの内容・導入・内蔵起動を再検証 |
 
 ## 未決事項と成立判定
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B2`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B3`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB2）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB3）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -179,6 +179,59 @@ CONFIGはserver.ymlとapps入力、APPは全サービスの固定とhealth、DAT
 | `A06-16` | 異常。HTTPは1xxだけ、またはredirectで別URLへ誘導 | 最終応答・固定要求条件が不成立。候補方式の自動追従なし |
 
 アプリ別の復元方法・データ形式・期限と、Docker/Compose/アプリの個別採用情報は未達として残る。構文・設定型の充足と、実行・データ復旧の充足を分け、空アプリ集合の成功を任意アプリの対応済みへ一般化しない。
+
+## 入力と保存形式の詳細案
+
+P06-CONFIGの新形式候補はapps.ymlのrootをschema_version: 1とapps: AppConfig[]の二キーとする。server.ymlは先述のschema_versionとoperation_timeout_secondsだけ。既存apps例は旧形式の資料として維持し、無承認の変換はしない。
+
+| 型 | 全キー・型・必須性 |
+|---|---|
+| AppConfig | name: 既存名前制約、enabled: bool、compose_file: 絶対path、healthcheck: HealthInput、backup: AppBackup。全キー必須 |
+| AppBackup | required: bool、method: ApplicationDataMethodまたはnull。required=trueならmethod必須。falseでも重要データ等の保護条件を免除しない |
+| ApplicationDataMethod | contract: ContractRef、data_kind: application/database、consistency: stopped/native_dump、stop: CommandInputまたはnull、capture・restore・verify: CommandInput、restart: CommandInputまたはnull、restore_ttl_seconds: u32、isolated_target_ref: string |
+| 条件 | stoppedはstop/restart必須、native_dumpは両方null。各コマンドの実対象・非変更範囲・期待終了/成果物をcontractへ対応付け、単に終了0だけで整合性を認定しない |
+| 不在・null | apps.ymlの不在は既存仕様どおりアプリなし。読取り不能はエラー。新形式のapps=[]は明示的な空集合、apps=null・backup省略は形式エラー |
+
+旧healthcheck.typeから新kind、旧backup.commandからcaptureへの自動変換は行わない。旧一文字列を一実行pathとする規則だけではrestore/verify/TTL/隔離先を作れないため、これらを所有者が指定した新形式を別計画として検証する。enabled=falseも構文検査対象とし、無効な危険設定を隠さない。無効化を既存コンテナ・データの自動除去と解釈しない。
+
+AppPlanのresourcesはP03-RESOURCE、実適用はP04-APPLY、データの保存はP04-BACKUPへ渡す。backup.method=nullで重要データ変更を伴う計画は、データ保護条件を別に満たせない限りblocked。形式のnull許容を保全免除にしない。restore_ttl_secondsはP04-BACKUPと同じ正整数範囲へ照合する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-17` | 旧backup.commandだけの設定、新形式でstoppedだがrestart=null、enabled=falseに未知キー | 必須契約不足または形式不正。shell分割・暗黙の復元手順・無効項目の黙認なし |
+
+## 実行と復旧の確定候補
+
+P06-APPのアプリ工程をvalidated→preserved→applying→checking→verified→recordedの候補へ固定する。failed/unknownでは次アプリを開始しない。AppResultは元のAppPlanと同じcompose/image/data method参照を保持し、検査時に別のlatestへ置き換えない。
+
+ヘルス検査は最初の要求開始をattempts_usedへ確定してから起動する。timeout/応答欠損も消費した一回であり、別プロセスの再開で0へ戻さない。次回は前試行終了時刻からintervalを待ち、親期限の残量がなければ未実施。HTTP 1xxだけでは完結としない。候補のGETはredirect非追従、userinfo/fragment拒否、本文上限を1 byte超えたら失敗とし、body_limit=0も同じ厳密上限として非空本文を拒否する。
+
+停止取得の保全では、元の稼働有無を記録してからstopし、停止確認後だけcaptureする。元が停止中なら終了時に勝手に起動しない。capture後の復帰失敗と保全内容の成否は別結果で、復帰不能のまま更新を開始しない。DBの復元検証は稼働DBへ接続せず、methodで固定した隔離先だけへ適用する。
+
+検査失敗後に旧imageへ戻せる条件は旧image/composeとデータ形式の互換が成立し、復元先・保全物・復帰条件を確認できる場合に限る。不可逆migration後のimage切替を復旧成功にしない。復旧も利用者の当該計画への確認範囲を必要とする。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-18` | 初回HTTP開始後中断、再開時attempts=1、capture元サービスは元から停止 | 検査回数を巻き戻さない。サービスを起動せず、残予算/試行条件を照合 |
+
+## 依存と受入の確定候補
+
+P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用への調整、P06-DATAは個別データ方法の契約照合を担当する候補。Docker/Compose・HTTP/TLS・DB実行物を新しいRust依存へ置換せず、例外採用と内製判断を分ける。
+
+| 境界 | 比較・受入条件 |
+|---|---|
+| config→plan | AppConfigと固定compose/image集合からAppPlanを所有して返す。enabled=falseでも形式検査を行い、既存データの除去を計画しない |
+| apply→result | apply_serverの型付き入力はAppPlan[]、結果はAppResult[]を包むChangeResult。開始後の全失敗にpartial必須 |
+| health | HealthInputと残予算からHealthResult。command非変更性・HTTP応答完了・試行数は同じ基準、失敗後の方式切替なし |
+| data | ApplicationDataMethodとBackupSetを結合し、同じapp/版/形式/隔離先の復元確認がなければdata_verified=trueにしない |
+
+同じAppPlanをstandalone serverとmasterのサーバ機能へ入力し、対象・制約が同じなら同じ変更/検査/失敗を返すことを受入条件とする。難易度はschema/計画調整が中、データ互換/復元が高。後者を共通file-copyへ吸収して内製完了にしない。
+
+将来のcrate差し替えでは設定validator・健康判定・実行adapterを個別に比較し、共通保存やOS実行器を重複実装しない。API変更時は全呼出元・旧形式の取扱い・lockfile切替と除去条件を同じ変更案へ追跡する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-19` | 同じAppPlanをserver/masterへ入力、DB復元fixtureだけ別版 | サーバ部分の結果は同条件で一致。別版の復元を成功へせず、同居全体も未完了 |
 
 ## 未決事項と成立判定
 

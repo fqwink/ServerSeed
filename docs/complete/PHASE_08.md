@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B2`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B3`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB2）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB3）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -188,6 +188,60 @@ MASTERは台帳/CLI/対象管理、COHOSTは三機能・共有資源・親操作
 | `A08-16` | 異常。新マスターはready、旧主体失効済みだが1要求の対象結果未照合 | 当該依存範囲の遠隔変更は保留。readinessだけで再開しない |
 
 資源予約の最低値・実測条件、マスターCLI全構文/表示、旧主体の失効手段と秘密情報の復元は所有者の判断が必要。これらを管理者入力という自由文字列へ逃がさず、指定先・型・範囲・確認・不成立時停止まで確定してから仕様充足を判定する。マスターの物理媒体構築条件とCloud管理先の条件は混同しない。
+
+## 入力と保存形式の詳細案
+
+P08-MASTERのCLI候補を以下へ閉じる。共通フラグ・出力・終了分類はP02-CLI、ID制約は本書の台帳定義を使用する。ここで候補構文を定義しても共通CLIへ採用されたものとはしない。
+
+| 構文候補 | 入力・返却 |
+|---|---|
+| master targets list | 追加引数なし。TargetRegistryを読取り、target_id順の配列を返す。接続・修復・保存なし |
+| master targets add --target-file PATH | 新規一件のRegistryEntryを読み、既存台帳hashと比較して登録計画を作る。機器ID未検証なら登録準備状態として区別 |
+| master targets remove --target-id ID | 台帳からの登録解除計画だけ。実対象の本体・OS・データを除去しない |
+| master run --target-id ID --request-file PATH | P09-REMOTEのSubmitを一対象へ配送。install_osだけPhase 10を使用。対象集合・自動列挙・一括消去なし |
+| master reconcile --target-id ID --request-id ID | P09のQueryだけ。計画・消去・変更の再投入なし |
+
+RegistryEntryの全キー候補はtarget_id・host・port・user・credential_ref・trust_ref・expected_machine_id。portは1〜65535、hostはDNS名またはIPの単一文字列、制御文字・空白・先頭hyphen・user@hostを拒否する。userはPhase 10のUserInputの名前制約へ参照。credential_ref/trust_refは保護された登録済み参照IDだけで、秘密値・任意pathを受け取らない。
+
+マスターCLIのdataはlist={registry_sha256,targets}、台帳変更={before_sha256,after_sha256,changed_target_ids}、run=DeliveryRecord、reconcile=ReconcileResultとする候補。list以外を一律変更扱いにはせず、reconcileの読取り結果保存は利用者指定成果物だけとする。登録時の接続・信頼の初回確認は別手順として計画し、listへ通信を混入させない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-17` | hostに-user@host、秘密鍵本文をcredential_ref、未照合requestありの解除 | 入力または依存照合で拒否。SSH起動・台帳保存・実対象削除なし |
+
+## 実行と復旧の確定候補
+
+P08-COHOSTの一操作内で各機能を直列に適用し、同じ共通guardを維持する候補。台帳変更もローカル変更としてguard・operation・履歴確定を使用する。対象側の遠隔guardは別対象の排他であり、マスターのローカルguardを遠隔へコピーしない。
+
+台帳の変更前後hashを計画へ固定し、保存直前に前hashを再照合する。対象に未照合の遠隔要求がある間はその登録解除・接続先/鍵参照変更を停止する。台帳保存の成功で遠隔側の旧主体失効や未確認操作の終了を推測しない。
+
+CapacityInputのcpu_*は論理CPU相当数の整数とし、既存の算定式・受入入力と同じ単位を使う。メモリーは同型のbyte整数式、ストレージはP04の操作別必要容量へ照合する。cgroup等の強制制限の実現性も検証対象とし、入力値の和だけで保証しない。最低資源・負荷プロファイルは所有者が対象機器で測定して決める未達である。
+
+マスター喪失後は旧master_idの失効証拠と全pending要求の対象側照合を先に確定する。新しい物理マスターには新MachineIdを発行し、旧IDを自動継承しない候補。同じ対象への管理権限の切替は信頼ポリシーの審査対象で、旧主体を失効できないなら遠隔変更を再開しない。旧マスターを残した二台運用へ移行しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-18` | 台帳変更直前に別hash、機能適用中に遠隔要求未照合、新マスターへ旧MachineIdをそのまま復元 | それぞれ競合/依存停止。同じID・入力配分だけで制御権や資源保証を認定しない |
+
+## 依存と受入の確定候補
+
+P08-MASTERは台帳/対象選択、COHOSTは三機能の集約、BACKUPは管理情報と未照合要求の保全を内製する候補。サーバ/採掘機能はP06/P07の同じAPIを呼び、マスター専用の第二実装を作らない。
+
+| 契約検査ID候補 | 必須条件 |
+|---|---|
+| P08-MASTER/registry.consistent | 台帳の版・hash・対象ID一意・同一実機重複なし |
+| P08-COHOST/server.ready | サーバのconfigured/applied/verifiedと担当必須検査の全成立 |
+| P08-COHOST/mining.ready | 採掘の同条件。対象機器が未対応なら全体ready不可 |
+| P08-COHOST/resources.bounded | 実測資源・予約・上限・強制制御が一致 |
+| P08-BACKUP/control.reconciled | 旧主体失効と未照合要求の対象側結果を確認 |
+
+上記はローカルreadinessの集合で、遠隔0件でSSH成功を作らない。構築/台帳変更の返却はP04のOperationReceipt/ChangeFailureを使い、機能別失敗を一boolへ消さない。復元時にはregistry・trust参照・remote記録・保全物の版を対応付ける。
+
+将来crate化するなら台帳validatorとreadiness集計だけを抽出候補とし、P06/P07/P09実行器は再利用する。新旧で同じ台帳・三機能結果・pending列を渡し、全検査/未達/解除拒否を一致させる。単一マスターという要件を多重化実装へ変更する権限は実装者にない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-19` | 三機能readyでもresources.boundedがunknown、旧主体失効は未確認 | 全体準備と制御再開を拒否。集計器差替え後も省略・成功化しない |
 
 ## 未決事項と成立判定
 
