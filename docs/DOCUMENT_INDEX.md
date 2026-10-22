@@ -81,8 +81,6 @@
 |---|---|---|
 | [complete/](complete/) | [作業ルール](../AGENTS.md#完全仕様書の配置) | [文書体系の移行](ROADMAP.md#文書体系の移行) |
 
-`complete/.gitkeep`は格納先をGit管理に残す空ファイルであり、完全仕様書ではない。
-
 | 本文案 | 担当する具体化 | 契約の確認先 |
 |---|---|---|
 | [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
