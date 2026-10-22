@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B3`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B4`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB3）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB4）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -61,6 +61,8 @@
 
 サービス起動・停止は各120秒、全更新はP04-UPDATEの上限内、再試行なしを候補とする。運転監視の許可された再試行と、更新処理の再投入は別に数える。
 
+採掘更新の審査単位はminer MaterialRef・設定hash/版・algorithm・driver/kernel能力行・正常版/復元元の組とする候補。第一候補はminer/configurationだけの変更をOS/kernel/driverから別stepへ分ける方式で、共有driverの運転中差替えは行わない。候補の実行前に利用/再配布条件と手数料を台帳へ対応付け、同梱不可の場合の取得経路も別に決定する。模擬試料・fixtureで更新調整を検査し、実採掘や未承認の実機制御を適合証拠にしない。
+
 ## 内製単位・API案
 
 配置候補は`src/profiles/mining/device.rs`・`config.rs`・`monitor.rs`・`update.rs`。検出結果の評価・監視状態機械・更新調整は内製、採掘エンジンとドライバーは外部例外。新規内製の難易度は機器評価・監視が中、機器制御・復旧が高とする候補。
@@ -79,23 +81,15 @@
 
 | 型 | 全キー・値域の候補 |
 |---|---|
-| MiningSample | engine: cpu・gpu、device_ids: string[]、epoch: string、elapsed_ms: 0以上integer、process_alive・connected: booleanまたはnull、algorithm: stringまたはnull、hashrate_milli: 0以上integerまたはnull、temperature_milli_c: integerまたはnull |
+| MiningSample | engine: cpu・gpu、device_ids: string[]、epoch: string、elapsed_ms: 0以上integer、process_alive・connected: booleanまたはnull、algorithm: stringまたはnull、hashrate_milli: 0以上integerまたはnull、temperature_milli_c: integerまたはnull、temperatures_by_device: device_id→integerまたはnullのobject |
 | MonitorState | engine: cpu・gpu、epoch: string、state: preparing・warming・running・retry_wait・thermal_stop・stopped・unknown、entered_ms: 0以上integer、last_sample_ms: integerまたはnull、attempts_used: 0以上integer |
 | ControlProposal | engine: cpu・gpu、action: none・start・stop・restart、reason: 固定コードstring、sample_epoch: string、sample_elapsed_ms: 0以上integer、state_before・state_after: 上記内部状態 |
 
 hashrate_milliは1/1,000 hash/s、temperature_milli_cは1/1,000℃の整数を候補とする。変換元の精度・丸めを機器能力表で確認できない場合はnull。機器ごとの温度・電力の上下限を共通の推測値で決めない。epochは監視開始・再起動で変わる採取世代で、異なるepochのelapsed_msを減算しない。同じepochで時刻が後退・重複した試料を連続正常時間へ算入しない。
 
-次の評価順を`D07-03`の採用候補とする。最初の行だけを主因として選び、他の異常も検査結果へ保持する。
+評価順と全状態の遷移は[状態と中断](#状態と中断の詳細案)へ集約する。最初の成立条件を主因とし、他の異常もchecksに保持する。
 
-| 条件 | 内部状態・制御候補 |
-|---|---|
-| 試料の対象・型・世代・時間を確認不能 | unknown・none。変更命令を生成しない |
-| 温度が有効な停止閾値以上 | thermal_stop・stop。起動待機や接続復旧より先に評価 |
-| 温度不明 | 担当ポリシーの未確定動作へ対応付ける。正常・再開へ遷移させない |
-| thermal_stopから再開候補 | 温度が再開閾値以下で所定の連続安定期間を満たすまでstop維持。期間・値の未定義は再開不可 |
-| 起動後の待機期限内 | warming・none。明確な過熱を待機として隠さない |
-| 接続または採掘能力が不成立の状態が停止判定期間以上 | retry_wait・restart候補。許可・排他と残り回数の再確認が必須 |
-| 上記の異常なく全必須観測が成立 | running・none |
+起動待機・再試行待機・停止保持を飛び越す概説用の第二遷移表は設けない。温度は機器別ポリシーへ照合し、未知試料・未確定制御の扱いも参照先だけで判断する。
 
 再試行の計数と停止保持は[状態と中断](#状態と中断の詳細案)に集約する。観測再取得・拒否された制御要求を実開始回数へ数えず、プロセス生存だけで回数を0へ戻さない。
 
@@ -166,14 +160,14 @@ MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#�
 
 ## 状態と中断の詳細案
 
-`P07-RUN`の全内部状態を、次の優先規則へ照合する候補。まず世代・対象・時刻の不正、次に過熱・温度不明、続いて状態固有行を評価する。同じ試料から二つの制御要求を出さない。
+`P07-RUN`の全内部状態を、次の優先規則へ照合する候補。まず世代・対象・時刻の不正、次に未確定要求の照合、次に過熱・温度不明、続いて状態固有行を評価する。未確定要求の照合中も温度の事実を保持するが、新規要求の生成へ進めない。同じ試料から二つの制御要求を出さない。
 
 | 対象状態・条件 | 次状態と制御 |
 |---|---|
 | 全状態、対象・epoch・時刻が不正 | unknown、none。連続時間を全て無効化 |
+| 全状態、未確定controlあり | 新しい制御はnone。過熱の事実と必要な保護を保持し、既存要求/実状態を照合する。同じengineへ二重のstop/startを発行しない |
 | 全状態、有効温度が停止値以上 | thermal_stop、稼働中ならstop、停止確認済みならnone。プロセス状態も不明ならunknown/noneとして無確認の制御をしない |
 | 全状態、必要温度がunknown | unknown、none。停止要否の安全判断は担当ポリシー確定まで保留 |
-| 全状態、未確定controlあり | 起動/restart提案なし。過熱の先行保護は維持し、同じ対象の実位置を照合する |
 | stop_latched=true | 起動/restart提案なし。別の温度状態へ移っても保持を解除しない |
 | stopped、明示した新規開始が未承認 | stopped、none。正常試料だけでは再開しない |
 | unknown、有効試料を再取得 | unknown、none。再同定・明示復旧の確認待ち |
@@ -231,12 +225,12 @@ P07-CONFIGのMiningConfig候補は次の全集合とする。従来の項目候�
 |---|---|
 | MiningConfig | schema_version: 1、mode: 既存3値、cpu・gpu: EngineConfigまたはnull、monitor: MonitorConfig、maintenance: MaintenanceWindow |
 | EngineConfig | capability_ref: ContractRef、material_ref: MaterialRef、algorithm・pool・wallet: string、backup_pools: string[]、device_ids: string[]、threads: u32またはnull、power_milli_watts: u64またはnull、minimum_hashrate_milli: u64 |
-| MonitorConfig | interval_seconds・warmup_seconds・failure_seconds・retry_wait_seconds・retry_limit: 先述の整数範囲、temperature_stop_milli_c・temperature_resume_milli_c: i64またはnull、temperature_stable_seconds: 1〜600、temperature_unknown_action: hold/stop、allow_service_recovery: bool |
-| MaintenanceWindow | timezone: UTCだけ、start_minute・end_minute: 0〜1439のinteger、allow_auto_update・allow_os_reboot: bool、update_targets: string[]。対象名はP07-UPDATEの計画対象から重複なし |
+| MonitorConfig | interval_seconds・warmup_seconds・failure_seconds・retry_wait_seconds・retry_limit: 先述の整数範囲、temperature_policies: device_id→TemperaturePolicyのobject、temperature_stable_seconds: 1〜600、temperature_unknown_action: hold/stop、allow_service_recovery: bool |
+| MaintenanceWindow | timezone: UTCだけ、start_minute・end_minute: 0〜1439のinteger、allow_auto_update・allow_os_reboot: bool、update_targets: string[]。対象名はminer/configuration/os/kernel/driverから重複なし。実際の変更可否はP07-UPDATEと選択済み計画へ照合 |
 
-cpuのみならgpu=null、gpuのみならcpu=null、combinedなら両方必須。CPUはthreads必須・power=null、GPUはthreads=null・device_ids非空、電力値は確認済みcapabilityの許容値に完全一致させる。最低hashrateは利用者の正整数入力とし、0や未取得を正常閾値にしない。pool/walletの許容文字と送信範囲は採用miner契約が確定するまで検証不能とする。
+cpuのみならgpu=null、gpuのみならcpu=null、combinedなら両方必須。各engineのdevice_idsは非空・一意、CPU/GPU間にも重複なし。温度ポリシーのキー集合は選択全機器と完全一致させる。CPUはthreads必須・power=null、GPUはthreads=null・device_ids非空、電力値は確認済みcapabilityの許容値に完全一致させる。最低hashrateは利用者の正整数入力とし、0や未取得を正常閾値にしない。pool/walletの許容文字と送信範囲は採用miner契約が確定するまで検証不能とする。
 
-温度二値は両方有効または両方nullとし、nullを監視不要と認定しない。temperature_unknown_actionの候補値は保護判断の審査入力であり、値があるだけで制御を許可しない。実際の未取得時動作はSECURITY_POLICYの判断待ちへ対応付ける。backup_poolsは0〜3件、主pool・相互の重複なし。自動切替の可否・順序はminer契約の採用待ちとする。時間帯は[start,end)とし、start=endは空時間帯、start>endは日跨ぎ。UTC以外と夏時間の推測は拒否する候補。既存運用許可の変更となる部分は採用審査待ちである。
+TemperaturePolicyの全キーはstop_milli_c・resume_milli_c（i64または両方null）。選択した全機器に一行ずつ要求し、各機器の確認済み値域内でresume < stopを検証する。温度二値のnullを監視不要と認定しない。temperature_unknown_actionの候補値は保護判断の審査入力であり、値があるだけで制御を許可しない。実際の未取得時動作はSECURITY_POLICYの判断待ちへ対応付ける。backup_poolsは0〜3件、主pool・相互の重複なし。自動切替の可否・順序はminer契約の採用待ちとする。時間帯は[start,end)とし、start=endは空時間帯、start>endは日跨ぎ。UTC以外と夏時間の推測は拒否する候補。既存運用許可の変更となる部分は採用審査待ちである。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -248,9 +242,9 @@ P07-RUNの制御記録候補はschema_version・operation_id・engine・epoch・
 
 | 評価対象 | 遷移の補完候補 |
 |---|---|
-| process_alive=false | 既知の停止を記録。復旧許可と残回数がなければstopped、あればretry_wait。未知と同じ扱いにしない |
+| process_alive=false | preparingでは開始候補の前提、warmingでは待機期限を先に評価、runningでは障害継続を計測。状態表を飛び越して即restartへ移らない |
 | connected=false / algorithm不一致 / 最低hashrate未満 | failure_sinceを最初の不成立試料へ固定し、連続不成立時間が閾値に達してからretry_wait |
-| 全必須観測が正常 | failure_sinceを解除。retry_wait中でも実際の正常確認があればrunningへ戻すが、消費回数はリセットしない |
+| 全必須観測が正常 | failure_sinceを解除。retry_waitで保持なし・未確定要求なし・再起動不要を確認した場合だけrunningへ戻る。stopped/unknown/thermal_stopの解除条件を迂回しない |
 | 試料欠損・epoch変更 | 連続時間を無効化しunknown/none。retry回数・stop_latchedは保持 |
 | pending_controlあり | 同じ要求を新規発行しない。receiptと実サービスを読取り照合 |
 | stopped/stop_latched | 新しい明示的運転セッションの選択・確認までstart/restartなし |
@@ -267,7 +261,7 @@ requestキーはengine/epoch/sample_elapsed_ms/action/config_sha256の組へ固�
 
 P07-DEVICEの能力入力候補をDeviceCapabilityとし、全キーはdevice_id・kind・vendor・model・driver_material・kernel_release・miner_material・algorithms・sensor_contract・temperature_range・power_rangeとする。kindはcpu/gpu、各materialはMaterialRef、範囲は単位付き最小/最大/stepの整数objectまたは未確認時null。全キー必須。未確認を空の対応表へ変換しない。
 
-sample adapterは選択device_idsのみに限定し、各機器hashrateのchecked合計と有効温度の最大を返す候補。必須機器一件でも観測欠損なら該当集約値null、別機器の正常値で補完しない。外部APIの意味・単位・精度をsensor_contractへ固定してから変換し、模擬データの成功で実機能力を認定しない。
+sample adapterは選択device_idsのみに限定し、各機器hashrateのchecked合計とtemperatures_by_deviceを返す候補。temperature_milli_cは表示用の最大値で、制御判定は各機器の温度と対応するTemperaturePolicyを個別に照合する。一件でも停止条件成立なら当該engineの過熱とし、冷却条件は必要な全機器で成立させる。必須機器一件でも観測欠損なら該当集約値null、別機器の正常値で補完しない。外部APIの意味・単位・精度をsensor_contractへ固定してから変換し、模擬データの成功で実機能力を認定しない。
 
 | 差し替え対象 | 同一fixtureで一致させる結果 |
 |---|---|
@@ -281,14 +275,18 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A07-19` | GPU二台の片方だけ温度欠損、hashrate和overflow、同じreceipt列を新旧へ入力 | 欠損集約はnull、overflow拒否、純粋評価の全列一致。実機安全性は別の受入 |
+| `A07-20` | 機器Aは78℃/停止75℃、機器Bは80℃/停止85℃、別途Aの試料欠損 | 前者はAで過熱成立。Bの最大値だけで正常にしない。欠損は0℃へ補完せず安全条件の判断待ち |
+| `A07-21` | engine間で機器ID重複、温度ポリシー一件欠損、時間帯内だが更新未選択 | 前二件は設定拒否。時間帯成立だけでは更新0回、未定義の更新対象名も拒否 |
+| `A07-22` | warming待機内のprocess=false、stoppedで正常試料、pending中の過熱 | 即restart/自動再開/二重stopを出さない。各事実と未確認要求を保持して状態表へ照合 |
+| `A07-23` | minerのhash一致、再配布条件未確認、正常版と新設定が非互換 | 導入/配布または切戻しを停止。hash一致や模擬運転の成功で不足を補完しない |
 
 ## 未決事項と成立判定
 
 | 判断ID | 残る判断・根拠 | 影響 |
 |---|---|---|
-| `D07-01` | 機器別能力表・センサー・温度/電力値域と外部APIの版 | 機器対応・安全制御 |
-| `D07-02` | mining設定の全キー・既定値・許可との対応、形式版・移行 | サービス生成・更新 |
-| `D07-03` | 監視サンプル形式、複合障害の優先順・時間算定・状態遷移全集合 | 運転判定・自動復旧 |
-| `D07-04` | 個別例外・ライセンス・復旧資材と実機試験の許可境界 | 導入・配布・実機受入 |
+| `D07-01` | 機器IDごとの能力/温度ポリシーと試料を対応付ける案を推奨。所有者は実機の値域/単位/精度・外部API版を決定。集約最大温度へ一つの共通閾値を当てる案は採らない | 機器対応・安全制御 |
+| `D07-02` | 機器別設定/UTC時間帯/必須明示入力を推奨。所有者は全値域・能力参照・運転許可と旧設定移行を決定。時間帯は許可の代替ではなく、更新対象も選択済み計画へ限定 | サービス生成・更新 |
+| `D07-03` | 単一の全状態表・機器別試料・要求キー/receipt照合を推奨。所有者は保存/再起動後照合と制御実行器を決定。試料正常だけで停止保持や未確認要求を解除しない | 運転判定・自動復旧 |
+| `D07-04` | miner/config変更とOS/driver変更の別step化を推奨。所有者は採用版/再配布条件・正常版資材と実機試験境界を各正本で決定。内製制御の作成承認を外部エンジン使用許可にしない | 導入・配布・実機受入 |
 
 現段階ではfixtureによる受入の設計のみで実採掘・実機操作は行っていない。各未達と共通契約・非機能要求を解消するまで完全仕様は成立しない。

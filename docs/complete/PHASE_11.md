@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B3`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B4`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB3）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB4）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -19,7 +19,7 @@
 
 | 検証軸 | 必須とする照合案 |
 |---|---|
-| 各フェーズ | 各A01〜A10の正常・異常・境界値と、その依存する共通契約。ケース数だけで充足にしない |
+| 各フェーズ | Phase 1〜11にある全受入ケースと、その依存する共通契約。ケースID/入力/期待結果を固定集合へ列挙し、件数だけで充足にしない |
 | 共通本体 | 基本仕様の両CPU・GNUターゲットでビルドと実行を別に確認 |
 | 物理経路 | 対応CPU・起動方式の媒体起動、三構成の適用可否、取外し後の内蔵OS起動・再起動 |
 | 遠隔経路 | 対応する既存OS、OS未導入、起動不能、権限不足、切断・再接続と要求重複 |
@@ -48,6 +48,8 @@
 
 正式な許諾、第三者の同梱・再配布、署名鍵の保管・利用・ローテーションの未確定部分は[一般ポリシー](../POLICIES.md#ソースコードの公開と利用条件)、[署名鍵管理](../SECURITY_POLICY.md#リリース署名鍵)、[例外台帳](../DEPENDENCY_EXCEPTIONS.md)へ残す。本案で条文・鍵運用・例外の現在状態を確定しない。
 
+公開直前の審査集合は、独自成果物の正式許諾版、第三者資材ごとの再配布/表示、例外の有効情報、本番鍵の利用条件、実機/VMの適用境界、公開対象/権限の六区分を一対一に証拠へ対応付ける案を推奨する。各本文は担当ポリシー/台帳にのみ置き、ReleaseEvidenceには参照と判定だけを結合する。未確定が一つでもあればpublishable=falseだが、文書案そのものの作成/構文検査まで製品公開と同一視しない。正式許諾制定・鍵操作・個別例外採用・実機操作は今回の承認範囲外である。
+
 ## 検査の入出力・内製単位案
 
 統合受入の集計・成果物間の対応照合は内製候補とする。既存の`ci/`・`release/`という配置境界を維持し、Rustで所有する判断処理と薄い実行ラッパーの役割を分ける。具体的な補助実行体の構成はD11-01で決定するまで追加しない。
@@ -70,7 +72,7 @@
 | ReleaseEvidence | schema_version: 1、tag・commit・build_environment_ref: string、artifacts: ArtifactEvidence[]、acceptance: AcceptanceMatrix、publishable: boolean |
 | ArtifactEvidence | name・sha256: string、bytes: 正のinteger、producer_ref: string、verification_refs: string[] |
 
-受入行のキーは要件・契約・ケース・CPU・構成・入口の組で一意にする。pass/failはactual_ref必須、not_run/not_applicableはreason必須。not_applicableには担当正本の非適用根拠への参照を要求し、能力未確認・試験困難・未実装を非適用にしない。必須行のnot_run/fail、欠損・重複・承認済み契約や期待結果の不在が一件でもあればcomplete=false。
+受入行の結合キーは要件ID・契約ID・ケースID・CPU・構成・入口・environment_refの組で一意にする。契約のfile/anchor/版/commitとexpected_refも別に完全一致を検査する。pass/failはactual_ref必須、not_run/not_applicableはreason必須。not_applicableには担当正本の非適用根拠への参照を要求し、能力未確認・試験困難・未実装を非適用にしない。必須行のnot_run/fail、欠損・重複・承認済み契約や期待結果の不在が一件でもあればcomplete=false。
 
 expected_refは実出力から作らず、採用済みの受入条件と固定した入力・前提への参照とする。actual_refは実行コマンド・対象・前後状態・実出力・成否を特定する所有者管理下の証拠を指す。証拠のバイト列・対象コミット・環境・成果物が変わった場合は、同じケース名でも結果を自動再利用しない。
 
@@ -213,7 +215,7 @@ P11-ACCEPTの証拠参照を以下の候補へ閉じる。所有者の判定資�
 | ActualCaseの補完 | 既存結果にevidence: EvidenceRef[]を結合。passは期待参照と実観測の対応が必要、not_runは実出力を捏造しない |
 | ReleaseSet | schema_version: 1、tag: string、commit: Git完全ID、manifest: EvidenceRef、artifacts: EvidenceRef[]、acceptance_scope: EvidenceRef、acceptance_result: EvidenceRef、draft_release_id: u64またはnull |
 
-relative_pathは証拠ルート内に限定し、absolute・親逸脱・symlinkを拒否する。証拠本文はbyte列を読み込んで長さ/hashを確認し、参照文字列の存在だけで実行済みとしない。ExpectedCaseは受入行の識別組とenvironment_refで一意とする。必須ケースの欠損・余剰・目的違い・別commitを集計前に拒否する。
+relative_pathは証拠ルート内に限定し、absolute・親逸脱・symlinkを拒否する。証拠本文はbyte列を読み込んで長さ/hashを確認し、参照文字列の存在だけで実行済みとしない。ExpectedCaseは受入行の識別組とenvironment_refで一意とする。必須ケースの欠損・余剰・目的違い・別commitを集計前に拒否する。ExpectedCase.requiredは対象scopeの固定要求であり、実結果のnot_applicableだけでfalseへ変更しない。非適用は担当正本の根拠とscopeの対応が一致する場合だけ受理する。推奨は期待集合を先に固定する純粋集計器で、実行できた行からのscope生成は採らない。
 
 EvidenceRef.scope_idは固定したscope識別子であり、scope自身のdigestを内部へ埋める循環形式を作らない。scope全byte列のhashは外部の固定入力資料へ保存して照合する。期待証拠のcommitはspecification_commit、実出力のcommitはimplementation_commitへ照合し、受入行のexpected_refは検証済みEvidenceRefのevidence_idへ対応付ける。上記structに出てくるEvidenceRef/ExpectedArtifactは本表の検証済み値を保持する非公開フィールド型とする。
 
@@ -237,7 +239,9 @@ P11-RELEASEの公開操作候補は、固定したReleaseSet→draft作成/照�
 | 公開要求の応答欠損 | draft状態と実閲覧・全assetを読む。公開済みなら実事実を記録し、再公開要求なし |
 | 公開後に誤り発見 | 新版または所有者承認の保護措置へ。タグ付替え・同名asset差替えを自動実行しない |
 
-API呼出しは一回60秒・再試行0回、asset取得はP04の取得上限とReleaseSetのサイズへ制限する候補。ISO生成・VM/実機試験は各専用予算を採用してから実行し、通常検査30分へ隠れて延長しない。全体予算・API固定版・認証方式はD11の審査へ残る。
+公開先の候補識別ReleaseDestinationはowner・repository・tag・target_commit・release_id・asset_idsを全キーとし、release_idだけ新規作成前null、asset_idsは成果物名→asset IDのobjectとする。owner/repository/tagは固定入力、APIの応答から別リポジトリへ切り替えない。403/404/timeoutだけで未配置を断定せず、権限と実配置の照合が成立するまで再作成しない。draft閲覧は[公式APIの権限説明](https://docs.github.com/en/rest/releases/releases#list-releases)へ対応付け、実リポジトリの閲覧確認を別に行う。
+
+本書の300秒は一つの署名/搬入/公開工程の親予算で、API呼出しはその内側の一回60秒・再試行0回。asset取得はP04の取得上限とReleaseSetのサイズへ制限する候補。ISO生成・VM/実機試験は各専用予算を採用してから実行し、通常検査30分へ隠れて延長しない。全体予算・API固定版・認証方式はD11の審査へ残る。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -261,13 +265,16 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A11-19` | 全実結果passだが非機能期待値なし、集計器が欠損行を除外、公開adapterの再取得未実施 | 仕様充足/受入/公開をそれぞれ未完了とする。多数決・ケース数で通過しない |
+| `A11-20` | 同caseだが別environment、必須行を実結果だけnot_applicable、Phase 11ケース欠損 | 環境別照合・根拠不足/集合欠損を検出。scope縮小やPhase番号誤読による除外なし |
+| `A11-21` | release作成応答欠損、照合は権限不明の404、API残予算0 | 未配置と断定せず停止。再作成/上書き/親予算を超えた照合開始なし |
+| `A11-22` | 全配布物一致、六区分の一つだけ未確定、文書検査は成功 | publishable=false。文書検査の成功は保持するが正式許諾/署名/公開の成立へ転用しない |
 
 ## 未決事項と成立判定
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|
-| `D11-01` | 受入行・検証証拠・実行体・成果物集合の全形式、集約と上限 | 自動検査・全体受入 |
-| `D11-02` | 配置・公開・応答欠損のGitHub外部契約と閲覧状態の検証 | 配布工程・非公開性 |
-| `D11-03` | 許諾・個別依存・署名鍵・実機試験境界の各正本での確定 | 正式署名・配布・公開 |
+| `D11-01` | 環境を含む一意キー・固定期待集合・独立証拠の集計を推奨。所有者は全要求のscopeと13必須項目対応、検査実行体/予算を決定。仕様成立の判断と未実装製品の試験結果を分ける | 自動検査・全体受入 |
+| `D11-02` | ReleaseDestinationの固定と応答欠損後の読取り照合を推奨。所有者はAPIヘッダー版・認証権限/全操作・draft閲覧条件を決定。文書URLの版表示や名称だけで採用/非公開を保証しない | 配布工程・非公開性 |
+| `D11-03` | 六区分を担当正本へ一意に対応付ける審査を推奨。所有者は許諾条文・採用情報・鍵/実機の条件を別途決定。文書案作成承認をこれらの採用/実施/公開の承認にしない | 正式署名・配布・公開 |
 
 Phase 1〜10の全必須契約・判断の採用承認と仕様充足が未完了であり、本フェーズも完全仕様未成立。初期CI・製品テスト・バイナリ/ISO生成・署名・公開は行っていない。

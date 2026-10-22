@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B3`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B4`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB3）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB4）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -48,6 +48,8 @@ HTTP確認は対象が返す状態コードと応答完了を判定する案と�
 
 停止して取得する方式では、停止前の稼働状態と再起動条件を記録し、バックアップ失敗時のサービス復帰と元の要求の失敗を区別する。データベースの単なるファイルコピーを、整合したダンプ・復元確認として扱わない。外部アプリ固有のコマンド、版・例外・ライセンスは`D06-03`で個別評価する。
 
+P06-DATAの採用審査はアプリ名/正確な版/Compose全サービス/digest/データ形式/取得・復元・検査コマンド/隔離先/TTLを一行で対応付ける方式を推奨する。各コマンドは実行物・argv・必要権限・許可副作用・出力物・期待終了を契約参照から一意に求める。停止取得なら元稼働状態を記録してから停止し、復帰は元が稼働していたサービスだけ。Dockerの共有network/volumeは所有範囲を別に確認し、project名一致だけで削除を許可しない。行の欠損/重複・復元先不明なら更新前blocked。
+
 ## 内製単位・API案
 
 配置候補は`src/profiles/server/config.rs`・`apps.rs`・`data.rs`。構成入力とDocker呼出しの調整は内製、Docker/Composeそのものは個別採用条件が必要な外部基盤。共通処理への依存方向を逆転させず、Coreからサーバ固有設定を直接読む案にはしない。
@@ -55,7 +57,7 @@ HTTP確認は対象が返す状態コードと応答完了を判定する案と�
 | 宣言案 | 返却・副作用・失敗 |
 |---|---|
 | `server_plan(config: &Value, target: &TargetEvidence) -> Result<Value, ContractError>` | アプリ別の対象・差分・保全・復旧計画。変更なし |
-| `apply_server(ctx: &mut ExecutionContext, plan: &Value) -> Result<Value, ContractError>` | アプリ別の適用・検証位置を返し、親操作へ結果を結合 |
+| アプリ適用の型付き境界 | [依存と受入](#依存と受入の確定候補)のAppPlan[]→ChangeResultに集約。開始後の部分位置を保持 |
 | `check_app(app: &Value, ctx: &ExecutionContext) -> Result<Value, ContractError>` | 指定した検査の観測だけ。自動修復や更新なし |
 
 公開型はP02-MODELを参照し、リクエスト・結果の厳密な全集合はD06-01〜03に含める。難易度は構成解析が中、アプリ固有のデータ互換・復旧が高。新設案で旧実装は存在しない。将来のcrate抽出にはP06-DATAと共通保全の境界、呼出元、共通契約テストと移行順序を先に確定する。
@@ -68,12 +70,12 @@ HTTP確認は対象が返す状態コードと応答完了を判定する案と�
 |---|---|
 | CommandInput | executable: 絶対パスstring、args: string[]、timeout_seconds: 同フェーズの操作上限内integer。秘密情報の値を引数に含める契約は追加しない |
 | HealthInput | kind: http・command、http: HttpInputまたはnull、command: CommandInputまたはnull、interval_seconds: 1〜300、attempts: 1〜10のinteger |
-| HttpInput | url: string、expected_status: 100〜599のinteger[]、timeout_seconds: 1〜300のinteger、body_limit_bytes: 0〜1,048,576のinteger |
+| HttpInput | url: string、expected_status: 200〜299のinteger[]、timeout_seconds: 1〜300のinteger、body_limit_bytes: 0〜1,048,576のinteger |
 | AppPlan | name・compose_file・compose_sha256: string、image_digests: サービス名→digestのobject、operation: install・update・recover、health: HealthInput、backup_method: ContractRefまたはnull、resources: P03-RESOURCEの資源集合 |
 | HealthResult | name: string、status: pass・fail・unknown、attempts_used: 0以上integer、checks: Check[]、error: Diagnosticまたはnull |
 | AppResult | name: string、receipt: OperationReceipt、health: HealthResult、data_verified: booleanまたはnull |
 
-HealthInputはkindに対応する片方だけを非nullとし、期待状態コードは空・重複を拒否する。初回検査をattempts=1として数え、失敗した検査の終了後からinterval_seconds待って次の検査を行う。最終回後の待機・勝手な方式変更・無限再試行をしない。各試行はアプリ全体と親操作の残期限にも制限され、次の試行の予算がなければ開始しない。本文上限0は本文を不要とする候補で、応答完了の判定契約自体を省略しない。
+HealthInputはkindに対応する片方だけを非nullとし、期待状態コードは空・重複を拒否する。初回検査をattempts=1として数え、失敗した検査の終了後からinterval_seconds待って次の検査を行う。最終回後の待機・勝手な方式変更・無限再試行をしない。各試行はアプリ全体と親操作の残期限にも制限され、次の試行の予算がなければ開始しない。body_limit_bytesは受信する本文の厳密上限。0は空本文だけを許容し、本文を読まずに成功とする指定ではない。上限超過は失敗、最終応答の完了と期待status一致を両方要求する。
 
 HTTP URL・HTTPS・応答の解析・redirect・成功条件の外部契約は`D06-02`で正式資料と照合するまで未達。この表の値域をHTTP実装・取得基盤の採用と扱わない。command方式の非ゼロ・timeout・取得不能はP02-EXECの結果を保持し、自動修復は行わない。
 
@@ -127,7 +129,12 @@ pub struct HealthResult {
     checks: Vec<Value>, error: Option<ContractError>,
 }
 pub struct ServerConfig { schema_version: u32, operation_timeout_seconds: u32 }
-pub struct ServerInput { config: ServerConfig, apps: Vec<Value> }
+pub struct AppConfig {
+    name: String, enabled: bool, compose_file: std::path::PathBuf,
+    healthcheck: HealthInput, backup: AppBackup,
+}
+pub struct AppBackup { required: bool, method: Option<ApplicationDataMethod> }
+pub struct ServerInput { config: ServerConfig, apps: Vec<AppConfig> }
 pub fn validate_server(config: &Value, apps: Option<&Value>)
     -> Result<ServerInput, ContractError>;
 ```
@@ -202,7 +209,7 @@ AppPlanのresourcesはP03-RESOURCE、実適用はP04-APPLY、データの保存�
 
 ## 実行と復旧の確定候補
 
-P06-APPのアプリ工程をvalidated→preserved→applying→checking→verified→recordedの候補へ固定する。failed/unknownでは次アプリを開始しない。AppResultは元のAppPlanと同じcompose/image/data method参照を保持し、検査時に別のlatestへ置き換えない。
+P06-APPのアプリ工程をchecked→preserved→applying→checking_health→verified→recordedの候補へ固定する。failed/unknownでは次アプリを開始しない。AppResultは元のAppPlanと同じcompose/image/data method参照を保持し、検査時に別のlatestへ置き換えない。
 
 ヘルス検査は最初の要求開始をattempts_usedへ確定してから起動する。timeout/応答欠損も消費した一回であり、別プロセスの再開で0へ戻さない。次回は前試行終了時刻からintervalを待ち、親期限の残量がなければ未実施。HTTP 1xxだけでは完結としない。候補のGETはredirect非追従、userinfo/fragment拒否、本文上限を1 byte超えたら失敗とし、body_limit=0も同じ厳密上限として非空本文を拒否する。
 
@@ -232,13 +239,16 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A06-19` | 同じAppPlanをserver/masterへ入力、DB復元fixtureだけ別版 | サーバ部分の結果は同条件で一致。別版の復元を成功へせず、同居全体も未完了 |
+| `A06-20` | enabled=falseだが型不正、旧工程名validated、旧backup.commandだけ | 形式/工程不一致で拒否。無効項目の黙認・第二状態列・暗黙の移行なし |
+| `A06-21` | body_limit_bytes=0で本文0/1byte、期待status=199/200/300 | 空本文と2xx入力だけ候補条件を通過。超過本文・1xx/3xx期待は拒否、ヘッダー到着だけで成功にしない |
+| `A06-22` | 同じapp版にデータ方法二行、共有volumeの所有不明、元は停止済み | 前二件は開始前停止。保全後に元停止サービスを勝手に起動・共有データを除去しない |
 
 ## 未決事項と成立判定
 
 | 判断ID | 所有者の採用判断・調査対象 | 依存範囲 |
 |---|---|---|
-| `D06-01` | server.yml全集合、appsのcommand表現・版・移行とAPI | 設定・実行入力 |
-| `D06-02` | HTTP/commandの完全な検査契約、入力範囲と出力上限 | ヘルスチェック・成功判定 |
-| `D06-03` | Docker/Compose・アプリの個別採用と固定資材、データの確認・復旧 | 導入・更新・保全 |
+| `D06-01` | 型付きAppConfigと単一の工程名を推奨。所有者はserver/apps新形式の採用と旧形式の移行可否を決定。enabled=falseは検証後に計画対象外とし、既存アプリの停止/除去を意味しない | 設定・実行入力 |
+| `D06-02` | 固定GET・2xx期待・redirect非追従・厳密本文上限を推奨。所有者はURL/TLS/応答完了とadapter版/全引数、commandの非変更性を採用判断。本文0を無制限/読捨てへ解釈しない | ヘルスチェック・成功判定 |
+| `D06-03` | アプリ版別の一意なデータ方法行を推奨。所有者はDocker/Composeと各アプリの個別採用、全コマンド/権限・隔離復元の合否を決定。空アプリの成功を未選定アプリの対応証拠にしない | 導入・更新・保全 |
 
 既存構成別仕様の未確定部分は維持する。共通契約と候補の採用承認、非機能要求の不足が残るため、本案だけでサーバ機能を完全仕様成立・実装着手可能とはしない。

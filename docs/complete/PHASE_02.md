@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B3`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B4`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB3の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB4の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -30,9 +30,11 @@
 | `MachineId` | ServerSeed固有の32桁小文字16進数。構成初回確定時に生成し、OSのmachine-idとは別に保持。復元時の継承は`P04-BACKUP`で審査 |
 | `ContractError` | `code: String`、`message: String`、`field: Option<String>`。コードは契約別の固定識別子、表示文は秘匿化済み。内部エラーをそのまま転記しない |
 | `Value` | 宣言・数値の表現・所有権は[P02-PARSEの型とAPI](#解析の型とapi案)に集約。担当スキーマの検証前に適用可能とは扱わない |
-| `ExecutionContext` | 借用する対象証拠・計画・操作、排他所有者、期限、取消状態。単なるJSONの読み込みだけでは生成しない |
+| `ExecutionContext` | 対象証拠を持つOperationGuardを借用し、計画/操作ID・期限・取消状態を所有する。型の具体化は本書の型とAPIの詳細案を参照。単なるJSONの読み込みだけでは生成しない |
 
 時刻保存はUTCのRFC3339、秒未満3桁、末尾`Z`へ正規化する採用案とする。期限判定は経過時間と絶対期限を分離し、時計後退・再起動後の期限不明は有効と推測しない。乱数の取得手段・OS識別情報との結合は`D02-01`の調査対象であり、識別子生成を実装可能と判定しない。
+
+ID生成の純粋境界候補は`encode_id(kind: IdKind, entropy: &[u8; 16], existing: &[String]) -> Result<String, ContractError>`。IdKindはPlan/Operation/Machineで、表記は上表だけを使用する。入力entropyを保存・出力せず、生成後のIDだけを返す。既存集合の取得不能を空集合に置換せず、衝突では一度でMODEL_ID_COLLISION。OS取得器と表記器を分離する案を推奨し、時刻/PIDの連結を乱数の代替にする案は採らない。プロセスの照合キー候補はboot_id・pid・process_start_ticksの三つで、同一採取前後にキーが変わればMODEL_CHANGED、読めない場合はMODEL_UNREADABLE。PIDだけの一致を根拠にしない。
 
 ### 共通参照型の候補
 
@@ -111,7 +113,7 @@ ContractRefの全キーはfile・anchor・contract_id・draft・commit・adopted
 | Check | idは必須の契約IDとローカル検査名の`契約ID/検査名`、requiredはboolean、statusはpass・fail・unknown・not_applicable、code・fieldはstringまたはnull、messageは秘匿化済みstring。全6キー必須。passはcodeがnull、それ以外の理由はcodeとmessageへ明示 |
 | Observation | idはstring、statusはobserved・unknown・not_applicable、valueはstringまたはnull、reasonはstringまたはnull。全4キー必須。observedはvalueあり・reasonなし、他はvalueなし・reasonあり。値の空文字と未取得を区別 |
 | OperationRef | operation_idはP02-MODELのstring、statusは既存の操作状態、commandは既存操作名string。全3キー必須。完全な操作記録の代わりではなく、読取った記録への参照 |
-| RevisionRange | min・maxとも必須integer、0以上i64::MAX以下、min <= max。マニフェストが要求する各範囲をさらに照合 |
+| RevisionRange | min・maxとも必須integer、[スキーマ登録](#入力と保存形式の詳細案)のrevision範囲内、min <= max。マニフェストが要求する各範囲をさらに照合 |
 | Artifact | pathは絶対パスstring、formatはtext・json・tar.gz、statusはplanned・saved。全3キー必須。保存失敗・部分成果物をsavedにしない |
 
 配列は要素0件と確認した場合もキーを省略せず空配列。取得不能・集合未確定を0件へ変換しない。任意とする値もキーは存在させnullを使う。Checkの集合・必須性・各Observationのidと取得元は担当検査の仕様へ対応付け、集合未確定を空配列の成功で埋めない。requiredかつnot_applicableは担当正本に明示した適用外の根拠がある場合だけ許可し、確認不能ならunknownとする。CheckはidのASCII順、同一idの重複は禁止。Observationもid順・重複禁止。診断は検証段階順、同段階はfieldのUTF-8順（nullが先）、次にcode順。同じcodeとfieldは最初の一件へ集約し、異なる失敗を消さない。
@@ -136,7 +138,7 @@ ContractRefの全キーはfile・anchor・contract_id・draft・commit・adopted
 
 `command`は通常は正規化した操作名、planは対象を含む`plan self update`等とする。helpは要求範囲名（rootは`serverseed`）。入力が不正なら認識できた最長の有効な範囲名を用い、全く認識不能なら`serverseed`。生の不正語を出力名にしない。recoverのself分岐はcommand=`recover`、planの対象名も`recover`で、分岐の事実は担当計画の契約で識別する。versionは構文が妥当なら後段の設定エラーでも通常dataに読めたbinaryを保持し、errorsと終了区分で失敗を示す。
 
-BinaryInfoの全6キーは既存の`serverseed_version: string`、`architecture: string`、`config_revision: integer`、`migration_revision: integer`、`compatible_config_revision: RevisionRange`、`compatible_migration_revision: RevisionRange`。revisionは0以上i64::MAX以下、architectureは既存の本体CPU値。AppliedInfoは`serverseed_version: string`、`config_revision: integer`、`migration_revision: integer`、`environment: string`、`profile: string`の全5キーを候補とし、構成値・経路は基本設定へ照合する。構成未作成または適用情報が検証不能ならapplied=nullと理由を分け、欠損revisionを0で埋めない。OS・kernelの読める版はobservationsへ置く。自己申告を署名検証済みの証拠にしない。
+BinaryInfoの全6キーは既存の`serverseed_version: string`、`architecture: string`、`config_revision: integer`、`migration_revision: integer`、`compatible_config_revision: RevisionRange`、`compatible_migration_revision: RevisionRange`。revisionはスキーマ登録の共通範囲、architectureは既存の本体CPU値。AppliedInfoは`serverseed_version: string`、`config_revision: integer`、`migration_revision: integer`、`environment: string`、`profile: string`の全5キーを候補とし、構成値・経路は基本設定へ照合する。構成未作成または適用情報が検証不能ならapplied=nullと理由を分け、欠損revisionを0で埋めない。OS・kernelの読める版はobservationsへ置く。自己申告を署名検証済みの証拠にしない。
 
 BundleItemの全4キーは`name: string`、`status: planned|collected|excluded|failed`、`bytes: integerまたはnull`、`reason: stringまたはnull`。bytesは0以上i64::MAX以下、collectedだけ実採取バイト数を持つ。plannedは未実施、excluded・failedは理由必須。nameは採取項目の固定識別子で、外部パスや秘密値を格納しない。
 
@@ -222,6 +224,8 @@ CommandResponseの生成・検証は、上表のdata形と担当契約の承認�
 内製の難易度候補は字句・診断整形が低、型検証・出力保全が中。stdにはServerSeed固有の文法・スキーマ・集約器がないため、この責務だけを内製する。将来のcrate抽出・差し替えでは同じ入力バイト列・応答・失敗writerを新旧へ与え、stdout・stderr・終了値・副作用を比較する。CLI・設定・保存形式の変更と旧コード除去は別の提示・承認が必要。今回は新設案だけで、新旧比較対象・切替・除去はない。
 
 ### 調査成果物案
+
+圧縮境界の推奨候補は、秘匿化済みの固定member集合を圧縮adapterへ渡す方式。member名は固定採取IDに拡張子を付けた単一相対名だけで、重複・絶対path・区切り・親逸脱・link・deviceを拒否する。生成前に全memberのbytes/hashと採取結果を固定し、生成後の復号検査でmember集合・内容の完全一致と余分なentry不在を要求する。暗号化・任意archive抽出は対象外。内製圧縮形式案は相互運用検証の負担が増えるため第二候補とし、OS実行物案も個別採用前は実行しない。HTTPSの取得契約はP04-SELFだけで定義する。
 
 `support-bundle`の`--output`は既存の保存先ディレクトリを指定する候補を維持し、その直下の[既存ファイル名形式](../BASIC_SPEC.md#support-bundle)へ一つのtar.gzを保存する。保存先ディレクトリ自体を新規成果物と取り違えず、生成するアーカイブのパスが既存なら停止する。ファイル名の識別子はP02-MODELのMachineId、時刻はUTCの`YYYYMMDDTHHMMSSmmmZ`。MachineId・時刻が確認不能なら代用値を作らず停止する。
 
@@ -452,6 +456,8 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 境界ケースの計数器・試験時計は、将来のunit testで内部へ注入する試験条件であり、製品のCLI・設定で上限や時刻を改変する入口ではない。位置と返却値の一致、部分値の不在、外部状態の不変を全ケースの合否へ含める。実割当・時間制約の対象OS・両CPUでの実証と、担当スキーマによる統合試験は未実施とする。
 
+スキーマ検証の候補順序は、root型→形式名/版→未知キー（UTF-8順）→必須キー欠損（同順）→各値の型/範囲→相互条件→参照先の版/互換性。最初の一件を返し、未知キーはSCHEMA_UNKNOWN、欠損はSCHEMA_REQUIRED、型はSCHEMA_TYPE、範囲はSCHEMA_RANGE、相互条件はSCHEMA_CONDITION、未知版はSCHEMA_VERSIONとする。fieldはJSON Pointer、messageへ原値を含めない。推奨は形式ごとのvalidatorで検証済み型を返す方式。汎用Valueのまま適用器へ渡す案は採らない。実ヒープ/stackの上限保証は、この形式検査とは別の未達である。
+
 ## P02-STATE
 
 `detect(target: &TargetEvidence, records: &Value) -> Result<Value, ContractError>`は[既存の判定順](../BASIC_SPEC.md#状態判定の優先順位)を変えず、採用案では各判定について根拠の出所・対象・未取得理由を返す。状態スナップショットを入力の事実より優先しない。
@@ -472,12 +478,14 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 ### 記録とAPI案
 
+完了時の必須集合候補はoperation・同一操作のhistory行・結果に対応するlast-successまたはlast-failure。構成の版を実際に変更した場合だけversion/managed/configの該当更新を追加し、self単独で適用済みrevisionを書換えない。stateは再生成可能な補助記録で、生成を計画した場合はその保存成功も必要とする。失敗操作でlast-successを削除せず、逆も同じ。履歴確定後の補助記録不足は元の結果を作り直さず、hashと実状態を照合する復旧計画へ渡す。推奨は全候補の事前直列化と既存履歴を保つ置換方式である。
+
 `version`は既存の製品バージョン情報のJSONオブジェクト、`last-success`・`last-failure`は操作ID・終了時刻・結果・対象IDを持つJSONオブジェクトとする候補。現在状態の置換と製品の追記型実行履歴を分ける。管理権限・秘密情報は[セキュリティポリシー](../SECURITY_POLICY.md#ファイル権限)へ参照し、新たな権限規定を本書で作らない。
 
 | 宣言案 | 制約 |
 |---|---|
 | `acquire(target: &TargetEvidence) -> Result<OperationGuard, ContractError>` | guardはClone不可、対象・所有プロセスと結合。取得失敗後の変更なし |
-| `begin(guard: &OperationGuard, plan: &Value) -> Result<ExecutionContext, ContractError>` | 既存の操作状態を記録できた場合のみ返す |
+| `begin<'g>(guard: &'g OperationGuard, plan: &Value) -> Result<ExecutionContext<'g>, ContractError>` | 既存の操作状態を記録できた場合のみ返す。contextはguardより長生きできない |
 | `finish(ctx: &mut ExecutionContext, result: &Value) -> Result<(), ContractError>` | 必須記録の確定に失敗したら成功を返さない。失敗記録も書けない場合はstderrと残存証拠を使い復旧待ち |
 
 ログの採用案は、操作ID・対象ID・時刻・level・イベントID・秘匿化済みメッセージをJSONLへ記録する方式。保持・ローテーションは10 MiB×5世代を候補とするが、必須操作記録をログ整理で消去しない。履歴容量の保全・退避と操作上限の関係は`D02-05`の未決事項。
@@ -599,6 +607,14 @@ pub struct ChangeFailure<T> {
     error: ContractError, partial: Option<T>, persisted_evidence: Vec<String>,
 }
 pub type ChangeResult<T> = Result<T, ChangeFailure<T>>;
+pub struct OperationGuard {
+    file: std::fs::File, target: TargetEvidence,
+    boot_id: String, pid: u32, process_start_ticks: u64,
+}
+pub struct ExecutionContext<'g> {
+    guard: &'g OperationGuard, plan_id: PlanId, operation_id: OperationId,
+    deadline: std::time::Instant, cancelled: bool,
+}
 ```
 
 EvidenceFieldの外部形式は[既存候補の3キー](#対象証拠と状態結果)へ一意に変換する。enumの内部表現を新しいJSON形式として流出させない。IDのparseは表記検査だけ、生成はOS乱数・衝突照合を伴う別工程。TargetEvidenceをCloneしても観測時点の証拠の複製にすぎず、再検査済みにはならない。
@@ -700,7 +716,9 @@ P02-EXECの第一候補はOSの一時serviceで変更操作全体を監督する
 
 P02-CLIのCheck.idは既存の契約ID/local形式を維持する。[共通集合](#入力と保存形式の詳細案)の省略名はP02-STATE/os.supported、P02-STATE/architecture.supported、P02-MODEL/target.identity、P02-STORE/records.consistent、P02-STATE/profile.selected、P02-STORE/operation.clear、P01-CHECK/dependency.approved、P03-PLAN/plan.currentへ対応付ける候補。これを裸のdot形式で直列化しない。
 
-status/inspect/doctorの必須集合は最初の六つ、planは依存採用と計画有効性を追加、変更操作は八つと担当全stepの検査を要求する。version/helpは対象の必須集合を持たず、versionの対象取得不能は理由付きで分離する。reportは記録整合、support-bundleは記録整合と収録/秘匿化検査、verifyは対象構成の全必須検査を結合する。検査不能な必須項目をnot_applicableへ変更しない。構成機能の追加検査IDは各担当で固定する。
+status/inspect/doctorは対象に適用するOS/CPU/同一性/記録整合を必須とする。profile.selectedは構成管理の証跡がある対象だけ必須、未管理と確認した対象ではrequired=false・not_applicableと未構成理由を返す。operation.clearは新規変更の開始条件であり、読取り時は実行中/中断の事実を保持する任意項目とする。実行中である事実だけで読取り禁止・不整合としない。記録破損・対象取得不能は別の必須検査で検出する。
+
+planと変更操作は適用可能な八検査と担当step検査を要求する。self単独で構成未作成の場合のprofile.selectedは上記と同じ非適用根拠を必要とし、選択済みと捏造しない。version/helpは対象の必須集合を持たず、versionの対象取得不能は理由付きで分離する。reportは記録整合、support-bundleは記録整合と収録/秘匿化検査、verifyは対象構成の全必須検査を結合する。取得不能を非適用へ変更しない。
 
 スキーマvalidatorは登録対象enumとValueを受け、検証済み設定/記録のenumを返す候補。未知登録型を汎用Valueのまま適用器へ通さない。解析器からOS観測器・保存器への依存を作らず、初期はparse/model/store/execを別moduleとして保つ。型を後でcrateへ抽出する場合、JSON/YAMLの成功木・失敗位置・既存記録互換を同じfixtureで新旧比較し、形式移行を単なるimport変更へ混入しない。
 
@@ -709,17 +727,23 @@ status/inspect/doctorの必須集合は最初の六つ、planは依存採用と�
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A02-81` | 必須check一件欠損、裸dotのid、通常captureへ128 MiB本体、u64::MAXの記録値 | それぞれ契約不一致/上限で拒否。大容量取得を通常capture成功へ変換しない |
+| `A02-82` | 固定16byteのID生成、既存集合取得不能、同じpidでboot_idまたは開始tickだけ変化 | 表記は決定的、集合不明は生成停止、プロセス不一致。時刻/PIDへの代替と再生成ループなし |
+| `A02-83` | 正常な未管理OSのstatus、変更実行中のinspect、u32上限を超えるBinaryInfo revision | 前二件は未構成/実行中を保持して読取り可否を判定。後者は型検証拒否、保存形式と別の範囲を受理しない |
+| `A02-84` | 正しい版に未知キー・必須欠損・型不正を併存、次に未知版へ変更 | 前者SCHEMA_UNKNOWN、後者SCHEMA_VERSIONを先に返す。キー削除や暗黙変換なし |
+| `A02-85` | guardを先にdropするcontext、監督unit不明なのにlockだけ取得成功 | 前者は所有権契約不成立、後者は変更開始不可。Rustの借用成立をOS子孫停止の証明にしない |
+| `A02-86` | failed操作の履歴は確定、last-failure同期失敗、以前のlast-successあり | complete不可、以前のlast-successを保持。同じ失敗行の追記・元結果の成功化なし |
+| `A02-87` | 固定memberに../名または同名linkを混入、生成物へ一件の余剰entry | 圧縮前または照合で拒否し正式保存なし。別用途の抽出・秘密項目の追加採取なし |
 
 ## 未決事項と成立判定
 
 | 判断ID | 採用前に必要な判断・調査 | 影響 |
 |---|---|---|
-| `D02-01` | 識別子・時刻の正確な型、OS乱数・起動情報の取得と復元時の同一性 | 全変更の対象照合 |
-| `D02-02` | [CLI詳細案](#p02-cli)の採用審査、担当検査・観測IDと必須集合、ネストする計画・記録の全スキーマ、時刻・実割当・出力停止時の上限と保存失敗の実証 | 全CLIと骨格。候補の記載を成立・採用済みとしない |
-| `D02-03` | [解析の詳細案](#p02-parse)の採用審査、実ヒープ・stackの計測・割当失敗の保全と対象環境での上限実証、担当スキーマ全集合・版・検証順序と三構成の移行契約 | 全設定・状態・マニフェスト |
-| `D02-04` | 子孫を含む停止・排他引継ぎ・親停止の実現可能性とOS外部契約 | 全実行・中断復旧 |
-| `D02-05` | 複数記録と追記履歴の確定方式、保存形式全集合、保持容量・失敗時照合 | 全変更の成功判定 |
-| `D02-06` | tar.gz・HTTPSの内製境界・正式仕様・互換試験。形式解析の候補はP02-PARSEを参照し、その実証不足はD02-03で管理 | 調査成果物・取得処理 |
+| `D02-01` | OS取得器と純粋ID表記器の分離を推奨。所有者は乱数源・取得量/期限・boot/PID/tickの取得契約と証拠を採用判断する。復元時MachineIdはD08-03へ参照し別定義しない | 全変更の対象照合 |
+| `D02-02` | 対象状態別の必須集合と単一revision範囲を推奨。所有者は全担当Observation/Check対応、出力期限方式・保存失敗条件を決定する。同期writerの硬い期限は未成立のため採用待ちだけの項目と分ける | 全CLIと骨格。候補の記載を成立・採用済みとしない |
+| `D02-03` | 形式別validatorと検証順序を推奨。採用待ちは限定文法・型・形式版、具体化不足は全形式の対応表/三構成移行、成立根拠不足は実割当失敗・ヒープ/stack測定。後者を論理予算Mで代替しない | 全設定・状態・マニフェスト |
+| `D02-04` | guardを借用するcontextと対象worker監督を推奨。guard/contextはClone不可・OSハンドルの貸与不可。残る根拠は監督unit全契約、停止不能時・親停止後の排他とI/O期限の成立性 | 全実行・中断復旧 |
+| `D02-05` | 事前直列化と必須記録集合の条件別確定を推奨。所有者は各操作の集合・同期順序と障害照合を採用判断し、FS停止不能・容量測定の成立根拠不足は別に残す | 全変更の成功判定 |
+| `D02-06` | 固定memberのOS圧縮adapterを第一、内製形式を第二候補とする。所有者は実行物/版/全引数・相互運用・部分保存条件を決定。HTTPSはD04-01へ委ね二重選定しない | 調査成果物・取得処理 |
 
 本書の内製候補は形式解析・対象判定・識別・記録調整・実行制御。モジュール新設案とし、初期からcrateへ抽出しない。難易度は[調査表](PHASE_01.md#標準機能の充足調査)へ対応付ける。旧実装は存在せず、差し替え時の共通ケースは上表を拡張して契約ごとに固定する。移行・抽出・旧コード除去の具体的変更は今回の対象外とする。
 

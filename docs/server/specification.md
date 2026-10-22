@@ -28,6 +28,8 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 
 サーバ固有契約の採用審査用候補は[Phase 6](../complete/PHASE_06.md#p06-config)、型・APIは[型の詳細](../complete/PHASE_06.md#型とapiの詳細案)、方式別の互換境界は[依存と互換性](../complete/PHASE_06.md#依存と互換性の詳細案)を参照する。本書の既存定義は維持し、候補の存在をserver.yml・apps.ymlの受理形式の切替や採用承認と扱わない。
 
+候補の型はAppConfig、工程位置は[状態表](../complete/PHASE_06.md#状態と中断の詳細案)、HTTPの期待status/本文上限は[HealthInput](../complete/PHASE_06.md#データ契約の具体化案)に一意に対応付ける。候補の厳密化は既存apps.ymlの受理範囲を切り替えるものではなく、型・版・個別データ方法の採用判断を必要とする。
+
 新形式の全キーと旧形式の扱いは[入力/保存形式](../complete/PHASE_06.md#入力と保存形式の詳細案)、停止取得/health試行の中断は[実行/復旧](../complete/PHASE_06.md#実行と復旧の確定候補)の候補へ集約する。既存backup.requiredの保護を維持し、旧backup.commandから復元/隔離検査を自動生成しない。新形式の採用・互換判断までは、下記の例を新形式に対応済みという根拠にしない。
 
 `apps.yml`は本書のサーバ機能が管理するDockerアプリを定義する。読み込む構成の範囲は[構成の分離](../POLICIES.md#構成の分離)に従う。

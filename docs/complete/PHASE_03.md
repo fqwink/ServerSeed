@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B3`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B4`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB3）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB4）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -37,6 +37,8 @@
 通常ファイル・ディレクトリ以外、読み取り不能、所有情報不明を資源不在として返さない。観測結果は`present`・`absent`・`unknown`と理由を持つ。file内容・属性と親ディレクトリの識別情報を記録し、実行環境の同名パスを検査しない。
 
 検査と利用の間の差し替えを防ぐ具体手段、マウント境界の扱い、対象ルートを安全に固定するOS契約は`D03-02`で審査する。文字列の正規化や事前のsymlink検査だけで安全性を証明した扱いにしない。[導入先の保護](../SECURITY_POLICY.md#導入先と一時ファイル)はその正本へ参照する。
+
+P03-FSの成立根拠候補は、対象root/FS・親entry識別列・使用する操作集合・競合writerの排除根拠・有効な採取世代を一組で保持するRootBinding。操作前後の一致だけを排除根拠にはできない。比較案Aは排他を証明できるオフライン対象を標準File APIで扱う方式、案Bは固定root相対操作を提供する個別OS実行物へ委譲する方式。推奨は成立根拠を揃えた方式だけを対象環境単位で採用し、どちらも証明不能なら変更機能を保留すること。任意helperの新設・FFI・未採用実行物への委譲は許可しない。特殊FS/mountの許可集合は選定資料で一意に決める必要がある。
 
 ## P03-PLAN
 
@@ -72,7 +74,7 @@
 | Resource | 同節のresource_id・owner・kind・path・attributes・depends_on・adoption。depends_onは内部値では必ずarrayとして存在 |
 | FileAttributes | content_ref: string、content_bytes: 0〜1,048,576のinteger、content_sha256: 既存ハッシュ表記string、uid・gid: 0〜4,294,967,294のinteger、mode: 同節の8進表記 |
 | DirectoryAttributes | uid・gid・mode。file内容は指定不可 |
-| Adoption | kind: new・recorded・confirmed、evidence_id: stringまたはnull。newだけnull、既存資源は対象へ結合した証拠IDが必須 |
+| Adoption | kind: new・recorded・confirmed、evidence_ref: stringまたはnull。newだけnull、既存資源は対象へ結合した証拠参照が必須 |
 | ResourceObservation | resource_id: string、presence: present・absent・unknown、attributes: 対応属性objectまたはnull、identity: stringまたはnull、reason: stringまたはnull |
 | ResourceChange | resource_id: string、action: unchanged・create・modify・blocked、before: ResourceObservation、after: 対応属性object、changed_attributes: string[]、blocked_by: Diagnostic[] |
 
@@ -80,7 +82,7 @@ ownerはcore・server・mining・masterのうち一つ。これは資源の担�
 
 ResourceObservationでpresentはattributes・identityあり、reasonなし。absentは両者nullで不在理由あり、unknownは既知部分を混ぜた属性objectを返さずnullと理由を持つ。identityはOS側の同一性証拠への参照で、パスの文字列一致やmtimeだけを根拠に生成しない。fileの長さ・内容byte列、uid・gid・modeをそれぞれ比較し、変更属性名はASCII順。directoryの配下のファイル一覧は管理属性へ含めない。
 
-計画側の候補データは`target: TargetEvidence`、`definition_revision: integer`、`changes: ResourceChange[]`、`order: string[]`、`contract_refs: ContractRef[]`。既存計画へ結合する位置・形式版は`D03-03`の採用事項とする。orderにはblockedでない実変更資源だけを各1回含め、unchangedの依存先も観測前提として保持する。blockedが1件でもあれば計画全体は実行不能で、一部資源だけの暗黙適用をしない。
+計画の外部全集合は[Planの固定形式](#入力と保存形式の詳細案)だけで定義する。ResourceChangeは資源差分の内部値としてPlanStep.resource_changeへ結合し、独立したchanges/order/contract_refsの第二形式を保存しない。unchangedの依存資源も観測前提として保持し、blockedが1件でもあれば計画全体は実行不能とする。
 
 差分の固定対象は、対象証拠・定義版・属性・所有範囲・依存・取り込み根拠。時刻・生成IDを除いた構造比較と、配布物の原バイトに対するSHA-256を混同しない。計画digestの実現方式が未確定なら構造比較だけで配送の真正性が成立したとは扱わない。`D03-02`の安全なOS操作・`D03-03`の固定形式とdigest・属性の完全なRust型は残る採用事項とする。
 
@@ -130,7 +132,7 @@ pub struct Resource {
     resource_id: String, owner: String, path: std::path::PathBuf,
     attributes: ResourceAttributes, depends_on: Vec<String>, adoption: Adoption,
 }
-pub struct ResourceSet { target: TargetEvidence, resources: Vec<Resource> }
+pub struct ResourceSet { schema_version: u32, target: TargetEvidence, resources: Vec<Resource> }
 pub enum Presence { Present, Absent, Unknown }
 pub struct ResourceObservation {
     resource_id: String, presence: Presence,
@@ -194,14 +196,13 @@ P03-PLANの固定形式を以下の候補へ具体化する。Resourceの既存�
 
 | object | 全キー・型・条件 |
 |---|---|
-| Plan | schema_version: 1、plan_id: PlanId、created_at: UtcMillis、target: TargetEvidence、profile: 構成enumまたはself単独時null、contracts: ContractRef[]、resources: Resource[]、observations: ResourceObservation[]、steps: PlanStep[]、blocked_by: Diagnostic[]、digest: hex64string |
-| PlanStep | resource_id: string、action: unchanged/create/modify/blocked、changed_attributes: string[]、depends_on: string[]、before: ResourceObservation、after: Resource、required: bool |
-| Adoption | kind: new/recorded/confirmed、evidence_ref: stringまたはnull。newのみnull、既存資源のrecorded/confirmedには対象・所有範囲の証拠必須 |
+| Plan | schema_version: 1、plan_id: PlanId、created_at: UtcMillis、command: 既存操作名string、target_state: 既存総合状態、requires_confirmation・requires_reboot: bool、definition_revision: u32、target: TargetEvidence、profile: 構成enumまたはself単独時null、contracts: ContractRef[]、resources: Resource[]、observations: ResourceObservation[]、steps: PlanStep[]、blocked_by: Diagnostic[]、digest: hex64string |
+| PlanStep | id・title: string、destructive・requires_network・required: bool、contract: ContractRef、depends_on: step IDのstring[]、resource_change: ResourceChangeまたはnull、payload: 担当契約で型を固定したobjectまたはnull。資源stepはpayload=null、非資源stepはresource_change=nullとし、非資源payloadの型はcontractで一意に識別する。未定義のstepは実行不可 |
 | ContentRef | 組込み資材はembedded:に続く資材ID、保全物はbackup:に続く検証済みIDと内部entry ID。参照表にないID、URL、絶対パス、親への逸脱を拒否 |
 
-resourcesとobservationsはresource_idで一対一、全資源を含み、stepsも一対一とする。contract_idの重複と同じpathの異なる資源を拒否する。差分属性の列は担当属性名のASCII順、depends_onもASCII順、stepsは依存を満たす安定トポロジカル順とする。blockedが一つでもあれば計画全体を適用不可にする。
+resourcesとobservationsはresource_idで一対一、各資源差分はresource_changeへ一回だけ結合する。非資源stepも固有idで追跡し、P04のStepReceipt.step_idはそのidと一致する。contracts内のcontract_idの重複と同じpathの異なる資源を拒否する。各step.contractはcontractsの一件へ完全一致させ、複数stepが同じ契約を使うことと契約一覧の二重登録を区別する。差分属性・depends_onはASCII順、stepsは依存を満たす安定トポロジカル順で、同順位はstep idのASCII順。blockedが一つでもあれば全体を適用不可にする。
 
-digest入力はPlanのうちschema_version・target・profile・contracts・resources・observations・steps・blocked_byだけ。target.observed_atを除き、観測時刻以外の証拠を省略しない。objectキーはP02-CLIの整形順、空白なし、末尾LFなし、数値は検証済み整数の十進表記、文字列は同契約のescapeとする。配列順を後で並べ替えない。ID・created_at・digestを除外しても有効期限や選択との照合は別に必須。hash取得はP04-SELFの外部境界であり、純粋計画器が外部プロセスを起動する案にはしない。
+digest入力はPlanからplan_id・created_at・digestを除く全キーで、target.observed_atだけを時刻として除外する。objectキーはP02-CLIの整形順、空白なし、末尾LFなし、数値は検証済み整数の十進表記、文字列は同契約のescapeとする。配列順を後で並べ替えない。ID・時刻の除外は有効期限・選択との照合を省略する理由ではない。hash取得はP04-SELFの外部境界であり、純粋計画器が外部プロセスを起動しない。選択済み要求全体の配送hashはP09が別に定義する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -235,13 +236,16 @@ P03-RESOURCEのvalidator→P03-FSの観測→純粋なdiff/plan→P04-APPLYの�
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A03-19` | 観測adapterだけ差替え、同一資源のidentity一件欠損、同じdiffだが順序が違う | 前者も同一契約を要求。欠損はunknown、順序差は互換不成立。実FS安全性は別検証 |
+| `A03-20` | Adoptionへ旧名evidence_id、ResourceSetのschema_version欠損、既存資源にnewを指定 | 型/所有根拠不一致で拒否。別名の黙認・版補完・未確認取り込みなし |
+| `A03-21` | root/親entryの前後値は同じだが競合writerを排除不能、未登録FS | RootBinding不成立。観測事実は保持しても変更開始不可、再照合だけの安全認定なし |
+| `A03-22` | 同じ資源差分でcommand/再起動要否だけ変更、StepReceiptのIDだけ別値 | 固定byte列は変化し、別IDのreceiptは拒否。第二Plan形式や順序配列を生成しない |
 
 ## 未決事項と成立判定
 
 | 判断ID | 残る採用判断・確認 | 影響先 |
 |---|---|---|
-| `D03-01` | 管理範囲・取り込み・資源種別ごとの完全スキーマと互換版 | 差分・構成適用 |
-| `D03-02` | 競合しない対象ルート固定とOS上のパス操作、特殊FSの扱い | 観測・適用・保全 |
-| `D03-03` | 正規化・digest・計画全フィールド・期限の採用と受入資材 | 媒体・SSHへの引継ぎ |
+| `D03-01` | evidence_refを持つ単一Adoption・版付きResourceSetを推奨。所有者は既存資源の取り込み根拠とcontent参照表の生成/保全を採用判断する。旧別名の自動受理はしない | 差分・構成適用 |
+| `D03-02` | A: 排他を証明するオフライン対象、B: 個別OS実行物の固定root操作を比較。所有者はRootBinding・許可FS・反証試験を確認して選定する。どちらも成立根拠未取得で、標準APIの有無だけでは解消しない | 観測・適用・保全 |
+| `D03-03` | 単一Planと型付きstep/diffの結合・固定byte列を推奨。所有者は非資源stepの担当payload、digest取得器と版を採用判断する。changes/orderの別保存形式は採らない | 媒体・SSHへの引継ぎ |
 
 実装移行には、これらと使用するPhase 2契約の承認済み版、非機能要求の不足を解消する必要がある。差分・計画本文案は作成したが、完全仕様の成立・実装・試験成功は未達とする。
