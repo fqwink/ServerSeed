@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B5`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B6`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB5）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB6）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -160,6 +160,8 @@ pub fn collect_acceptance(scope: &AcceptanceScope, actual: Vec<ActualCase>)
 
 resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseのkeyに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。戻り値のcompleteは関数が算出し、呼出元のtrueを信頼しない。
 
+結合の候補順はrequirement_id・contract.contract_id・case_id・architecture・profile・entry・environment_refのUTF-8バイト辞書順で、profile=nullはstringより前とする。残るContractRef全項目・expected_ref・requiredも固定scopeと完全一致させ、同じ結合キーで内容だけ変えた行を受理しない。Scopeのcase_id集合は担当本文の全受入設計へ照合し、同一ケースの全直積を自動生成しない。各ケースの適用行/拒否行が未決ならscope未成立とし、集計器の成功と分ける。
+
 集計内部は上記collect_acceptanceだけを使用し、別のValue返却APIを実装しない。verify_releaseも純粋評価に分離する。集計器の動作試験と、各受入行が指す製品試験の結果は別々に追跡する。
 
 ## 状態と中断の詳細案
@@ -261,6 +263,8 @@ P11-RELEASEの公開操作候補は、固定したReleaseSet→draft作成/照�
 
 本書の300秒は一つの署名/搬入/公開工程の親予算で、API呼出しはその内側の一回60秒・再試行0回。asset取得はP04の取得上限とReleaseSetのサイズへ制限する候補。ISO生成・VM/実機試験は各専用予算を採用してから実行し、通常検査30分へ隠れて延長しない。全体予算・API固定版・認証方式はD11の審査へ残る。
 
+API資料のURL queryにある版番号をHTTPのX-GitHub-Api-Version採用値と同一視しない候補。2026-10-22確認時の[公式asset API](https://docs.github.com/en/rest/releases/assets#get-a-release-asset)は200/302の取得契約を示しており、公開adapterが参照するAPI版・メディア型・認証権限は例外台帳で別に固定する。asset名の比較は固定配布ファイル名の完全一致、CPUは期待集合とmanifestの両方へ照合する。再取得はP04の取得契約へ接続し、未採用redirect方式を公開工程だけで有効化しない。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A11-18` | publish応答欠損後に実release公開済み、asset一件だけ別hash | 公開事実と集合不一致を別に報告。再publish/差替えなし、是正判断待ち |
@@ -289,6 +293,8 @@ P11-ACCEPTの内製対象は独立した期待集合との結合・証拠同一�
 | `A11-23` | amd64媒体のBIOS環境行欠損、arm64 master拒否ケース欠損、全実結果はpass | ACCEPT_SCOPEで未完了。成功行の全passで起動方式・拒否経路の不足を隠さない |
 | `A11-24` | 期待集合へ余剰asset一件、checksum署名をmanifestへ流用、入力publishable=true | RELEASE_SET/署名対象不一致を検出。boolを再算定し、削除・署名・公開の副作用0回 |
 | `A11-25` | 全契約の案・全受入設計が存在するが一判断IDの採用/成立根拠が不足 | 文書案の検査結果と不足を保持。全フェーズ成立・実装着手可能・製品試験成功へ昇格しない |
+| `A11-26` | 同じ結合キーでexpected_ref/requiredだけ改変、入力行順だけ逆転 | 改変を拒否、順序変更だけなら同じ安定順の結果。scope縮小・期待値差替えなし |
+| `A11-27` | 文書URLの版だけ固定、実APIヘッダー版なし、asset取得が302 | 公開条件未成立。URLや200だけの実装で取得成功/固定API採用を認定しない |
 
 ## 未決事項と成立判定
 

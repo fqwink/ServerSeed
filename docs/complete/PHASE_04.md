@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B5`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B6`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB5）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB6）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -110,6 +110,8 @@ Invocation/PreparedSelfと各型付きAPIだけを内部契約とし、未検証
 ハッシュは[既存マニフェスト](../BASIC_SPEC.md#更新マニフェスト)の実値制約へ参照する。PreparedSelfのuninstallだけbinary_sha256・sourceをnullとし、それ以外は対象候補の識別を必須とする。recoverの正常版の選定条件は本体復旧の正本を維持する。準備段階のchecksは本体未取得の検査をpassへしない。互換性に使うリビジョンは適用済み記録から取得し、本体の収録値で置換しない。
 
 StepReceiptは親計画の各stepと1対1に対応し、未開始も省略しない。started後に結果を確認できなければunknownとし、not_startedへ戻さない。検証済みの前提が変わったら、そのstepだけでなく依存する後続の実行可否を再判定する。OperationReceiptは全必須stepがverifiedかつRecordReceiptがcompleteの場合にだけ親が成功を返せる根拠となる。復旧操作が成功しても元stepのfailedは保持する。
+
+同じ親操作から呼ぶself/apply/backupと構成別の子処理は、親のoperation_idとguardを使用する候補。子の完了は担当StepReceiptまでで、finishによる履歴/終了記録の確定は全step照合後に親だけが一度行う。子APIが返すOperationReceipt.recordはその時点の親の記録段階であり、completeでないことを子資源の検証失敗と混同しない。逆に子資源verifiedを親全体のsuccessへ変換しない。
 
 BackupReceiptは取得・保存・復元確認の参照を結合する候補で、既存のバックアップ成功状態の代替ではない。verified=trueは同じartifact_sha256の保全物を所定の隔離先へ復元し、方法が要求する全必須検査に成功した場合だけ。`verified_at <= now < valid_until`で判定し、時刻不明・逆転・方法/版/対象不一致は無効とする候補。具体的な有効期間と対象別の検査方法は`D04-02`で決め、仮の共通期限を作らない。
 
@@ -239,13 +241,15 @@ P04-BACKUPの保存単位をBackupSetとする候補。既存BackupReceiptは検
 | BackupEntry | entry_id: ASCII資材ID、relative_path: string、kind: file/directory、bytes: u64、sha256: hex64またはdirectory時null、mode: P03属性、uid/gid: 同属性。symlink・特殊file・絶対path・親逸脱・重複を拒否 |
 | BackupDestination | device_id・filesystem_id・path: string、expected_available_bytes: u64、artifact_name: string。pathは選択した保存directory、名前はbackup_idに結合、既存同名への上書きなし |
 | ResourceJournal | schema_version: 1、operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、entries: ResourceJournalEntry[]。配置候補は操作ID別のiac-journal.json |
-| ResourceJournalEntry | resource_id: string、sequence: u32、phase: StepReceiptのphase、before: ResourceObservation、expected: Resource、backup_ref: stringまたはnull、after: ResourceObservationまたはnull、error: Diagnosticまたはnull |
+| ResourceJournalEntry | resource_id・step_id: string、sequence: u32、phase: StepReceiptのphase、before: ResourceObservation、expected: Resource、backup_ref: stringまたはnull、after: ResourceObservationまたはnull、error: Diagnosticまたはnull |
 
 BackupRequestは検証済みBackupSetのsourceをtargetへ対応付け、残る同名の値をそのまま所有する内部型とする。BackupEntryは本表の検証済み各値を非公開フィールドに持つstruct。pathの外部表現はUTF-8絶対パス、内部はPathBufとし、保存先の同一性を文字列だけで認定しない。
 
 restore_ttl_secondsはデータ方法側の必須入力とし、共通の推測既定値を作らない。valid_untilは確認時刻にTTLをchecked加算して求め、overflow・時計後退・方法の変更は無効。候補保存先は利用者が選んだローカルのmount済みFSだけ。ネットワーク転送・暗号方式の未選定を、平文保存や任意tar実行の許可にしない。
 
 BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各pathは空でない相対成分列で、directory自身のbytes=0・sha256=null、fileは実byte数/hashを必須とする。親directoryを含むことを未列挙の子の取得許可にしない。復元時は全entryと保全物の版/暗号/方法を先に検証し、全pathの出力先を固定してから変更する。復元確認が失敗した保存物は参照と検証失敗をBackupProgressへ残すが、正式BackupReceiptは生成しない。verified=falseの途中結果は成功receiptではなく検査証拠として扱い、更新前提にも保持期限による削除根拠にも使用しない。
+
+BackupEntryの親子検証候補は、pathの成分列を比較して重複を拒否し、列挙したfileの配下へ別entryが存在する場合も拒否する。列挙directory配下は明示したentryだけを取得し、再帰探索で未管理データを追加しない。検査から取得までに種別・同一性・内容が変わったらBACKUP_CHANGED。総量はfileのbytesのchecked合計に形式/暗号/作業領域を加えてFS別に計算し、暗号形式の上限が未確定なら容量検査を成功にしない。
 
 互換表は旧二択形式→三構成形式を自動変換不可、三構成形式→同じ採用版を検証後のみ可、未知revisionを不可とする候補。server/miningからmasterへの変更も単なるprofile書換えでは不可。対象revisionの実値・移行方法・切戻し可能範囲を所有者が決定するまで更新計画をblockedにする。
 
@@ -258,6 +262,8 @@ BackupEntry集合の候補順序はrelative_pathのUTF-8バイト順。各path�
 P04-APPLYのjournal確定単位を一資源一工程とする候補。各変更前にbefore/backup_refとstartedを同期し、変更後に実観測を保存しapplied、全期待属性一致後にverifiedへ進める。startedの保存失敗なら変更しない。適用後の保存失敗はunknownとして最後の保存済み根拠と実適用位置をChangeFailureへ返す。
 
 journalのsequenceは親Plan.stepsの0始まりindexへ固定する候補。resource_idとstep IDを両方照合し、同一資源のstarted/applied/verifiedは同じ行の段階更新とする。重複行・逆行・別Planのbackup_refを拒否する。復旧は元計画で許可された逆依存順だけを候補とし、実状態が記録したafterに一致し、beforeと保全物が検証可能な場合だけ復元へ進む。after不明・第三者変更・復元元不明はAPPLY_RECONCILEとしてその依存範囲を保留し、再実行や全資源一括巻戻しを行わない。資源復旧の成否を元stepのfailedと別に保持する。
+
+sequenceで引いたPlanStep.idがstep_idと一致し、そのresource_change.resource_id/beforeがjournalのresource_id/beforeとそれぞれ完全一致することを変更前に検証する候補。resource_change.afterはjournal.expected.attributesへ一致させ、expected自体は同じresource_idのPlan.resources一件へ一致させる。属性objectとResource全体を同じ型として比較しない。同一資源の段階更新では三つの識別値を変更しない。非資源stepにはこのjournal行を作らず、担当するStepReceiptへ記録する。空のjournalを全計画未実行の証明にはしない。
 
 | 資源 | 適用直後に照合する事実 | 復旧の限界 |
 |---|---|---|
@@ -288,6 +294,8 @@ P04-SELFの取得adapterは取得・hash・署名の三責務に分ける候補�
 
 [curl公式資料](https://curl.se/docs/manpage.html)は設定読込みの無効化とprotocol制限の意味の確認に使用した。上限値と非追従は製品の候補であり、Ubuntu採用版でのオプション・file-sink・GitHub配布先への適用可能性は未検証。取得先がredirect必須なら無確認追従せずD04-01へ戻す。
 
+2026-10-22に[GitHub asset API](https://docs.github.com/en/rest/releases/assets#get-a-release-asset)が200の直接応答と302を返し得ることを確認した。採用審査へ追加する比較案は、curl自体は非追従のまま、一段ずつLocationを検証して再要求する方式。最大3段、HTTPSだけ、明示許可した配布host/portだけ、循環・userinfo・fragment・複数Location・不正URLを拒否し、別originへ認証情報を転送しない。全段を同じ取得期限へ算入し、最終200のbodyだけを固定size/hashへ照合する。これは候補であり、許可先・全argv・header/URL秘匿化・対象版の試験が揃うまで現行の非追従案を切り替えない。無制限の--locationで解消済みとはしない。
+
 lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障注入点でStepReceipt/partial/実書込み集合を比較し、旧コード除去前に復元可能範囲を再確認する。暗号等を高難易度のまま未採用とすることと、平文へ代替することを区別する。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -301,6 +309,10 @@ lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障
 | `A04-27` | 通常updateにserver→master行のみ存在、移行後データ変更済みだが版記録は旧値 | 前者blocked、後者は実形式と記録の照合待ち。構成変更・版数だけの巻戻しなし |
 | `A04-28` | directoryに非zero bytes、未列挙の子、保存済みだが隔離復元失敗 | 形式拒否または対象外不取得。失敗物の証拠は保持するがBackupReceiptなし、重要更新停止 |
 | `A04-29` | journalのsequence重複、別Planのbackup_ref、適用後に第三者が内容変更 | journal不正またはAPPLY_RECONCILEで停止。逆依存復旧でも第三者変更を上書きしない |
+| `A04-30` | sequenceの指すstepとstep_idだけ相違、正しいresource_idは一致 | journal照合失敗。資源IDだけで別stepの適用/復旧を実行しない |
+| `A04-31` | file entry aとa/b、directory aと未列挙のa/c、暗号overhead未定義 | 前者拒否、未列挙の取得0件、容量判定は未成立。再帰取得・平文代替なし |
+| `A04-32` | redirect比較案でHTTPS三段/四段、別originの認証要求、最終200が別hash | 四段・認証転送・内容不一致を拒否。採用前は比較案を実取得へ使用しない |
+| `A04-33` | 親update内でアプリ一件とselfが各完了、履歴/終了記録は未確定 | 子stepのverifiedだけ保持。親finishは一回、子が履歴を個別確定・ロック解放しない |
 
 ## 未決事項と成立判定
 

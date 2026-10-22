@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B5`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B6`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB5）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB6）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -29,9 +29,9 @@
 
 ローカルで引数配列を使っても、SSHの遠隔コマンド文字列が安全になるとは限らない。採用案では遠隔で呼ぶ入口を固定し、構造化リクエストを標準入力から渡す方式を第一候補とする。対象ユーザーのshell解釈、固定入口の初回準備・検証、権限昇格と入力配送の結合はD09-01の成立性確認が必要であり、任意のパス・引数を空白連結する代案にしない。
 
-初回搬入の審査候補BootstrapTransferはtarget_id・binary_material・manifest_material・signature_material・keyring_ref・staging_ref・entry_ref・privilege_refを全キーとする。先頭の三資材は[P05の独自成果物参照](PHASE_05.md#型とapiの詳細案)のReleaseArtifactRef、残るrefは事前審査した固定入口/保存先/昇格契約のIDであり任意path/オプションではない。SSH・検証実行物のMaterialRefとは区別する。第一候補は検証済み同一本体の搬入と薄い固定wrapper、第二候補は既存の監督入口を利用する方式。どちらも転送→対象側の真正性/実hash検査→root所有領域への確定→同一本体worker開始の全外部契約が必要。独立agent新設は候補に含めない。昇格不能や追加手入力が必要なら配送前にマスターへ不足を返す。
+初回搬入の審査候補BootstrapTransferはtarget_id・binary_material・manifest_material・signature_material・build_metadata_material・keyring_ref・staging_ref・entry_ref・privilege_refを全キーとする。四資材は[P05の独自成果物参照](PHASE_05.md#型とapiの詳細案)のReleaseArtifactRef、残るrefは事前審査した固定入口/保存先/昇格契約のIDであり任意path/オプションではない。SSH・検証実行物のMaterialRefとは区別する。第一候補は検証済み同一本体の搬入と薄い固定wrapper、第二候補は既存の監督入口を利用する方式。どちらも転送→対象側の真正性/実hash検査→root所有領域への確定→同一本体worker開始の全外部契約が必要。独立agent新設は候補に含めない。昇格不能や追加手入力が必要なら配送前にマスターへ不足を返す。
 
-搬入前の候補検証は対象ID→固定リリース版と三資材のmanifest対応→独立した信頼参照→保存先/固定入口/昇格契約→転送予算とする。同じ版名でもmanifest hashが違う組合せをSSH_BOOTSTRAPで拒否する。対象側で再検証・root所有領域の確定が終わるまで候補を実行しない。Connect候補の入力はRegistryEntryとConnectionLimitsの型付き値、ConnectionLimitsの項目はconnect_timeout_ms・transfer_timeout_ms・inspection_timeout_msで本書の各上限に従う。ユーザーのSSH設定断片を追加の引数列へ変換しない。
+搬入前の候補検証は対象ID→固定リリース版と四資材のmanifest対応→独立した信頼参照→保存先/固定入口/昇格契約→転送予算とする。同じ版名でもmanifest hashが違う組合せをSSH_BOOTSTRAPで拒否する。署名付きmanifestが指すbuild metadataの実hash/CPU/loader/ABIを対象環境へ照合してから候補を起動する。対象側で再検証・root所有領域の確定が終わるまで候補を実行しない。Connect候補の入力はRegistryEntryとConnectionLimitsの型付き値、ConnectionLimitsの項目はconnect_timeout_ms・transfer_timeout_ms・inspection_timeout_msで本書の各上限に従う。ユーザーのSSH設定断片を追加の引数列へ変換しない。
 
 ## P09-REMOTE
 
@@ -223,6 +223,10 @@ RemoteRequestのplan_refは曖昧な文字列を廃し、Planを所有するplan
 
 request_digestはRemoteRequest全体をP02-CLIのキー順/escape・末尾LFなしで固定したbyte列のSHA-256とする。Plan.digestと異なりrequest_id/plan_id/時刻も除外しない。RemoteRequestRecord.request_sha256とDeliveryRecord.request_digestは同じ値へ照合する。queryは対象記録の読取りだけ。記録不在は未配送の証明にせず、missingと操作・履歴・監督単位の照合結果を返す。取消も対象操作IDと同じ監督範囲に限定し、他要求やSSHセッション全体を停止対象にしない。記録の保存失敗・応答消失時のpartialはRemoteFailureへ保持する。
 
+配送前の候補検証はmessage版/型→対象台帳とmaster識別→要求/Planの全ID・hash・契約参照→actionとpayload→状態別実行条件→対話選択/確認→対象側の再照合とする。install_bodyはself installの条件、setup/update/recoverは各既存状態条件、backupは構成と対象データの確認、install_osはP10の能力/消去条件を使う。install_body/setupが空diskを見つけてもinstall_osへ変換しない。install_osのSelectionだけで後続setupの別のplan_idを確認済みにはせず、同じ確認済み親計画の工程対応を要求する。
+
+ReconcileResultのresubmit_allowedは照合上の可否だけとする候補。trueでも自動再配送0回を維持し、同じ要求IDを新操作へ再使用しない。明示的な再計画を行う場合は新request/planと元要求の未適用確証または復旧完了根拠を対応付ける。Query/Cancelの応答欠損もそれぞれ未確認のまま保持し、要求の種類をSubmitへ切り替えて照合しない。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A09-17` | 同じrequest_idでplanの一属性を変更、JSON後にbanner、1 MiB+1 byte | 衝突または形式不正で拒否。変更の再投入・bannerの黙除・切詰め受理なし |
@@ -261,9 +265,11 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 | `A09-20` | 初回本体は搬入済み、root所有確定または昇格の証拠なし | worker開始0回。転送成功を導入準備完了にせず、別agent/任意shellで補完しない |
 | `A09-21` | master_id旧別名、取消stopped=null、requestのplan_idだけ変更 | 別名拒否・取消未確認・要求hash変化。Plan.digest一致だけで同一要求と扱わない |
 | `A09-22` | 十二回目の接続成功、identity一致だがrecord_consistent=null、残期限0 | 成功/再投入を許可せず照合待ち。追加待機・十三回目・submit再送なし |
-| `A09-23` | 三搬入物は同じ版名だがmanifest hash相違、または昇格契約未確定 | SSH_BOOTSTRAPでworker起動0回。独自成果物を外部EX登録で代用せず対象側再検証を要求 |
+| `A09-23` | 四搬入物は同じ版名だがmanifest hash相違、または昇格契約未確定 | SSH_BOOTSTRAPでworker起動0回。独自成果物を外部EX登録で代用せず対象側再検証を要求 |
 | `A09-24` | Query先のdelivery欠損、到達可能性不明、同ID別hashのSubmit | Query保存0件/可能性true/REMOTE_COLLISION。記録修復・再配送・既存要求の置換なし |
 | `A09-25` | 十一試行終了後の待機中に600秒到達、十二試行目は接続成功だがQuery不明 | 前者は十二回目開始なし、後者は未確認で終了。接続成功で回数/期限を更新せずsubmit再送0回 |
+| `A09-26` | 本体/manifest/署名だけでbuild metadata欠損、別CPUのloader条件 | SSH_BOOTSTRAP、候補起動0回。転送成功・署名成功だけで実行依存を省略しない |
+| `A09-27` | setupで空disk、resubmit_allowed=trueだが新計画/確認なし | install_osへの変更・自動再送0回。元要求の照合結果を新操作の承認にしない |
 
 ## 未決事項と成立判定
 

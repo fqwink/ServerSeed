@@ -4,11 +4,11 @@
 
 ## 案の適用範囲
 
-本書およびPhase 2〜11の本文は、所有者から承認された「本文案の作成」に基づく採用審査用の案とする。現在の案版は全フェーズ`B5`。契約内容の採用承認・承認済み版はなし。作成作業の承認を、各候補の採用、仕様充足、実装着手または受入完了へ転用しない。案の対象はファイル・節・契約IDとGitコミットで識別し、承認後の版は別途所有者が確定する。
+本書およびPhase 2〜11の本文は、所有者から承認された「本文案の作成」に基づく採用審査用の案とする。現在の案版は全フェーズ`B6`。契約内容の採用承認・承認済み版はなし。作成作業の承認を、各候補の採用、仕様充足、実装着手または受入完了へ転用しない。案の対象はファイル・節・契約IDとGitコミットで識別し、承認後の版は別途所有者が確定する。
 
 照合元は`9583140b7e539e8db2c382a73a88d8cb4a44246d`の基本仕様・方針・両ポリシー・構成別仕様とする。適用する憲章の最終変更コミットは`ece87b2fc4f7821e3723734c13d6b0e420b96cd8`。既存定義は各リンク先が正本であり、本案の候補を優先させない。本文中の「採用案」は採用された場合の動作を記述する。未決事項がある範囲は完全仕様未成立のままとする。
 
-フェーズ共通の契約は担当ファイルで一度だけ具体化し、参照側では契約ID・節・上記の現在の案版を指定する。`B5`間の参照は設計上の接続であり、憲章第4条が要求する承認済み版への参照はまだ成立していない。基本仕様・構成別仕様の確定本文の移動・削除、製品契約の切替、基本要求の変更は今回行わない。フェーズ本文内の競合する候補定義は同じ担当契約へ集約し、別定義を残さない。
+フェーズ共通の契約は担当ファイルで一度だけ具体化し、参照側では契約ID・節・上記の現在の案版を指定する。`B6`間の参照は設計上の接続であり、憲章第4条が要求する承認済み版への参照はまだ成立していない。基本仕様・構成別仕様の確定本文の移動・削除、製品契約の切替、基本要求の変更は今回行わない。フェーズ本文内の競合する候補定義は同じ担当契約へ集約し、別定義を残さない。
 
 ## 要件と境界
 
@@ -20,7 +20,7 @@
 | `P01-CLI` | 引数解析・ヘルプ・未実装停止の骨格 | [CLI](../BASIC_SPEC.md#cli)、[起動応答](../BASIC_SPEC.md#起動時の応答) |
 | `P01-CHECK` | 検査入口・対象範囲・結果の対応 | [仕様充足検査](../BASIC_SPEC.md#仕様充足の検査)、[依存検査](../BASIC_SPEC.md#依存関係の検査) |
 
-共通JSONの未定義部分は[Phase 2](PHASE_02.md#p02-cli)の`P02-CLI`・B5を参照する。Phase 1の実装前にも、その使用部分の採用承認と仕様充足が必要となる。実装順序と契約の策定依存を混同せず、未定義のJSONを骨格実装で先に決めない。
+共通JSONの未定義部分は[Phase 2](PHASE_02.md#p02-cli)の`P02-CLI`・B6を参照する。Phase 1の実装前にも、その使用部分の採用承認と仕様充足が必要となる。実装順序と契約の策定依存を混同せず、未定義のJSONを骨格実装で先に決めない。
 
 ## P01-ENV
 
@@ -33,11 +33,13 @@
 | manifest・lockfile | 欠損、解析不能、禁止依存または解決差分で停止。検査中に再生成しない |
 | 対象CPUの実行検証環境 | ビルド環境と分けて記録。クロスビルドだけなら実行試験は未実施 |
 
-通常検査の開始からの上限は30分、外部コマンドの制御は`P02-EXEC`・B5へ接続する。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
+通常検査の開始からの上限は30分、外部コマンドの制御は`P02-EXEC`・B6へ接続する。検査のタイムアウトを試験成功へ変換しない。最終CI環境の固定参照・Actionは`EX-007`〜`EX-009`の個別採用条件が揃うまで使用可能としない。
 
 P01-ENVが照合する固定環境の審査入力をEnvironmentBindingとして具体化する候補。全キーはexception_ids: string[]、image_digest: string、tool_versions: 実行物ID→版のobject、targets: string[]、approval_refs: string[]。例外IDから個別採用情報を参照し、版・digestを本書に複製しない。対象CPUの実行証拠は別に要求する。台帳の状態が未確定、同一実行物の欠損/二重登録、イメージ内の実版との不一致、承認参照不在のいずれかで環境検査を失敗にする。推奨は固定イメージ方式で、浮動runnerだけを採用根拠にする案は除外する。
 
 環境照合の候補順序は、要求形式→commitの実在と検査ツリー一致→EnvironmentBinding→全実行物の版→要求targetの標準ライブラリ/リンカー→manifest/lock→実行用CPU環境とする。image_digestはsha256:と小文字hex64桁、各集合は非空・重複なし。要求targetがtargetsにない場合はCHECK_ENV。実行用CPUがない場合はビルド可否と実行不可を別結果にし、実行を要求したjobはnot_run、suite全体は未完了とする。クロスビルドの成功をenvironmentの全条件成功へ広げない。
+
+文書専用検査ではtarget=documentを使い、Rustのtarget・manifest・lockfile・CPU実行環境を要求しない候補とする。検査器自身の実行環境は識別して記録し、製品をビルドした証拠とは分ける。purpose=document_draftとtarget=documentの組だけに適用し、implementation_gate/product_acceptanceでdocumentを指定したらCHECK_INPUT。EnvironmentBindingの各tool_versionsキーは個別採用情報の実行物IDへ一対一で対応させ、空の版・未列挙の呼出し先・浮動参照をCHECK_DEPENDENCYにする。
 
 ## P01-CLI
 
@@ -83,7 +85,7 @@ P01-ENVが照合する固定環境の審査入力をEnvironmentBindingとして�
 | SuiteRequest.purpose | string、document_draft・implementation_gate・product_acceptanceのいずれか |
 | SuiteRequest.target | 基本仕様のRustターゲットstring。文書検査だけはstringのdocument |
 | SuiteRequest.jobs | string[]。既存CIジョブ名から重複なし・1件以上。run-allでは基本仕様のジョブ掲載順で実行 |
-| SuiteRequest.contracts | ContractRef[]。実装・製品目的では採用済み参照だけ。定義は[P02-MODEL](PHASE_02.md#p02-model) |
+| SuiteRequest.contracts | ContractRef[]。1件以上・重複なし。実装・製品目的では採用済み参照だけ。定義は[P02-MODEL](PHASE_02.md#p02-model) |
 | SuiteResult.schema_version・commit・purpose・target | 要求と同じ値。対象や目的の置換は禁止 |
 | SuiteResult.jobs | JobResult[]。要求された全ジョブを順序どおり一度ずつ含む |
 | SuiteResult.environment | JobResult。name=environmentの一件。環境・依存の事前検査を保持し、要求jobsには混ぜない |
@@ -110,7 +112,7 @@ TOML・Markdownの内製解析範囲、全検査項目の機械判定可能範�
 | 経過時間 | [Instant](https://doc.rust-lang.org/std/time/struct.Instant.html)を制限判定に使用する案。保存時刻との相互代用はしない | `P02-MODEL` |
 | SSH・TLS・暗号・圧縮 | `net`等の基本APIだけで各プロトコル・検証済み形式を充足したとは認定しない | `D02-06`、`D04-02`、`D09-01`の調査・例外境界へ対応 |
 
-既存内製コードは現在存在しないため、再利用実装の評価対象なし。再利用するのは本案内の共通契約であり、実装済み機能とは区別する。JSON・YAMLの限定範囲の資料照合は[P02-PARSE・B5](PHASE_02.md#解析の範囲と一次資料)を参照する。その他の外部形式の照合と、採用版での境界ケースの実行試験は未実施とする。
+既存内製コードは現在存在しないため、再利用実装の評価対象なし。再利用するのは本案内の共通契約であり、実装済み機能とは区別する。JSON・YAMLの資料照合は[P02-PARSE・B6](PHASE_02.md#解析の範囲と一次資料)、限定TOML・Markdownの資料対応は[入力集合](#入力と保存形式の詳細案)を参照する。資料対応の記載と、採用版での境界ケースの実行試験を区別し、後者は未実施とする。
 
 ## 接続と責務の照合
 
@@ -131,7 +133,7 @@ SuiteResultは[P11-ACCEPT](PHASE_11.md#データ契約の具体化案)の証拠�
 | `A01-05` | 正常。配置前の`version --json` | 本体情報と未適用情報を区別。OSや構成の偽装なし |
 | `A01-06` | 異常。固定版不一致、lockfile欠損、禁止依存 | 環境・依存検査失敗。取得・更新・自動修復なし |
 | `A01-07` | 境界。検査上限到達、検査入口欠損 | 失敗と未実施を識別。後続成功の捏造なし |
-| `A01-08` | 異常。B5契約だけを根拠に実装着手判定を要求 | 承認済み版なしとして失敗。文書検査成功と分離 |
+| `A01-08` | 異常。B6契約だけを根拠に実装着手判定を要求 | 承認済み版なしとして失敗。文書検査成功と分離 |
 
 ## 追加の受入ケース案
 
@@ -205,6 +207,8 @@ Markdown/TOMLの全標準互換を宣言せず、実際に管理する構文集�
 
 検査器の結果をScanResult候補へ閉じる。全キーはentries・diagnostics・unresolvedで、entriesは検証済み依存辺または解決済み文書参照の配列、diagnosticsはcode/path/byte_offsetの配列、unresolvedは機械判定対象外のpath/理由の配列。空のunresolvedだけを自動合格の必要条件とし、非空なら所有者確認待ちでcomplete=false。例えば未対応の複数行TOML文字列を含むmanifestはCHECK_INPUT、`[target.'cfg(unix)'.build-dependencies]`のgit宣言はCHECK_DEPENDENCY、閉じたfence内の架空リンクは文書参照集合へ加えない。限定言語の残る全字句・escapeの確定はD01-02に維持し、この三例だけで文法完成とはしない。
 
+ScanResultの安定順候補はentriesを入力path・対象ID・参照先、diagnosticsをpath・byte_offset・code、unresolvedをpath・理由のUTF-8バイト順とする。重複は同じ全フィールドだけを一件へまとめる。diagnosticsが非空でもcomplete=falseとし、unresolvedが空という条件だけで構文不正や禁止依存を成功にしない。異なる入力位置の違反は消さず、先頭の正常な参照だけを全体結果として返さない。
+
 ## 受入条件の充足照合案
 
 P01-ENVは固定環境・実行/クロスビルドの区分、P01-CLIはP02-CLIの入力と出力、P01-CHECKはSuiteRequest/Result・実行位置・依存表へ対応付ける。下記は追加の受入設計で、製品試験の成功記録ではない。
@@ -230,6 +234,10 @@ P01-CHECKの解析器は次の限定言語を採用候補とする。未対応�
 | 節参照 | 見出しの表示文字を小文字化し、空白をhyphenへ変換、句読点を除き重複を出現順に-1以降で識別。生成結果と実際のGitHub節参照が異なる場合はCHECK_EVIDENCE。対応不能を成功にしない |
 
 SuiteRequest.commitは40桁の小文字hexを候補とし、SHA-256形式のGitリポジトリは未対応で拒否する。結果のevidenceは所有者指定の証拠ルートに対する相対参照だけとし、絶対パス・親への逸脱・外部URL・symlinkを拒否する。参照先のdigestと対象commitを照合する情報はPhase 11のEvidenceRefへ結合し、単なる文字列の存在でpassにしない。
+
+限定TOMLの字句候補は[TOML 1.0.0](https://toml.io/en/v1.0.0)の該当生成規則を参照する。bare/単行basic/単行literal key、単行basic/literal string、bool、符号付き64bit整数、array、inline table、table、array-of-tableだけを受理し、整数の基数・underscore・escape・dotted keyの意味は同版へ一致させる。float・日時・複数行stringはCHECK_INPUT。BOM・不正UTF-8・多重定義・不正escapeを拒否する。arrayの改行/末尾commaは同版どおり、inline table内の改行/末尾commaは拒否する。暗黙tableと明示tableの結合も同版の再定義条件で評価し、文字列検索で依存節を探さない。文書上限・深さ・要素数・文字列長・時間/論理予算はP02-PARSEを再利用し、TOMLの専用検査器がJSON/YAMLの受理範囲を変更することはない。
+
+Markdown候補は[GFM](https://github.github.com/gfm/)のblock/inline構造を先に識別する。fenceは先頭0〜3space、backtickまたはtildeが3個以上、終端は同じ文字で開始長以上とし、閉じていないfenceをCHECK_INPUTにする。code span・fence内のリンク文字列は参照外。リンク先の括弧・escape・reference labelの対応は同仕様の規則を使い、raw HTML・独自アンカー・解釈不能な見出しをunresolvedへ残す。参照pathは文書所在から解決し、percent escapeの不正・リポジトリ外への逸脱を拒否する。GitHubの節IDはGFM文法そのものとは別のホスティング契約として照合し、Unicodeや重複見出しの未確認を推測で通さない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -268,13 +276,17 @@ P01-CHECKの内製境界をdependency_scanとdocument_scanの二つの純粋処�
 | `A01-23` | 要求targetがBindingにない、またはクロスビルド可能だが対象CPUの実行環境なし | 前者CHECK_ENV。後者は実行jobをnot_runとしてsuite未完了。ビルド結果と実行結果を分離 |
 | `A01-24` | Run(Update,plan=true)だけ未登録、通常Updateは登録済み | CLI_UNIMPLEMENTEDで停止。通常Updateへの転送0回、構造化応答はP02-CLIと同じ検証を通す |
 | `A01-25` | 文書の機械判定対象外項目一件、fence内の架空リンク、未選択targetのgit依存 | 前者はunresolvedありで未完了。fenceは参照外、gitはCHECK_DEPENDENCY。空成功への縮約なし |
+| `A01-26` | document_draft/documentでCargoファイルなし、product_acceptance/document | 前者は文書検査環境だけ照合、後者CHECK_INPUT。製品依存やCPU実行の成功を捏造しない |
+| `A01-27` | unresolvedは空だが禁止依存diagnosticあり、入力table順だけ逆転 | 前者はcomplete=false。後者は同じ安定順の全診断を返す |
+| `A01-28` | TOMLのinline table末尾comma、array末尾comma、quoted keyに依存節名 | 順に拒否/受理/構文木で判定。依存文字列の単純一致で節を取り違えない |
+| `A01-29` | 4backtick fence内に3backtickと架空リンク、raw HTMLアンカー参照 | 短いfenceで終了せずリンクは参照外。HTMLはunresolvedとし意味判定を自動成功にしない |
 
 ## 未決事項と成立判定
 
 | 判断ID | 必要な判断・根拠 | 依存範囲 |
 |---|---|---|
 | `D01-01` | 推奨案はP02-CLIの単一解析契約と本書の親予算を採用。所有者は参照版・A01-20・予算算定を一組で決定する。採用待ちとし、骨格側の独自補完は残さない | `P01-CLI`・`P01-ENV`と後続CLI |
-| `D01-02` | environmentを持つ検査形式・限定TOML/Markdown集合を推奨。所有者は未対応構文の停止と意味判定対象外の確認待ちを含め採用判断する。全標準互換は選択肢に含めない | `P01-CHECK`、全フェーズの自動検査 |
+| `D01-02` | environmentを持つ検査形式・TOML 1.0.0の限定集合/GFM構造参照・安定診断順を推奨。残る採用判断には未対応構文停止、GitHub節IDの照合根拠、意味判定対象外の確認待ちを含める。全標準互換は選択肢に含めない | `P01-CHECK`、全フェーズの自動検査 |
 | `D01-03` | 固定イメージ方式を推奨しEnvironmentBindingへ対応付ける。残る根拠はEX-007〜009の個別版・条件・承認と両CPU実行環境。これらの採用は本案作成承認の対象外 | 実際のビルド・検査・配布 |
 
 難易度の判断方法は[段階的な内製化](../PRINCIPLES.md#段階的な内製化)、新設・抽出・差し替え・更新の工程は[実施手順](../../AGENTS.md#内製化と差し替えの実施手順)へ照合する。初回は新設案のため旧実装・新旧比較結果は存在しない。将来の抽出候補も、担当契約と呼び出し元・移行・契約テストを先に確定し、今回はcrate名・版を確定しない。

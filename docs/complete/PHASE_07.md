@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B5`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B6`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB5）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB6）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -139,6 +139,7 @@ pub enum Engine { Cpu, Gpu }
 pub enum MonitorPhase { Preparing, Warming, Running, RetryWait, ThermalStop, Stopped, Unknown }
 pub enum ControlAction { None, Start, Stop, Restart }
 pub struct MonitorMemory {
+    target: TargetEvidence, config_sha256: String,
     state: MonitorState, failure_since_ms: Option<u64>,
     cool_since_ms: Option<u64>, healthy_since_ms: Option<u64>,
     last_control_receipt: Option<String>, pending_control: Option<String>, stop_latched: bool,
@@ -152,15 +153,19 @@ pub struct Evaluation {
 }
 pub fn evaluate_monitor(previous: &MonitorMemory, sample: &MiningSample, config: &MiningConfig)
     -> Result<Evaluation, ContractError>;
-pub fn observe_control(previous: &MonitorMemory, proposal: &ControlProposal, receipt: &ControlReceipt)
+pub fn observe_control(previous: &MonitorMemory, request: &ControlRequest, receipt: &ControlReceipt)
     -> Result<MonitorMemory, ContractError>;
 ```
 
-MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#データ契約の具体化案)へ参照し、engineはEngine、時刻は検証済みu64、温度はi64、hashrateはu64を内部表現にする。外部整数の上限も保持する。evaluate_monitorは純粋処理で、observe_controlだけが同じ提案・実施receiptを照合して次状態を生成する。last_control_receiptは重複消費防止用ID、pending_controlは未確定の要求ID。提案を出しただけでは回数・開始時刻を確定しない。
+MonitorState・MiningSample・ControlProposalの全項目は[観測データ](#データ契約の具体化案)へ参照し、engineはEngine、時刻は検証済みu64、温度はi64、hashrateはu64を内部表現にする。外部整数の上限も保持する。evaluate_monitorは純粋処理で、observe_controlだけが検証済み要求・実施receiptを照合して次状態を生成する。last_control_receiptは重複消費防止用ID、pending_controlは未確定の要求ID。提案を出しただけでは回数・開始時刻を確定しない。
 
 監視器内部のAPI候補は上記に統一する。MonitorMemoryの保存・再起動後の継承は別の契約が必要で、経過時刻の値だけを永続化して同じepochとして復元しない。
 
+保存レコードが対応する操作/計画の対象と設定hashを、MonitorMemory.target/config_sha256へ復元時に照合する候補。レコードに未定義のトップレベルtargetを追加せず、対応する操作記録を取得できなければ復元を保留する。要求の照合はこの確認済み値を参照し、request自身のtarget/hashだけで正しさを認定しない。設定変更は新しい監視セッションの明示確認と保存互換の審査へ戻し、記憶内のhashだけを差し替えて旧receiptを再利用しない。
+
 ControlRequest候補の全項目はtarget（TargetEvidence）・proposal（ControlProposal）・config_sha256・request_id。request_idは本書のengine/epoch/sample_elapsed_ms/action/config_sha256の組を一意に束縛する参照で、衝突時はMONITOR_COLLISION。evaluate_monitorは一試料につき状態表を上から一度だけ評価し、未確定要求中・保持中・unknownの条件を後段の正常試料で上書きしない。observe_controlは同じ要求ID/epoch/actionを一度だけ消費し、別要求のreceiptはMONITOR_RECEIPTとして状態不変で拒否する。制御開始後の失敗では実開始の確証または未確認をpartialへ保持し、再試行枠を未消費へ戻さない。
+
+observe_controlはrequest.request_idとreceipt.request_id、proposalのengine/epoch/actionと保存memory、request.config_sha256と固定設定を照合する候補。同じIDでも別対象・設定・試料に束縛されている要求は拒否する。accepted=falseならstarted=false、accepted=trueでもstarted=nullは未確認としてpendingを保持し、started=trueの確認なしでwarmingへ遷移しない。初回以外の開始可能性が残る場合は回数を保守的に予約し、実開始なしの確証なしに枠を再利用しない。
 
 ## 状態と中断の詳細案
 
@@ -259,6 +264,8 @@ requestキーはengine/epoch/sample_elapsed_ms/action/config_sha256の組へ固�
 
 固定小数の切捨て候補は数学的floorとし、負温度も含めて明記する。例として-0.0005℃は-1 milli_c。元単位・範囲・精度を確認できない場合はnull。閾値・温度不明時制御の採用判断は機器安全審査に残し、この丸め候補を安全値の根拠にしない。
 
+監視の秒→ms変換はchecked乗算、継続時間は同一epochのchecked減算とする候補。閾値ちょうどで待機完了/障害成立、停止温度ちょうどで停止、再開温度ちょうどは冷却区間へ算入する。演算失敗/時計後退ではunknown、連続時間を無効化し停止保持と回数を維持する。retry_limit=0でも明示確認済みの初回開始は別に判定するが、障害restart/温度停止後の自動startは生成しない。
+
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A07-18` | 同じrestart receiptを二回配送、監視再起動、低hashrate後に一度unknown | 消費は一回、保存回数を保持、不成立の連続時間は無効。自動リセット/再発行なし |
@@ -291,6 +298,8 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 | `A07-25` | GPU二台でpower値が片方だけ範囲外、backup_poolsありだが方式未採用、復旧許可false | 設定拒否または切替/自動復旧0回。掲載順保持、温度保護を復旧許可で免除しない |
 | `A07-26` | 全7状態へ同じ古いepoch、pendingと正常試料の同時成立、別requestのreceipt | 前者unknown/none、pendingは新規制御なし、別receiptはMONITOR_RECEIPT。回数/保持の勝手な解除なし |
 | `A07-27` | 旧minerはあるが旧設定なし、CPU更新計画へGPU変更、運転retry残りあり | 復元/対象照合で停止。retry残量を更新再投入へ転用せず、元更新失敗を保持 |
+| `A07-28` | 同じ提案だがrequestの設定hash相違、accepted=falseかつstarted=true | MONITOR_RECEIPTで状態不変。提案だけの照合で別要求のreceiptを消費しない |
+| `A07-29` | retry_limit=0、初回明示開始/障害再開、ms差分overflow/冷却閾値ちょうど | 初回と自動復旧を分離。自動開始0回、演算失敗はunknown、境界は指定どおり判定 |
 
 ## 未決事項と成立判定
 

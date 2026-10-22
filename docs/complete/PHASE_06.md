@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B5`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B6`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB5）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB6）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -75,7 +75,7 @@ ComposeEvidence候補の全項目はname・compose_sha256・service_names・imag
 | CommandInput | executable: 絶対パスstring、args: string[]、timeout_seconds: 同フェーズの操作上限内integer。秘密情報の値を引数に含める契約は追加しない |
 | HealthInput | kind: http・command、http: HttpInputまたはnull、command: CommandInputまたはnull、interval_seconds: 1〜300、attempts: 1〜10のinteger |
 | HttpInput | url: string、expected_status: 200〜299のinteger[]、timeout_seconds: 1〜300のinteger、body_limit_bytes: 0〜1,048,576のinteger |
-| AppPlan | name・compose_file・compose_sha256: string、image_digests: サービス名→digestのobject、operation: install・update・recover、health: HealthInput、backup_method: ContractRefまたはnull、resources: P03-RESOURCEの資源集合 |
+| AppPlan | name・compose_file・compose_sha256: string、service_names: string[]、image_digests: サービス名→digestのobject、operation: install・update・recover、health: HealthInput、backup_method: ContractRefまたはnull、resources: P03-RESOURCEの資源集合 |
 | HealthResult | name: string、status: pass・fail・unknown、attempts_used: 0以上integer、checks: Check[]、error: Diagnosticまたはnull |
 | AppResult | name: string、receipt: OperationReceipt、health: HealthResult、data_verified: booleanまたはnull |
 
@@ -86,6 +86,8 @@ HTTP URL・HTTPS・応答の解析・redirect・成功条件の外部契約は`D
 既存backup.commandの単一stringは、全体を一つの絶対実行パスとして解釈しargs=[]へ対応付ける候補とする。空白・引用符・shell記号で分割せず、実際のパスとして検証できないものは拒否する。引数を持つ新しい構造化表現への変更は、元形式の識別・変換・切戻し条件を含む`D06-01`の別途採用事項である。
 
 AppPlanのimage_digestsとcompose_sha256は計画前に固定し、検査直前の実配置と照合する。コンテナの起動成功だけでHealthResultをpassにせず、保全・データ検査が必要な場合にdata_verified=nullをtrueへ補完しない。外部アプリのバージョン別の整合性取得・復元検査は`D06-03`へ対応付ける。
+
+service_namesはComposeEvidenceの非空・一意な全サービス集合をASCII順に保持する候補。image_digestsのキー集合と完全一致させ、停止前観測/停止/復帰の各結果もこの集合に対応付ける。AppPlanにないサービスをproject名だけで停止・削除しない。image/composeの一つでも変われば方法照合と計画確認へ戻し、以前のdata_verifiedを再利用しない。
 
 ## 接続と責務の照合
 
@@ -219,6 +221,8 @@ P06-APPのアプリ工程をchecked→preserved→applying→checking_health→v
 
 ヘルス検査は最初の要求開始をattempts_usedへ確定してから起動する。timeout/応答欠損も消費した一回であり、別プロセスの再開で0へ戻さない。次回は前試行終了時刻からintervalを待ち、親期限の残量がなければ未実施。HTTP 1xxだけでは完結としない。候補のGETはredirect非追従、userinfo/fragment拒否、本文上限を1 byte超えたら失敗とし、body_limit=0も同じ厳密上限として非空本文を拒否する。
 
+試行集約候補は、応答完了かつ期待status/本文上限の全成立時に直ちにpassで終了し、以後の試行を開始しない方式。確定failは残回数/期限があれば再検査し、全試行failならfail。停止確認不能・試行状態不明ではunknownを返し、先行試行が残ったまま次を重ねない。親期限が試行間で尽きた場合も未完了を保持する。HTTP adapterのheader量/終了条件とcommandの非変更契約はD06-02に残し、curlのbody_limit=0を無制限指定へ変換しない。
+
 停止取得の保全では、元の稼働有無を記録してからstopし、停止確認後だけcaptureする。元が停止中なら終了時に勝手に起動しない。capture後の復帰失敗と保全内容の成否は別結果で、復帰不能のまま更新を開始しない。DBの復元検証は稼働DBへ接続せず、methodで固定した隔離先だけへ適用する。
 
 検査失敗後に旧imageへ戻せる条件は旧image/composeとデータ形式の互換が成立し、復元先・保全物・復帰条件を確認できる場合に限る。不可逆migration後のimage切替を復旧成功にしない。復旧も利用者の当該計画への確認範囲を必要とする。
@@ -251,6 +255,8 @@ P06-CONFIGはAppConfig/ServerConfigの検証、P06-APPは共通計画/適用へ�
 | `A06-23` | 入力順z,aで両方妥当、enabled=falseのa、次にaへ不正health追加 | 妥当時の適用はzのみ。不正時はaも検証拒否。入力順・実行順・無効化の意味を区別 |
 | `A06-24` | app a失敗後にbが未開始、Compose証拠のサービス一件欠損 | bのnot_startedを保持。証拠不足時は計画前停止、pull/自動修復/結果列の省略なし |
 | `A06-25` | captureとrestoreが別方法行、二サービス中一方のstop失敗、隔離参照が本番DBへ解決 | 方法不一致/取得前停止/DATA_ISOLATIONを区別。capture・本番復元を実行せず元失敗を保持 |
+| `A06-26` | Compose全三サービスのうちPlanは二件、未計画サービスが同projectに存在 | 計画不成立/対象外不変。共有projectを理由に停止・削除対象を拡張しない |
+| `A06-27` | attempts=3で初回pass、別入力では初回停止不明、全三回は確定fail | 順に一回でpass/一回でunknown/三回でfail。余分な試行・重複実行なし |
 
 ## 未決事項と成立判定
 

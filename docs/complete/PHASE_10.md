@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B5`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B6`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB5）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB6）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -222,6 +222,8 @@ P10-OSのInstallPayloadについて、先述の型に対応するレイアウト
 
 レイアウト検査の候補計算はA=1,048,576 bytes、末端E=floor(expected_bytes/A)*A-A、UEFIのroot開始S=513*A、BIOSはS=3*A、root寸法=E-S。partition番号/順序はESPまたはbios_bootを1、rootを2とし、purpose/filesystem/mountpointは表の組だけを許容する。E<=S・算定overflow・寸法不一致を拒否する。UserInput.public_keysは制御文字/複数行/空/重複を拒否し、受理鍵形式と昇格方式の安全条件は担当ポリシーの採用待ち。自由なauthorized_keysオプションやshell断片を受けない。
 
+layoutに対応する二partitionの完全一致を要求する候補で、任意の第三partition・番号の入替え・mountpointの重複を拒否する。sector_bytesでstart/sizeを割り切れること、容量算定が正かつ最小root条件を満たすことをchecked演算で検証する。丸めは全容量からEを求める一回だけで、入力partitionの不正寸法を丸めて修復しない。staticのIPv4 prefixは1〜30を候補とし、/31・/32の別接続方式は未対応として消去前停止する。address/gatewayはnetwork/broadcast以外、gatewayと対象addressは別値を要求する。これらの対応範囲の採用はD10-02の審査対象であり、既存環境を自動変更しない。
+
 InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致→layout/boot.mode一致→sectorと全partition算定→network→user/公開鍵契約→loader/次endpointの順。NetworkInputはinterface_id/method/addresses/gateway/dns/mac_address/mtuの七項目だけで、八つ目を補完しない。dhcpの値集合とstaticの値集合は相互排他とし、staticのCIDRは一つのIPv4とprefix、gateway/dnsはCIDRを持たないIPv4へ照合する。複数アドレス・未知method・未確認MAC・必須の鍵/昇格方式未定義はINSTALL_PAYLOADで消去前停止。installerが後で補正することを成功条件にしない。
 
 これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
@@ -235,6 +237,8 @@ InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致�
 P10-BOOTSTRAPの事前記録は消去対象外の永続領域を対象一時環境から使用できることを候補条件とする。マスター側の要求・工程記録も固定し、双方のrequest/plan/disk/digest一致を確認してからpartitionを開始する。SSHだけを入口とし、事業者API・ISO接続・cloud-initを追加の必須入口にしない。一時環境の能力不足は実行不可として説明する。
 
 永続領域が消去対象内、RAMだけ、保存元の実機器不明、他プロセスとの対象排他不成立なら消去前停止。新しく領域を作るため先に対象を消去する循環を認めない。SSHに接続できるすべての環境へ導入可能とは保証しない。
+
+消去前の記録候補はrequest/plan/disk/digest・InstallerBinding・全InstallStage・保全物参照を両側で照合する。preparedの双方同期を確認してからpartition.startedを記録し、startedの双方同期成功を確認した後だけ消去する。片側だけstartedで中断した場合は消去済みとは断定せず、消去の可能性ありとして実disk照合へ進む。対象側記録とマスター側記録のどちらも実状態の代替にはせず、片側の正常記録で他方を自動修復しない。
 
 | 保存・応答の位置 | 中断後の照合 |
 |---|---|
@@ -274,6 +278,8 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-23` | 六能力Checkはpassだが消去外journal未確定、execution_contractは別環境用 | installable=false。SSH成功・対象OSのUbuntu条件だけで能力の不足を補完しない |
 | `A10-24` | 七項目のNetworkInputへ未知八項目目、static gatewayへCIDR、dhcpで非空addresses | INSTALL_PAYLOAD/スキーマ拒否で消去0回。未知項目の補完・入力の自動修正なし |
 | `A10-25` | 再接続は成功だがroot不一致、別途root取得不能、修復計画にformat混入 | BOOT_MISMATCH/BOOT_UNKNOWN/再導入別確認へ分離。構成変更・再formatの自動続行なし |
+| `A10-26` | 第三partition、同一address/gateway、/31または/32、入力寸法の丸めが必要 | payload拒否で消去0回。未対応方式へのfallback・自動補正なし |
+| `A10-27` | prepared双方同期後、partition.startedの片側同期だけ成功 | 消去開始0回。再開時は可能性と実diskを照合し、未消去/消去済みのどちらも記録だけで断定しない |
 
 ## 未決事項と成立判定
 

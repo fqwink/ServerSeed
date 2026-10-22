@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B5`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B6`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB5）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB6）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -213,12 +213,14 @@ P05-MEDIAの入力をMediaRequestとして閉じる候補。対象OSへ渡す導
 |---|---|
 | MediaRequest | schema_version: 1、media_id: hex32string、action: MediaSelectionのaction、target: TargetEvidence、selection: Selectionまたはnull、install: InstallPayloadまたはnull、plan: Plan、backup: BackupSetまたはnull、confirmation: Confirmationまたはnull |
 | Confirmation | plan_id: PlanId、target_disk_id: string、shown_digest: hex64string、response: string、confirmed_at: UtcMillis。消去の確認文字列は基本仕様を参照し、別の短縮確認へ変えない |
-| HandoffRecordの補完 | 既存キーにrequest_sha256: hex64string、recipe_sha256: hex64string、target_boot_id: stringまたはnull、removal: RemovalResultまたはnullを追加する案 |
+| HandoffRecordの補完 | 既存キーにrequest_sha256: hex64string、recipe_sha256: hex64string、target_boot_id: stringまたはnull、removal: RemovalResultまたはnull、last_confirmed_stage: 通常経路のHandoffStageを追加する案 |
 | 受渡し保存先 | 媒体側・対象側に同じmedia_id/plan_idのレコードを置き、対象側は候補/var/lib/serverseed/media-handoff.json。書込み先は外部requestから受け取らず固定生成する |
 
 installはaction=installだけ非null、既存OSへのadopt/update/backup/recoverではnull。selectionはinstall/adoptだけ必須、継続管理のupdate/backup/recoverはnullとして保存済み構成とplan.profileの一致を要求する。非nullのselectionはplan/target/profileがplanと一致する必要がある。backupが必要な操作は保全計画参照を省略できず、action=backupはbackup非null。確認は利用者の当該計画への応答で、USB接続や--yesで生成しない。MediaSelectionは画面入力、MediaRequestは検証後の配送値とし、確認文字列の収集結果を検証済みConfirmationに変換してから渡す。
 
 MediaRequestの検証候補順序は形式/版→actionごとのnull条件→target/Plan/Selectionの同一性→保存構成→必須の保全/確認→InstallPayload→操作前提とする。install/adoptはsetup計画、update/backup/recoverはそれぞれ当該操作の計画へだけ結合し、adoptにpartition工程を含めない。Confirmationのshown_digestはPlan.digestと完全一致、target_disk_idは再同定した対象、confirmed_atは計画作成以降かつ期限内を要求する。確認文字列の一致だけで別action・別計画への同意へ転用しない。失敗はMEDIA_INPUTまたはMEDIA_BINDING、選択不足は共通CLIの停止へ対応付け、Subiquity・保存・対象変更を呼ばない。
+
+last_confirmed_stageは同期済みの直前の通常段階を保持する候補で、failed/unknownを入れない。stageが通常段階なら同値、failed/unknownでは到達済み位置を残す。応答欠損時にpreparedへ戻して同じsetupを再実行しない。復旧計画は固定request hash・対象・実適用位置を照合して未実施の検証と記録確定だけへ接続し、元の失敗/不明記録を通常成功へ無条件上書きしない。
 
 ISO recipeのtools_refはMaterialRefの識別集合を重複なしで固定し、baseと全実行物、同梱本体の実hashをrecipeへ結合する。RAM起動を第一候補とし、採用版で測定した必要量と予約量のchecked合計が観測した使用可能RAM以下の場合だけ起動条件を通す。測定根拠なし・取得不能・overflowは起動保留。boot後のlatest取得や、ツール参照名toolsへの別名置換は行わない。容量条件の成功だけで媒体参照解消を認定しない。
 
@@ -235,6 +237,8 @@ Subiquityの[公式入力](https://canonical-subiquity.readthedocs-hosted.com/en
 prebootの親はその工程のguardを保持し、工程終了・同期後に引き渡す。内蔵起動後の継続workerは自身でguardを再取得して同じ対象/計画/操作を照合し、媒体側のハンドルを継承したと扱わない。Liveと内蔵側がそれぞれ独立してsetupを始める設計にはしない。対象boot_idが変わったら旧PID/lockの観測を新OSへ流用せず、ディスク・root・操作記録の結合を再確認する。
 
 RAM起動案ではSquashFS・loop・overlay・swap・開いたFDを含む媒体参照が解消していることを確認する。対象処理終了、同期、参照解消、unmount確認の全成立前に取り外しを案内しない。実RAM容量不足、媒体参照の解除不能、対象側結果不明は取り外し不可。取り外し後の確認結果は内蔵OSに保存し、USBの再接続を完了条件にしない。
+
+取り外し前のtarget_stoppedはprebootの変更子処理の終了確認を指す候補で、起動後の継続unitや選択画面まで実行済み/停止済みと推測しない。起動確認は最初の内蔵bootと再起動後の異なるboot_idに、それぞれ同じdisk/rootと必要サービス検査を対応付ける。一つのbootの二回の観測を起動/再起動の二証拠として使わない。記録先・観測器の実方式はD05-03で採用判断する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -266,6 +270,8 @@ P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はReci
 | `A05-27` | 継続unit配置済みだがpreboot未終了、次に内蔵起動後guard取得失敗 | 取り外し案内または継続処理をそれぞれ停止。unit配置を実行済みとせず二重setupなし |
 | `A05-28` | write終了0だがverifyは旧値、readは未知値、reboot_required=null | 順にfailed/変更前停止/追加確認待ち。要求成功・値の読戻し・復電成功を別に記録 |
 | `A05-29` | 媒体preboot後/内蔵guard再取得前、SSH accepted後/running前、OS partition.started片側のみ | 各担当記録と実状態を照合し、新しい変更開始0回。媒体・SSH・一時環境のguardを相互コピーしない |
+| `A05-30` | target_verified後の応答欠損、last_confirmed_stageはtarget_verified | 到達済み位置を保持してunknown。同じsetupをpreparedから再実行しない |
+| `A05-31` | 同じboot_idで二回のサービス検証、preboot子は終了したがloop参照あり | 再起動確認/媒体解除は未成立。一部証拠でcomplete/removableへ進めない |
 
 ## 未決事項と成立判定
 

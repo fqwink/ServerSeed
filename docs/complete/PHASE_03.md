@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B5`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B6`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB5）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB6）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -45,7 +45,7 @@ P03-FSの成立根拠候補は、対象root/FS・親entry識別列・使用す�
 1. 解析済み定義を資源スキーマへ照合し、対象・管理属性・所有者・共通定義との競合を検査する。
 2. 資源を観測し、取得不能を実行不能理由へ対応付ける。
 3. 属性ごとに`unchanged`・`create`・`modify`・`blocked`へ分類する。削除・管理解除は[初期の適用条件](../POLICIES.md#宣言型構成管理の適用条件)に含めない。
-4. 依存グラフを検査し、循環があれば計画全体を停止する。同順位はresource_idのASCII順で並べる採用案とする。
+4. 資源をstepへ対応付け、[固定形式の単一の順序](#入力と保存形式の詳細案)で依存グラフを検査する。循環があれば計画全体を停止し、資源だけの別の実行順序を作らない。
 5. 観測した対象・定義の識別情報、属性差分、順序、必要権限、保全・復旧範囲を[既存の更新計画](../BASIC_SPEC.md#更新計画)へ結合する。新しい総合状態は作らない。
 
 同じ定義・実状態では、生成時刻とplan_idを除く変更内容・順序・停止理由が同じになることを要求する案。計画の同一性に使用する正規化バイト列とdigestは`D03-03`で確定し、既存JSON例のハッシュ欄を独自追加した扱いにしない。
@@ -234,8 +234,12 @@ P03-RESOURCEのvalidator→P03-FSの観測→純粋なdiff/plan→P04-APPLYの�
 |---|---|
 | validate_resources(input: &Value, target: &TargetEvidence) | Result<ResourceSet, ContractError>。妥当な資源を所有して返す。OSを読まない |
 | observe_resources(resources: &ResourceSet) | Result<Vec<ResourceObservation>, ContractError>。OS読取りだけ。部分集合は完全計画へ渡さない |
-| build_plan(resources: ResourceSet, observed: Vec<ResourceObservation>, identity: PlanIdentity) | Result<Plan, ContractError>。PlanIdentityはplan_id/created_at/契約参照/対象構成を持つ検証済み値。時計・ID・digestを内部で捏造しない |
-| seal_plan(plan: Plan, fixed_digest: String) | Result<Plan, ContractError>。別に取得した固定byte列のdigestを対応付ける。hash処理の実行成功を自己申告だけで認めない |
+| build_plan(resources: ResourceSet, observed: Vec<ResourceObservation>, identity: PlanIdentity) | Result<PlanDraft, ContractError>。PlanIdentityはplan_id/created_at/契約参照/対象構成を持つ検証済み値。時計・ID・digestを内部で捏造しない |
+| seal_plan(draft: PlanDraft, evidence: &PlanDigestEvidence) | Result<Plan, ContractError>。固定byte列と外部hash検証の証拠を照合した後だけ配送可能なPlanを返す |
+
+PlanDraftはdigestを除くPlanの全検証済み値を所有する内部型で、配送・確認・保存のPlanとして使用できない候補。PlanDigestEvidenceの全項目はfixed_bytes: Vec<u8>、sha256: string、verification_ref: string。seal_planはdraftから同じ固定byte列を再生成して完全一致を確認し、採用済みhash検証契約の証拠と結合する。任意のhex64を渡すだけのsealや、空digestのPlanを適用器へ渡す経路を設けない。
+
+PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資源IDとは別の名前空間とする。全step ID・依存先は一意に解決し、資源一件は一stepにだけ結合する。非資源stepは担当契約のpayload validatorを必須とし、resource_change/payloadの両方null・両方非nullを拒否する。任意stepをrequired=falseにして必須の保全・検証・記録を省略することはできない。
 
 上記の型付きAPIを本案の唯一の内部境界とする。初期の観測器と純粋計画器は別module、将来の抽出でも模擬観測と実FS試験を分離する。新旧でResourceObservation全フィールド・差分・順序・blocked理由・固定byte列を比較し、root固定方式の変更時はP03-FSの反証試験を再実施する。
 
@@ -248,6 +252,8 @@ P03-RESOURCEのvalidator→P03-FSの観測→純粋なdiff/plan→P04-APPLYの�
 | `A03-23` | present資源にnew、別targetの取り込み証拠、同じcontent IDに別byte列 | RESOURCE_ADOPTIONまたは内容参照衝突でblocked。存在だけによる管理下取り込み・後勝ち登録なし |
 | `A03-24` | Bindingはreadだけ保証、適用はreplaceを要求、またはboot/mount集合が変化 | FS_BINDINGで適用0件。観測成功・前後一致を変更の保証へ拡張しない |
 | `A03-25` | step a/bが同順位、cはa/bへ依存。入力順逆転、次にb/cの循環を追加 | 正常順はa,b,cで一定。循環はPLAN_CYCLEで全体blocked、先頭aだけの適用なし |
+| `A03-26` | resource ID順と対応step ID順が逆、非資源stepも同順位 | 全stepの単一トポロジカル順だけを使用。別の資源実行列を生成しない |
+| `A03-27` | 未封印PlanDraft、別byte列のdigest証拠、payload両方null | 配送/適用不可またはseal/形式拒否。空digestの仮Planを成功扱いにしない |
 
 ## 未決事項と成立判定
 

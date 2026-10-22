@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B5`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B6`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB5の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB6の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -35,6 +35,8 @@
 時刻保存はUTCのRFC3339、秒未満3桁、末尾`Z`へ正規化する採用案とする。期限判定は経過時間と絶対期限を分離し、時計後退・再起動後の期限不明は有効と推測しない。乱数の取得手段・OS識別情報との結合は`D02-01`の調査対象であり、識別子生成を実装可能と判定しない。
 
 ID生成の純粋境界候補は`encode_id(kind: IdKind, entropy: &[u8; 16], existing: &[String]) -> Result<String, ContractError>`。IdKindはPlan/Operation/Machineで、表記は上表だけを使用する。入力entropyを保存・出力せず、生成後のIDだけを返す。既存集合の取得不能を空集合に置換せず、衝突では一度でMODEL_ID_COLLISION。OS取得器と表記器を分離する案を推奨し、時刻/PIDの連結を乱数の代替にする案は採らない。プロセスの照合キー候補はboot_id・pid・process_start_ticksの三つで、同一採取前後にキーが変わればMODEL_CHANGED、読めない場合はMODEL_UNREADABLE。PIDだけの一致を根拠にしない。
+
+プロセス情報の取得候補は[Linux proc資料](https://www.kernel.org/doc/html/latest/filesystems/proc.html)の起動後の開始tickと、[kernelのboot_id](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html)を別の値として照合する。PIDの存在/不在と読み取り不能を区別し、別PID namespace・procの差替え・起動世代不明を同一主体にしない。収集前後でboot/PID/startが一致して初めてその観測を採用する。tickをUTC秒へ換算して照合する方式ではない。実取得path/解析全契約・乱数源と期限・対象環境での検証はD02-01のままとし、一次資料確認を実測の代わりにしない。
 
 ### 共通参照型の候補
 
@@ -183,6 +185,8 @@ helpのresultはsuccess・0、stateは未観測のUNKNOWN、warnings・errorsは
 人間向け表示は同じCommandResponseから、1行目summary、2行目`state: STATE`、以後dataを同じキー順のJSON表記で示し、続いてwarning・errorの順に`LEVEL CODE FIELD: MESSAGE`の一件一行とする。field=nullは`-`、改行等は上記escapeを用いる。errorsに入力不足がある場合は対応する`serverseed ... --help`の案内を末尾へ付ける。helpだけはusageとcommands・optionsの順で一項目一行。色は任意で意味を持たせず、`--no-color`時と非TTY時は付けない。
 
 整形はI/Oなしで完了後、stdoutの単一writerで`write_all`、`flush`を行う。write_all内の短いwrite・Interruptedの処理と、文書全体の再送は区別する。両方の完了前に出力送達成功と報告しない。書込みが完了不能・BrokenPipe・flush失敗なら`CLI_OUTPUT`、プロセス終了1と固定stderr。既に送ったstdoutを取り消せるとせず、文書全体の再送・二つ目のエラーJSONの追記をしない。表示失敗の終了1は応答内の終了分類より優先するが、対象側の適用済み位置・確定済み操作記録を巻き戻さず、変更操作も再実行しない。stderrも失敗した場合は追加の出力を試みず終了1とする。標準の同期I/Oだけで停止しない出力先へ硬い期限を保証する方式は未確定で、実行上限の成立を主張しない。
+
+emitの成功はwriterが要求したbyte列を受け取りflushに成功した事実に限定する候補。[Write](https://doc.rust-lang.org/std/io/trait.Write.html)の契約だけで、pipeの相手がJSONを解析したこと、terminalで利用者が閲覧したこと、通常fileが永続媒体へ同期されたことは認定しない。成果物保存は別の同期/確定契約、SSHの受付はP09の受理記録を必要とする。空writeが継続するwriter・無期限blockingの成立性はD02-02へ残し、threadを分けただけで期限を保証したとしない。
 
 #### CLIの型とAPI案
 
@@ -498,6 +502,8 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 OperationCompletion候補の全項目はstatus（success/failed/interrupted）、finished_at（UtcMillis）、steps（StepReceipt[]）、required_records（固定保存先IDの重複なし集合）。finishは全stepと計画の一対一対応・statusの妥当性→必要記録集合→事前直列化→履歴→終了記録→補助記録の順で照合する。successは全必須stepのverifiedが必要。同じoperationの完結行が既存ならbyte完全一致だけ再追加なしで照合し、一文字でも違えばSTORE_CONFLICTとして元行を保持する。履歴は論理追記のまま、改行未完結の末尾を切除して続行しない。
 
+required_recordsは呼出元が成功条件を減らす入力ではなく、親Planの操作/変更層と上記必須集合から保存器が再算定する集合の照合値とする候補。過不足・重複をSTORE_REQUIREDで拒否する。interruptedは失敗側の結果記録へ結合するが、failedへ偽装せず元statusを保持する。finish前の実適用済みstepを消して再提出することはできず、失敗時のpartialも同じPlanの全stepに対応させる。
+
 ログの採用案は、操作ID・対象ID・時刻・level・イベントID・秘匿化済みメッセージをJSONLへ記録する方式。保持・ローテーションは10 MiB×5世代を候補とするが、必須操作記録をログ整理で消去しない。履歴容量の保全・退避と操作上限の関係は`D02-05`の未決事項。
 
 ## P02-EXEC
@@ -515,6 +521,8 @@ OperationCompletion候補の全項目はstatus（success/failed/interrupted）�
 候補APIは`run_command(spec: &CommandSpec, context: CommandContext<'_>) -> Result<CommandOutput, ContractError>`へ一本化する。CommandSpecの全項目はmaterial（CommandMaterial）、executable（PathBuf）、args（Vec<OsString>）、environment（BTreeMap<OsString, OsString>）、stdin（Vec<u8>）、timeout_ms/grace_ms（u32）。CommandMaterialはExternal(MaterialRef)またはRelease(ReleaseArtifactRef)のenum候補で、個別例外実行物と検証済み同一本体の起動を区別する。値域は本節の表とstdin契約へ照合する。CommandContextはReadOnly（対象証拠と期限を借用）またはChange（ExecutionContextを借用）のenumとし、前者は個別の非変更実行契約だけを許可する。読取りのためにguardや管理記録を新規作成しない。
 
 CommandOutputの全項目はoutcome（CommandOutcome）、stdout/stderr（Vec<u8>）。起動前の検証失敗だけErrを返し、起動試行後のspawn_failed・timeout・出力超過・停止不明もOk内の観測結果として保持する。Okをコマンド成功とは解釈せず、終了0・必要出力・停止確認を担当処理が別に照合する。入力1 MiB、出力各1 MiBの上限は解除しない。子孫停止・ブロッキングI/Oの中断と親停止時の保全はD02-04に残し、Child::kill・新しい外部ツール・FFIで補完済みとはしない。
+
+CommandOutcomeの候補優先順は、起動不成立ならspawn_failed、起動後に全停止を確認不能ならstop_unknown、それ以外は最初の取消/timeout/出力超過/I/O失敗、最後に通常終了またはsignalとする。同時検出ではcancelled→timed_out→output_limit→io_failedの順とし、追加原因は担当Checkへ保持する。停止要求後にexit_code=0を得ても元原因をexitedへ戻さない。stdout/stderrの生byte列は一時メモリーの観測値で、公開診断・ログ・bundleへそのまま転記しない。秘匿化は担当セキュリティポリシーを適用する。
 
 ## データ契約の具体化案
 
@@ -688,16 +696,18 @@ P02-PARSEの後段へ渡すスキーマ登録を以下の候補へ固定する�
 | policy.yml | [共通設定](../BASIC_SPEC.md#policyyml)の集合だけ。root.policy以外なし。省略時とnullを区別しnullは型エラー |
 | managed | [マーカー](../BASIC_SPEC.md#管理マーカー)の7キーだけ。managedはbool、machine_idはMachineId、created_atはUtcMillis、両revisionはu32、profileは三構成enum。null不可 |
 | machine-id | MachineIdのASCII32桁とLF一つだけ。JSON・空白・OS machine-idの暗黙流用なし |
-| version | serverseed_version: 製品版string、config_revision・migration_revision: u32、profile: 構成enum、operation_id: OperationId、updated_at: UtcMillis。全キー必須、nullなし |
+| version | serverseed_version: 製品版string、config_revision・migration_revision: u32、profile: 構成enum、operation_id: OperationId、updated_at: UtcMillis、last_successful_operation: OperationIdまたは初回成功前null、last_successful_operation_at: UtcMillisまたは同条件null。全キー必須。既存の製品バージョン管理の必須情報を保持 |
 | install.json | [導入情報](../BASIC_SPEC.md#本体導入と構成管理)の6キーだけ。architectureは既存2値、binary_sha256は小文字hex64桁、installed_atはUtcMillis。removedでも旧値を保持 |
 | state.json | [キャッシュ](../BASIC_SPEC.md#状態スナップショット)のキー集合。os/boot/serverseedの各子集合も例のキーで閉じる。未取得の観測stringはnull、revision/profileのnull条件は正本に従う。checksはid/result/messageの全キー必須 |
 | operation.json | [操作状態](../BASIC_SPEC.md#操作状態)のキーにboot_id: string、process_start_ticks: u64、target: TargetEvidenceを追加する案。pidは1以上u32。runningだけfinished_at=null、lock_pathは固定値 |
-| last-success・last-failure | operation_id・plan_id・target・finished_at・result・history_sha256を全キーとする。同名に対応するsuccess/failedだけ。hashは該当履歴行のLF込みbyte列。初回未作成は許容、破損は不在扱い不可 |
+| last-success・last-failure | operation_id・plan_id・target・finished_at・result・history_sha256を全キーとする。last-successはsuccess、last-failureはfailedまたはinterrupted。hashは該当履歴行のLF込みbyte列。初回未作成は許容、破損は不在扱い不可 |
 | history.jsonl | [履歴](../BASIC_SPEC.md#実行履歴)の集合にtarget: TargetEvidence、plan_id: PlanIdを追加する案。両versionとprofileだけ未導入時null可。resultはsuccess/failed/interrupted、完結したJSONとLFを一行として扱う |
-| self-transaction/state.json | [本体取引](../BASIC_SPEC.md#本体の置換と復旧)の8キーだけ。phaseは同節の工程へ対応付ける。両hashはhex64桁または初回beforeだけnull。パスは固定生成先以外を拒否 |
+| self-transaction/state.json | [本体取引](../BASIC_SPEC.md#本体の置換と復旧)の8キーだけ。phaseは同節の工程へ対応付ける。before_sha256/previous_pathは初回導入時null、after_sha256/staged_pathはuninstall時null。それ以外のhashはhex64桁、パスは固定生成先だけ |
 | ログ・成果物 | [ログ](../BASIC_SPEC.md#ログ形式)・P02-CLIのreport/plan/bundleを担当形式とする。状態記録をログ形式で代用しない |
 
 追加するoperation/historyのキーは採用前の既存記録へ書かない。形式の版変更と旧形式の移行可否はP04-UPDATEの互換表へ結合する。チェック集合はos.supported、architecture.supported、target.identity、records.consistent、profile.selected、operation.clear、dependency.approved、plan.currentを共通候補とし、各入口は担当契約の検査を加える。適用外は理由必須、欠損をpassへしない。実行環境だけのversion/helpには対象検査を要求しない。
+
+versionのlast_successful_operationと時刻は両方nullまたは両方非nullだけを許す候補。成功確定時だけ同じoperation/finished_atへ更新し、失敗・中断では直前の成功値を保持する。operation_id/updated_atは現在の版記録を更新した操作/時刻であり、最後の成功を常に意味するわけではない。初回成功前の架空ID・時刻を生成せず、last-successと不一致なら記録照合へ戻す。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -719,6 +729,8 @@ P02-EXECの第一候補はOSの一時serviceで変更操作全体を監督する
 | 親異常終了・子孫残存 | guardが解放されても新規操作を開始しない。残存unit・operation・実状態を照合する |
 
 履歴は候補上限64 MiB、各行64 KiB、超過予定ならbegin前停止とし、自動削除・退避で空けない。各記録の一時物・旧物・履歴全コピーの必要容量と親同期を事前計算する。記録容量の見積と書込み成功を区別する。ブロックしたFSや停止不能な子孫を時間内終了と偽らずstop_unknownへ移し、結果を失った要求の再適用を禁止する。
+
+利用者指定先の新規成果物確定候補は、同じFSの保護された親へcreate_newで一時file作成→全byte書込み/sync_all→新規最終名へのhard_link→親directory同期とする。[hard_link](https://doc.rust-lang.org/std/fs/fn.hard_link.html)の既存宛先での失敗を利用し、存在確認後のrenameで上書きしない。root/親の固定はP03-FSが別に必要。link非対応・別FS・既存宛先・同期不能ならsavedを返さず、確認済み一時物と確定位置を保持する。最終名作成後の同期失敗を未作成と報告せず、無条件の削除/再生成はしない。管理記録の置換は従来のrename契約と区別する。採用FSでの実証はD02-05に残す。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -752,6 +764,12 @@ planと変更操作は適用可能な八検査と担当step検査を要求する
 | `A02-92` | 同じoperationの既存完結行と同一/一byte相違、別途未完結末尾 | 同一は追記0回で照合、相違はSTORE_CONFLICT、未完結は復旧待ち。自動切除・partial喪失なし |
 | `A02-93` | ReadOnly文脈から変更コマンド要求、起動後timeout、spawn失敗 | 前者は起動前Errで管理領域不変。後二件はCommandOutputに区分と取得済み出力を保持し、Okを成功へ変換しない |
 | `A02-94` | 解析成功Valueをvalidatorなしで適用、開始後失敗をContractErrorだけへ縮約、同名の旧APIを追加 | 型付き境界/ChangeResult契約の違反。適用器へ通さず、部分結果・公開契約を一意に照合 |
+| `A02-95` | PIDだけ一致しboot/startが相違、proc読取り権限なし | 主体不一致/取得不能を区別。PID存在だけで所有/停止完了を認定しない |
+| `A02-96` | writer flush成功だが受信側未解析、SSH受付記録なし | byte書込みと相手の受理/永続化を別判定。操作の再送・成功範囲拡大なし |
+| `A02-97` | required_recordsからhistory除去、interrupted結果、最後の成功値あり | 集合不一致を拒否。中断はlast-failureへ元statusで記録し、成功値は保持 |
+| `A02-98` | timeout後exit=0、出力超過後停止未確認、取消とtimeout同時 | 順にtimed_out/stop_unknown/cancelled。後から得た通常終了で失敗原因を消さない |
+| `A02-99` | 一時file同期後に最終名が先に出現、link成功後の親同期失敗 | 既存宛先不変、後者は作成済み/未同期として保存失敗。上書きrename・無確認削除なし |
+| `A02-100` | versionの最後の成功二値が片方null、失敗操作で両値を更新 | 形式/照合失敗。直前の成功参照を消さず、版更新操作と成功操作を混同しない |
 
 ## 未決事項と成立判定
 
