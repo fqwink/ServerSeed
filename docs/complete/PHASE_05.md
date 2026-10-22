@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B10`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B11`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB10）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB11）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -72,7 +72,7 @@ read/verify/writeの候補参照はCommandSpecの固定テンプレートと期�
 
 | 宣言案 | 契約 |
 |---|---|
-| `media_plan(selection: &MediaSelection, targets: &[TargetEvidence], identity: PlanIdentity) -> Result<Plan, ContractError>` | 事前生成した計画識別と検証した選択から計画を所有して返す。変更なし、MediaRequestは計画確認後に構築 |
+| `media_plan(selection: &MediaSelection, targets: &[TargetEvidence], identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 事前生成した計画識別と検証した選択から未封印計画を所有して返す。変更・hash実行なし、MediaRequestは封印と計画確認後に構築 |
 | `handoff(ctx: &mut ExecutionContext, request: &MediaRequest) -> ChangeResult<HandoffRecord>` | preboot位置・継続情報・対象結果を保持。開始後失敗でもpartialを返す |
 | `removal_status(record: &HandoffRecord) -> Result<RemovalResult, ContractError>` | 書込み・マウント・関連処理を観測して照合。取外し済み・内蔵起動済みと捏造しない |
 
@@ -142,6 +142,26 @@ pub struct MaterialRef {
     bytes: u64, architecture: String,
 }
 pub enum MediaAction { Install, Adopt, Update, Backup, Recover }
+pub struct ConfirmationInput { plan_response: String, erase_response: Option<String> }
+pub struct Confirmation {
+    plan_id: PlanId, target_disk_id: String, shown_digest: String,
+    plan_response: String, erase_response: Option<String>, confirmed_at: UtcMillis,
+}
+pub struct MediaSelection {
+    action: MediaAction, target: TargetEvidence, selection: Option<Selection>,
+    backup_destination: Option<String>, confirmation: Option<ConfirmationInput>,
+}
+pub struct RecipeInput {
+    schema_version: u32, architecture: String, base_ref: MaterialRef,
+    tools_ref: Vec<MaterialRef>, environment: EnvironmentBinding,
+    binary_sha256: String, binary_manifest_sha256: String, recipe_revision: u32,
+    ram_required_bytes: u64, ram_reserve_bytes: u64,
+}
+pub struct MediaRequest {
+    schema_version: u32, media_id: String, action: MediaAction, target: TargetEvidence,
+    selection: Option<Selection>, install: Option<InstallPayload>, plan: Plan,
+    backup: Option<BackupSet>, confirmation: Option<Confirmation>,
+}
 pub struct ReleaseArtifactRef {
     release_version: String, binary_manifest_sha256: String, path: String,
     sha256: String, bytes: u64, architecture: Option<String>,
@@ -149,6 +169,28 @@ pub struct ReleaseArtifactRef {
 pub enum HandoffStage {
     Prepared, TargetStarted, TargetVerified, ReadyForRemoval,
     BootPending, Complete, Failed, Unknown,
+}
+pub struct HandoffRecord {
+    schema_version: u32, media_operation_id: OperationId, target_operation_id: OperationId,
+    plan_id: PlanId, target: TargetEvidence, binary_sha256: String, stage: HandoffStage,
+    target_receipt: Option<OperationReceipt>, media_id: String, request_sha256: String,
+    recipe_sha256: String, target_boot_id: Option<String>, removal: Option<RemovalResult>,
+    last_confirmed_stage: HandoffStage,
+}
+pub struct BootProof {
+    media_id: String, plan_id: PlanId, target_operation_id: OperationId,
+    disk_id: String, root_identity: String, boot_id: String, observed_at: UtcMillis,
+    media_absent: bool, required_services: std::collections::BTreeMap<String, String>,
+    checks: Vec<Check>,
+}
+pub struct FirmwareResult {
+    item_id: String, status: String, before: Option<String>, after: Option<String>,
+    reboot_required: Option<bool>, evidence_ref: Option<String>,
+}
+pub struct FirmwareContract {
+    manufacturer: String, model: String, firmware_version: String, boot_mode: String,
+    item_id: String, interface_ref: MaterialRef, read: ContractRef, write: Option<ContractRef>,
+    verify: ContractRef, allowed_values: Vec<String>, reboot_required: Option<bool>,
 }
 pub struct RemovalResult {
     media_operation_id: OperationId, writes_complete: Option<bool>,
@@ -168,6 +210,8 @@ RemovalResult.checksはP02-CLIの検証済みCheckだけを保持し、Valueの�
 | `A05-37` | media_unmounted=nullなのに対応Check=pass、必須4件中1件欠損 | MEDIA_BINDING、removableを生成しない。Value経由の型検査省略・不明の成功化なし |
 
 ## 状態と中断の詳細案
+
+MediaSelection/ConfirmationInput/Confirmation/RecipeInput/MediaRequestは各全集合表へ対応する型候補。生成器は未確認入力と検証済み確認を別型で保持し、MediaSelection.confirmation=Noneの検査を省略しない。RecipeInputの整数型に入るだけではRAM根拠・資材/環境の採用条件を満たさない。A05-18/32/41へnull条件の相互違反と未封印型の使用を含め、validatorなしの構築を配送可能と認定しない。
 
 `P05-HANDOFF`の通常順はprepared→target_started→target_verified→ready_for_removal→boot_pending→completeの候補。各遷移は直前段階の記録・対象同一性と次表の根拠を要求し、段階名を直接書き換えて飛び越さない。
 
@@ -299,7 +343,7 @@ P05-ISOはrecipe生成と外部生成処理を分ける候補。入力型はReci
 
 ### Subiquity入力生成の対応表
 
-必須選択と計画確認の生成順候補は、PlanId/作成時刻の取得→操作/対象/構成/導入値の選択→MediaSelection→media_planの封印済みPlan→digestの表示→APPLY/必要時ERASE入力→Confirmation→MediaRequestとする。計画前のMediaSelection.confirmationはNoneだけを受け、古い確認を計画生成に使わない。継続管理でSelection=nullの場合もPlanIdentityが親IDを供給する。
+必須選択と計画確認の生成順候補は、PlanId/作成時刻の取得→操作/対象/構成/導入値の選択→MediaSelection→media_planのPlanDraft→P03の固定byte生成/外部hash証拠/封印→digestの表示→APPLY/必要時ERASE入力→Confirmation→MediaRequestとする。計画前のMediaSelection.confirmationはNoneだけを受け、古い確認を計画生成に使わない。継続管理でSelection=nullの場合もPlanIdentityが親IDを供給する。A05-41には未封印DraftをConfirmation/MediaRequestへ渡す拒否と、封印器以外のPlan生成を含める。
 
 StorageInput.erase_confirmed_for_planはこの候補では消去対象を親計画へ結合するIDであり、入力済み確認の証拠ではない。計画中に親IDを設定できるが、実消去はMediaRequest.Confirmationの両応答・対象・全digest・期限の照合後だけ。短いコードを得るため、確認済みpayloadを先に要求する循環を作らない。対象/手順/実資材が変われば封印/選択/確認へ戻す。
 
@@ -331,7 +375,11 @@ storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_boot
 
 ### 内蔵OS継続unitと二回の起動証拠
 
-resume_mediaの候補入力は、同期済みHandoffRecord/MediaRequest/RecipeInputと、今回のTargetEvidence/boot/process証拠。型付き境界は`resume_media<'g>(guard: &'g OperationGuard, saved: &HandoffRecord, request: &MediaRequest, recipe: &RecipeInput, observed: &TargetEvidence) -> Result<ExecutionContext<'g>, BeginFailure>`とする。ID/hash/版/CPU→予定したprebootから内蔵bootへの変化→実配置→intent/operation/資源journal→未完了stepの順に照合し、同じ対象operation_id/plan_idを再使用する専用再開である。
+resume_mediaの入力にはP02のOperationBudget/ResumeBudgetEvidenceを必須とする候補。型/算定は[P02の再起動期限](PHASE_02.md#再起動をまたぐ期限の照合)だけを参照する。記録照合と期限判定に成功してから所有プロセス欄/継続位置を同期し、ExecutionContext.deadlineへ同じ残期限を移す。600秒の起動確認待機は元の親期限の内側で、再起動/prepare/verifyごとに全予算を再付与しない。clock契約未選定/予算記録欠損/期限到達なら内蔵consoleの読取り診断だけで、準備unitを成功扱いにして通常サービスを開始しない。A05-08/35/40には二boot間の長時間停止と予算証拠不成立を含める。
+
+HandoffRecord/BootProof/FirmwareContract/Resultの宣言は本書の各全キー表へ対応する候補。last_confirmed_stageへFailed/Unknownを入れる入力はMEDIA_BINDING、BootProofのrequired_servicesは固定unit集合の欠損/余剰を拒否する。boot1/boot2は別のboot IDで同じ操作/対象へ束縛し、BootProofをHandoffRecord.target_receiptの代わりにしない。A05-31/35/40で型・段階・二bootの照合を行う。
+
+resume_mediaの候補入力は、同期済みHandoffRecord/MediaRequest/RecipeInputと、今回のTargetEvidence/boot/process証拠、および上記の予算証拠。型付き境界は`resume_media<'g>(guard: &'g OperationGuard, saved: &HandoffRecord, request: &MediaRequest, recipe: &RecipeInput, observed: &TargetEvidence, budget: &OperationBudget, clock: &ResumeBudgetEvidence) -> Result<ExecutionContext<'g>, BeginFailure>`とする。ID/hash/版/CPU→予定したprebootから内蔵bootへの変化→実配置→intent/operation/資源journal→未完了step/期限の順に照合し、同じ対象operation_id/plan_idを再使用する専用再開である。
 
 旧bootのrunningを通常beginで上書きしない。再開の所有プロセス欄だけを実boot/PID/startへ同期して結合し、元のstarted_at、完了済みstep、history、元失敗を改変しない。prepare終了時には位置を同期してguardを解放し、verifyが同じ再開照合を経て再取得する。隙間に通常変更を許可せず、pending記録を新規beginの停止条件として維持する。再開前に期限の有効性を証明できなければ対象変更/記録修復を行わず、読み取り診断と内蔵consoleへの不足表示だけにする。
 

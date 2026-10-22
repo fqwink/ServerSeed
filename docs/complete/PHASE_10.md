@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B10`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B11`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB10）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB11）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -70,12 +70,14 @@ BootExpectationの候補照合は、信頼参照→endpointの登録対応→req
 | 宣言案 | 入出力と失敗 |
 |---|---|
 | `capabilities(session: &mut RemoteSession, binding: &InstallerBinding) -> Result<BootstrapCapability, ContractError>` | 環境と対象を分けて観測。必要能力の不明を許可にしない |
-| `os_plan(input: &InstallInput, payload: &InstallPayload, capability: &BootstrapCapability) -> Result<Plan, ContractError>` | 検証済み入力から導入・再接続・復旧可能範囲を結合。変更なし |
+| `os_plan(input: &InstallInput, payload: &InstallPayload, capability: &BootstrapCapability, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 検証済み入力と親識別から導入・再接続・復旧可能範囲の未封印計画を結合。変更・hash実行なし |
 | `install_os(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<InstallProgress>` | 工程別の実位置と部分結果を保持。再送・全消去の自動判断なし |
 
 共通型はP02-MODEL、RemoteSessionはP09-SSH。難易度は高、旧実装なし。将来の差し替えでは導入資材・対象識別・記録版と接続先変更の互換性を評価し、旧実装除去前に起動不能時も照合可能な経路を保持する。初回導入の失敗を、存在しない旧OSへの切戻し成功として表示しない。
 
 ## データ契約の具体化案
+
+os_planはinput.plan_id/selection.plan_id/storage.erase_confirmed_for_planをidentity.plan_idへ照合する候補。created_at/参照版/構成を内部で生成・推測しない。不一致はINSTALL_BINDINGで消去前停止。P03の封印と利用者確認の後だけRemoteRequestを構築し、P09の全Plan hashを比較digestと区別する。A10-14/28へ別親IDと未封印Draft配送の拒否を含める。
 
 `P10-BOOTSTRAP`の能力判定と`P10-OS`の工程結果を具体化する候補。接続先の識別は`P09-SSH`、配送は`P09-REMOTE`、管理対象の状態は`P02-STATE`へ参照し、Cloud用の別の総合状態を新設しない。
 
@@ -151,6 +153,16 @@ pub struct NetworkInput {
 }
 pub struct UserInput { name: String, public_keys: Vec<String>, privilege_method: String }
 pub enum InstallEntry { Media, SshBootstrap }
+pub struct InstallInput {
+    target: TargetEvidence, storage_ref: ContractRef, network_ref: ContractRef,
+    user_ref: ContractRef, boot_ref: ContractRef, materials: Vec<MaterialRef>,
+    selection: Selection, plan_id: PlanId,
+}
+pub struct BootExpectation {
+    target_disk_id: String, expected_root_ref: String, os_id: String, os_version: String,
+    architecture: String, endpoint_ref: String, host_trust_ref: String,
+    request_id: OperationId, plan_id: PlanId,
+}
 pub struct BootstrapCapability {
     target: TargetEvidence, installer_ref: Option<ContractRef>, checks: Vec<Check>, installable: bool,
 }
@@ -352,6 +364,8 @@ P10の内製範囲はBootstrapCapabilityの評価、InstallPayload検証、工�
 | `A10-30` | Curtin v1でoffset入力、未登録Python/loader依存、RAMのみのjournal、既定disk自動選択 | adapter不成立で消去0回。v2相当の位置保証・依存採用・永続性を推測しない |
 
 ### 新OS信頼根拠の引渡し
+
+InstallInput/BootExpectationの型候補は本書の全キー表だけへ対応する。BootExpectationはSSH経路の再起動後照合専用で、媒体のBootProofへrequest_id/endpointを強制追加しない。OS導入後の同じ親操作を続ける場合の期限は[P02の再起動期限](PHASE_02.md#再起動をまたぐ期限の照合)へ接続し、旧一時環境のInstantをコピーしない。期限証拠欠損/超過はQueryと実対象の読取り照合だけで、構成適用/記録修復を自動開始しない。A10-07/25/28へ別request/plan、媒体への誤用、期限の再起算を含める。
 
 新OSのユーザー準備候補を、同一バイナリの内部処理target-prepareへ限定する。入力は検証済みInstallPayloadとRootBinding、固定実行物集合。既存ユーザー/鍵/昇格設定がある場合は新規生成せず所有範囲を照合する。root shell断片・利用者提供script・未設置のremote-entryを準備の前提にしない。
 

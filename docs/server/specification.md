@@ -26,6 +26,8 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 
 ## `apps.yml`
 
+操作を明示する計画生成は[AppOperation/plan_server](../complete/PHASE_06.md#内製単位api案)、親計画への結合は[P03の構築/封印](../complete/PHASE_03.md#依存と受入の確定候補)を審査候補の定義先とする。アプリ計画の配列だけを配送可能なPlanにせず、同一対象/親identity/担当stepへ結合する。サーバ機能の受入は[担当lane](../complete/PHASE_11.md#設計行から実行scopeへの束縛)へ照合し、mining専用構成やCloud masterへ成功経路を生成しない。型/操作名/数値の本文はここへ複製しない。
+
 サーバ固有契約の採用審査用候補は[Phase 6](../complete/PHASE_06.md#p06-config)、型・APIは[型の詳細](../complete/PHASE_06.md#型とapiの詳細案)、方式別の互換境界は[依存と互換性](../complete/PHASE_06.md#依存と互換性の詳細案)を参照する。本書の既存定義は維持し、候補の存在をserver.yml・apps.ymlの受理形式の切替や採用承認と扱わない。
 
 | 担当する追加具体案 | 定義先 |

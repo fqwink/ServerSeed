@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B10`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B11`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB10）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB11）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -420,6 +420,26 @@ lifecycle/backup/applyの新旧差し替えは同じPlan・固定資材・故障
 
 ### 配布取得と専用file-sink
 
+```rust
+pub enum FetchKind { Metadata, Binary, Iso }
+pub enum FetchStage { Prepared, Receiving, Verified, Failed, Unknown }
+pub struct FetchRequest {
+    request_id: OperationId, source: String, destination_ref: String,
+    expected_bytes: u64, expected_sha256: String, kind: FetchKind,
+    authentication_ref: Option<String>, allowed_redirects: Vec<String>,
+}
+pub struct FetchResult {
+    source_ref: String, destination_ref: String, expected_bytes: u64,
+    observed_bytes: u64, sha256: String, synced: bool, checks: Vec<Check>,
+}
+pub struct FetchProgress {
+    stage: FetchStage, observed_bytes: u64, temporary_ref: Option<String>,
+    result: Option<FetchResult>,
+}
+```
+
+これらは既定の全キーを所有する内部型候補。FetchResult.source_refはFetchRequest.request_idの表記と一致、destination_refは同じ新規保存物ID、syncedは成功時trueだけ。FetchProgress.resultはVerifiedだけSomeで、未確認のhashを生成しない。ReadOnlyのmetadata取得はこの保存要求を呼ばず、同じURL/認証/redirect検証を借用するメモリー専用adapterへ渡す。A04-26/39に要求ID差替え、verified/resultなし、ReadOnlyからfile-sink呼出しの拒否を含める。
+
 FetchRequestの候補全キーはrequest_id: OperationId、source: 検証済みHTTPS URL、destination_ref: 新規保存先ID、expected_bytes: 正整数、expected_sha256: hex64、kind: metadata/binary/iso、authentication_ref: stringまたはnull、allowed_redirects: 固定originの一意配列。URLはASCIIのhttps、DNS/IPv4/角括弧IPv6と明示port（省略443）、空でない/始まりpath、queryだけを受理し、userinfo/fragment/空白/制御文字/不正percent escapeを拒否する。保存path・自由curl optionは要求キーにしない。
 
 file-sinkの候補は親が保護directoryにcreate_newで開いた通常fileだけを渡し、開始時長0・同FS・nlink=1・対象実体固定を照合する。bodyを書ける実行物のworkerにLimitFSIZE=許可bytesを設定し、設定読戻しと上限+1の拒否試験を必要とする。LimitFSIZEは各fileのサイズ制限であり、総disk使用量制限ではない。stderr/capture/別file/子孫は別の量制約を維持し、disk予約と書込み失敗も検出する。子の終了・file同期・実長・SHA-256照合後だけFetchResultを生成する。renameで既存物を上書きしない。
@@ -458,6 +478,18 @@ gpgvの全argv候補は固定path、--quiet、--homedir、既存の固定公開�
 | `A04-39` | 128 MiB/+1のbody、第三/第四redirect、秘密header、metadata planでtemp必須 | 厳密量/三段制限/非公開stdin/方式未成立を照合。通常capture上限解除・認証転送・plan中の保存なし |
 
 ### 公開鍵暗号化バックアップの形式候補
+
+```rust
+pub enum EncryptionMode { CfbMdc, Ocb }
+pub struct EncryptionBinding {
+    material: MaterialRef, recipient_primary_fingerprint: String,
+    recipient_subkey_fingerprint: String, public_keyring_ref: String,
+    decryption_ref: String, mode: EncryptionMode, cipher: String,
+    format_version: u32, verification_ref: String,
+}
+```
+
+EncryptionBindingは後述の九キーだけへ対応する型候補。modeの外部名はcfb_mdc/ocb、cipher/format_versionは同節の固定値だけを受理する。enumに両方式があることは両方の採用・安全性・生成可能性の証明でなく、profileに未対応の組は暗号化前拒否。暗号物の外側packetと復号statusだけでは、暗号内部のliteral metadata/partial chunk境界の全条件を証明できない。上界Cの利用には、採用固定版の生成契約が内部条件を保証する独立資料と反証fixtureを必要とし、根拠不明なら容量検査を未成立にする。A04-40/48に外側は同じだが内部圧縮/metadataが異なる試料を含める。
 
 第一比較候補をGnuPGの公開鍵暗号化とする。gpgvは署名検証用であり、この用途の代わりにしない。EncryptionBindingの全キー候補はmaterial: MaterialRef、recipient_primary_fingerprint: string、recipient_subkey_fingerprint: string、public_keyring_ref: string、decryption_ref: string、mode: cfb_mdc/ocb、cipher: AES256、format_version: 1、verification_ref: string。fingerprintはGnuPGの完全な値を検査してから固定し、短縮ID/メールアドレスによる鍵選択なし。暗号profileと固定版/鍵方式は安全ポリシーの採用対象とする。
 

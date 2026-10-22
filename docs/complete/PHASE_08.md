@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B10`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B11`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB10）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB11）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -66,13 +66,15 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 
 | 宣言案 | 所有権・動作 |
 |---|---|
-| `master_plan(registry: &TargetRegistry, server: &[AppPlan], mining: &Plan, capacity: &CapacityInput, target: &TargetEvidence) -> Result<Plan, ContractError>` | 三機能と共有資源の計画を所有して返す |
+| `master_plan(registry: &TargetRegistry, server: &[AppPlan], mining: PlanDraft, capacity: &CapacityInput, target: &TargetEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ親identityへ三機能と共有資源を結合した未封印計画を所有して返す。子Planの再帰内包・hash実行なし |
 | `apply_master(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<MasterProgress>` | MasterProgressはreceipt: OperationReceiptとfeatures: FeatureReadiness[]の二項目。開始後の部分位置と三機能の結果を保持 |
 | `reconcile_master(saved: &ControlTransfer, observed: &[ReconcileResult]) -> Result<Vec<Check>, ContractError>` | 固定した対象別証拠と観測結果を照合。失効・修復・再投入を実行しない |
 
 型はP02-MODEL。台帳・機能別結果の全フィールド、権限と保存形式はD08-01〜03の未達。新設候補で旧実装なし、難易度は統合・喪失時復旧が高。将来の差し替えは台帳版・対象ID・遠隔操作対応の互換性を維持し、旧マスターとの同時変更防止と切戻し可能性を先に確定する。
 
 ## データ契約の具体化案
+
+master_planはprofile=Masterの同じ親identityで生成したmining Draftを消費し、serverのAppPlan資源/担当step、registry/capacityのstepと平坦に合成する候補。子Draft全体をpayloadへ入れず、target/identity/資源ID/path/step ID/参照版の衝突はPLAN_PAYLOAD。別IDの子計画を親IDへ書換えて取り込まない。封印は結合後の一回だけ、完了済み子Planのdigestを親digestとして流用しない。A08-01/15には別親のmining Draft、同pathのserver/mining競合、平坦合成後の循環を含める。
 
 `P08-MASTER`の対象台帳、`P08-COHOST`の機能別結果と資源配分入力を具体化する候補。配置先は同節の候補を使用し、構成別仕様への正式反映・実ファイルの生成は行わない。
 
@@ -367,6 +369,20 @@ CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの
 | `A08-31` | CPUピーク1,001 millicpu、memory測定欠損、割当集合重複、四回成功/一回応答上限超過 | CPU候補は2、他は未成立/失敗を保持。平均値でピーク隠蔽・ゼロ予約・未測定機器の資源保証なし |
 
 ### 単一制御主体の移行候補
+
+```rust
+pub struct ControlTransfer {
+    old_master_id: MachineId, new_master_id: MachineId, registry_sha256: String,
+    target_ids: Vec<TargetId>, revocation_evidence_refs: Vec<String>,
+    reconciliation_refs: Vec<String>,
+}
+pub struct ActiveController {
+    schema_version: u32, master_machine_id: MachineId, credential_fingerprint: String,
+    generation: u64, transfer_id: Option<OperationId>, target_machine_id: MachineId,
+}
+```
+
+ControlTransfer/ActiveControllerは本書の同名全キーだけへ変換する型候補。generationは1以上かつ共通外部整数範囲内、更新はchecked旧値+1、初期だけtransfer_id=Noneを許容する。ControlTransferの平行配列は全件数と対象別資料を照合し、一対象でも未取得なら全対象完了にしない。型validatorと実認証/権限の失効確認を分け、reconcile_masterはこの型から失効処理を実行しない。A08-25/32に世代overflow/初期以外のnull/別対象の失効資料を含める。
 
 マスター固有の保全方法候補master-v1を次の一組へ固定する。P04の暗号container/保存/隔離復元を再利用し、configuration-v1へ固有データを混入しない。
 

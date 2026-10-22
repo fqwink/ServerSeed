@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B10`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B11`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB10）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB11）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -238,6 +238,10 @@ ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_ref
 
 ## 受入条件の充足照合案
 
+全38契約の審査資料は、契約IDと[13必須項目](../POLICIES.md#完全仕様の必須条件)の掲載順index（1〜13）の組を一意キーとする候補。494組を欠損/重複なく対応付け、各組に定義先のファイル/節、共通参照、受入case ID、未達の判断IDを持たせる。本文の存在・型宣言の存在・参照検査の成功と、内容が成立している判定を別欄にする。要件を定義していない本文へ形式だけで充足印を付けない。
+
+候補がある組、具体化不足、方式根拠不足、所有者入力/採用待ち、適用外の根拠を区別する。適用外は根拠と影響を持つ場合だけ、共通参照も参照先の同じ条件まで辿る。未実装の製品試験はnot_runで別管理し、この文書審査の証拠には含めない。A11-16/25へ一契約一項目欠損、根拠のない適用外、同じ参照の別版、案だけの採用済み判定を含める。最終の仕様充足判定は所有者が行い、494組があるという件数で代替しない。
+
 各フェーズの同名節は担当契約・受入ケース・未達を対応付ける。全体の成立判定では、[必須条件](../POLICIES.md#完全仕様の必須条件)の13項目を次表の不足へ照合する。案の具体化先を示すもので、13項目を満たしたという判定ではない。
 
 | 必須項目 | 具体化先と現在の不足 |
@@ -422,10 +426,10 @@ CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindi
 | P | pure。両CPU/internal/profile=null。入力byte/値/試験時計/期待木を固定し、OS実変更なし |
 | A | adapter。両CPU/internal/profile=null。採用版Ubuntuの使い捨て環境、固定OS実行物/失敗writer/専用FS/模擬接続先。実hostや本番資格は使用しない |
 | U | vm。両CPU/internal/profile=null。専用Ubuntu VMでworker/監督/cgroup/FS障害/再起動を確認。物理ディスクなし |
-| V | vm。mediaの対応表全lane、amd64 UEFI/BIOSとarm64 UEFIを分離。三構成の成功/明示拒否を区別し、媒体切断と内蔵起動を実施 |
-| R | vm。ssh_existingの対応表全lane。固定host鍵/非root資格、既存OSと切断/権限不足を隔離再現 |
-| S | vm。ssh_bootstrapの対応表全lane。空/使用中テストdisk、一時SSH環境、消去外journalと新OS起動を隔離再現 |
-| H | hardware。amd64のmining/master担当機器。機種/版/安全値と試験許可が未決ならnot_run。VM/模擬値で実機対応を証明しない |
+| V | vm。mediaの対応表と下記担当範囲の交差。amd64 UEFI/BIOSとarm64 UEFIを分離し、担当する起動/導入/媒体切断を検査 |
+| R | vm。ssh_existingの対応表と下記担当範囲の交差。固定host鍵/非root資格、既存OSと切断/権限不足を隔離再現 |
+| S | vm。ssh_bootstrapの対応表と下記担当範囲の交差。空/使用中テストdisk、一時SSH環境、消去外journalと新OS起動を隔離再現 |
+| H | hardware。下記担当範囲内で個別指定した機器。機種/版/安全値と試験許可が未決なら未束縛。VM/模擬値で実機対応を証明しない |
 | L | adapter。初期配布基盤の隔離した試験先と試験資格。実API版/権限/閲覧/asset再取得の照合用。本番署名/正式公開を行わない |
 
 全profileは期待する環境の要件であり、実在するenvironment_refではない。CPU/構成/入口ごとの環境、拒否入力と正本のapplicability、成果物を採用・収集してからCaseLaneへ展開する。D/P/A/Uのprofile=nullは共通処理を対象にする区分で、入力fixture内の構成をnullへ変更する意味ではない。V/R/Sの拒否laneは非適用で消さず、拒否が期待結果の必須試験にする。
@@ -451,7 +455,8 @@ CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindi
 | 07 | 04,06,08,12..14,18,22,26..34,36..39,41 | P+A+U |
 | 07 | 09..11,15..17,19..21,25 | P |
 | 08 | 01..02,07,21,31 | P+A+V+H |
-| 08 | 05,08,12..13,16,18,22,25..26,28,32,35 | P+A+V+R+S |
+| 08 | 05,08,16,22,25,32,35 | P+A+V+R+S |
+| 08 | 12..13,18,26,28 | P+A+V |
 | 08 | 03..04,06,09..11,14..15,17,19..20,23..24,27,29..30,33..34 | P+A |
 | 09 | 03,16,26..27 | P+A+R+S |
 | 09 | 01..02,04..15,17..25,28..39 | P+A+R |
@@ -472,6 +477,27 @@ CaseCatalogの全外部キーはschema_version: 1・specification_commit・bindi
 | `A11-37` | 全担当IDを展開した設計割当、H/L環境未選定、後から新ケース追加 | 全件の過不足を照合し未選定は未束縛。新ケースの割当までScope不成立。設計509件を試験509件成功へ転用しない |
 
 ### 設計行から実行Scopeへの束縛
+
+仕様策定の設計完了条件と製品Scopeの準備条件を分ける候補。CaseCatalogは承認対象の仕様入力/期待値/適用範囲/検証方法を固定する設計資料で、将来の本体/ISOや実試験結果が未生成であることだけでは設計の欠落にしない。ExpectedCaseDraftは未束縛のまま設計として審査できる。ただし適用範囲/入力/期待結果/実行方式が未定義なら設計自体が未完了。
+
+製品受入を開始するScopeだけが実在成果物とVerifiedEnvironmentを必要とし、束縛できない段階は「受入準備未完了」である。これを採用済み仕様の欠陥や試験のfailへ自動変換しない。not_runは構築済みScopeの行へだけ付け、未生成artifactに架空hashを付けない。A11-02/34/35に設計済みだが未生成の成果物と、設計自体が欠ける場合の別判定を含める。
+
+実行profileは下記の担当範囲で絞る候補。CPU/構成/入口の全直積を各ケースへ複製しない。表の「対応集合」はP11-ACCEPTの成功経路表だけを参照する。拒否入力は担当ケースに明示された対象/不正条件だけを別fixtureへ束縛し、成功laneの対象構成を勝手に不正構成へ変えない。
+
+| 担当ケース・profile | 成功対象として束縛できる範囲 |
+|---|---|
+| Phase 5のV/H | mediaの対応集合。Hは機種/版/操作を個別指定した物理対象だけ |
+| Phase 6のV | mediaのserverとmaster。arm64はserverのみ |
+| Phase 6のR | ssh_existingのserverのみ。マスター上のserver機能の試験をCloud master導入にしない |
+| Phase 7のH | amd64のminingと物理master。arm64の採掘成功を生成しない |
+| Phase 8のV/H | amd64の物理master自身。管理先の構成をマスター自身の構成へ混同しない |
+| Phase 8のR/S | 表で指定した遠隔照合ケースだけ。制御元は物理master、laneは操作先のserver/miningの対応集合 |
+| Phase 9のR/S | 対応する遠隔入口のserver/mining集合。install_bodyとinstall_osの成功工程を混同しない |
+| Phase 10のS | ssh_bootstrapのserver/mining対応集合 |
+| Phase 10のV | 共通InstallPayload/target-prepareを使うmedia対応集合。Cloud journal/SSH処理を媒体へ要求しない |
+| Phase 11のV | media対応集合の成果物/起動/欠損検出。下位の全運転試験を一ケースへ集約しない |
+
+契約が対象としないprofileを割り当てた行はACCEPT_SCOPEで拒否する。sourceの全入力枝と期待結果を確認し、複数責務のケースは別lane/fixtureの証拠を揃える。applicability_refにはその担当節と成功/拒否の適用根拠を結合し、未確認を非適用にしない。A11-23/32/36へP08構築のarm64/server割当、P06のmining割当、P07のarm64成功、Cloud master拒否入力の欠損を含める。
 
 CaseLaneのexecution_classは[カタログ形式](#受入カタログの閉包と更新)へ従い、同じケースでも純粋評価とVM/実機で確認する責務を別laneにできる。CaseBinding直下に重複したclassは置かない。七キー/型を検証し、classと環境証拠が不一致ならACCEPT_SCOPE。
 

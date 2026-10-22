@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B10`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B11`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB10）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB11）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -58,7 +58,7 @@ P06-DATAの採用審査はアプリ名/正確な版/Compose全サービス/diges
 
 | 宣言案 | 返却・副作用・失敗 |
 |---|---|
-| `plan_server(input: &ServerInput, target: &TargetEvidence, compose: &[ComposeEvidence]) -> Result<Vec<AppPlan>, ContractError>` | 検証済み入力と取得済みCompose証拠から計画を所有して返す。変更・通信なし |
+| `plan_server(input: &ServerInput, target: &TargetEvidence, compose: &[ComposeEvidence], operation: AppOperation) -> Result<Vec<AppPlan>, ContractError>` | 検証済み入力・取得済みCompose証拠・選択済み操作からアプリ計画を所有して返す。変更・通信なし |
 | アプリ適用の型付き境界 | [依存と受入](#依存と受入の確定候補)のAppPlan[]→ChangeResultに集約。開始後の部分位置を保持 |
 | `check_app(plan: &AppPlan, context: CommandContext<'_>) -> Result<HealthResult, ContractError>` | 許可された検査だけ。自動修復なし、ReadOnly時は個別の非変更契約が必須 |
 
@@ -130,6 +130,7 @@ HTTP検査の通信と[inspectの通信禁止](../POLICIES.md#読み取り専用
 
 ```rust
 pub enum HealthMethod { Http(HttpInput), Command(CommandInput) }
+pub enum AppOperation { Install, Update, Recover }
 pub struct HttpInput {
     url: String, expected_status: Vec<u16>, timeout_seconds: u32, body_limit_bytes: u64,
 }
@@ -161,7 +162,7 @@ pub struct ComposeEvidence {
 pub struct AppPlan {
     name: String, project_name: String, compose_file: std::path::PathBuf,
     compose_sha256: String, service_names: Vec<String>,
-    image_digests: std::collections::BTreeMap<String, String>, operation: String,
+    image_digests: std::collections::BTreeMap<String, String>, operation: AppOperation,
     health: HealthInput, backup_method: Option<ContractRef>, resources: ResourceSet,
 }
 pub struct AppResult {
@@ -189,6 +190,8 @@ AppResult.nameとhealth.nameは対応するAppPlan.nameへ完全一致させる�
 | `A06-33` | app aへbのhealth、必須データ検証未実施なのにdata_verified=null | APP_BINDINGで応答拒否。正常な別アプリ結果・nullで検証不足を隠さない |
 
 ## 状態と中断の詳細案
+
+AppOperationは外部のinstall/update/recoverと一対一に変換する候補。plan_serverへ操作を必須入力し、対象状態や設定差異だけからupdate/recoverへ切り替えない。返却AppPlanは封印済み親Planではなく、入口が同じtarget/identityのP03構築器へ資源と担当stepを結合する。A06-03/24で操作違いと親Planに存在しないアプリstepを拒否し、アプリ名順を保持する。
 
 型付き境界候補は`apply_server(ctx: &mut ExecutionContext, plans: &[AppPlan]) -> ChangeResult<Vec<AppResult>>`に統一する。後続未開始のAppResultはnameを保持し、health={同名, unknown, attempts_used=0, 必須unknown検査, APP_NOT_STARTED診断}、データ検証が必要ならSome(false)、明示非適用だけNoneとする。親receiptの既適用/失敗stepは消さず、当該後続アプリのstepだけがnot_startedであることを照合する。外部実行もhealth試行も0回の結果からpassを作らない。
 

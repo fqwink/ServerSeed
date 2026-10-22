@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B10`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B11`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB10の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB11の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -484,6 +484,38 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 構成リビジョンの旧二択形式移行、初回選択結果を媒体・SSHへ渡す形式は`D02-03`と各入口の契約へ残す。既存の版番号を変更・互換認定しない。
 
+### 状態入力の閉じた型
+
+記録ごとの採取結果を以下へ閉じる候補。Presentだけが担当validatorの正常型を保持する。Invalidは取得したが形式不正、Unknownは取得/検証不能、Absentは不在の確証であり、互換でない。状態判定器が不正入力の記録を削除・空集合化しない。
+
+```rust
+pub enum RecordObservation<T> {
+    Present(T), Absent { evidence_ref: String },
+    Unknown { code: String, evidence_ref: Option<String> },
+    Invalid { diagnostic: Diagnostic, evidence_ref: String },
+}
+pub struct StorageFacts {
+    partitions_absent: bool, os_absent: bool, bootloader_absent: bool,
+    verification_ref: String,
+}
+pub struct ValidatedRecords {
+    target: TargetEvidence, storage: RecordObservation<StorageFacts>,
+    config: RecordObservation<ConfigDocument>, policy: RecordObservation<PolicyDocument>,
+    managed: RecordObservation<ManagedRecord>, machine_id: RecordObservation<MachineId>,
+    install: RecordObservation<InstallRecord>, operation: RecordObservation<OperationRecord>,
+    history: RecordObservation<Vec<HistoryRecord>>, version: RecordObservation<VersionRecord>,
+    last_success: RecordObservation<LastResultRecord>, last_failure: RecordObservation<LastResultRecord>,
+    transaction: RecordObservation<SelfTransaction>, snapshot: RecordObservation<StateSnapshot>,
+    checks: Vec<Check>,
+}
+pub struct StateDecision {
+    state: String, rule: u8, profile: Option<Profile>, setup_required: bool,
+    evidence: TargetEvidence, checks: Vec<Check>,
+}
+```
+
+ValidatedRecords.targetはdetect_stateのtargetと同じ採取世代へ照合する。checksには実配置本体/起動設定/選択機能の整合確認を保持し、未取得をpassへ補完しない。EMPTYの判定にはstorageの三不在と管理記録不在の確証を必要とする。OS非対応/取得不能の優先、構成未作成の許容、破損/前回未完了の扱いは基本仕様の七規則だけを適用する。キャッシュ単独で不足を補わない。A02-01/72にAbsent/Unknown/Invalidの独立入力、空diskだがbootloaderあり、別targetの記録集合を含める。
+
 ## P02-STORE
 
 ### 排他と確定案
@@ -513,6 +545,30 @@ required_recordsは呼出元が成功条件を減らす入力ではなく、親P
 ログの採用案は、操作ID・対象ID・時刻・level・イベントID・秘匿化済みメッセージをJSONLへ記録する方式。保持・ローテーションは10 MiB×5世代を候補とするが、必須操作記録をログ整理で消去しない。履歴容量の保全・退避と操作上限の関係は`D02-05`の未決事項。
 
 ## P02-EXEC
+
+通常実行器の型宣言候補を次へ閉じる。専用stream/file-sink/二入力pipeのadapterは本capture型と別で、通常の量制限を解除しない。
+
+```rust
+pub enum CommandMaterial { External(MaterialRef), Release(ReleaseArtifactRef) }
+pub struct CommandSpec {
+    material: CommandMaterial, executable: std::path::PathBuf,
+    working_directory: std::path::PathBuf, args: Vec<std::ffi::OsString>,
+    environment: std::collections::BTreeMap<std::ffi::OsString, std::ffi::OsString>,
+    stdin: Vec<u8>, timeout_ms: u32, grace_ms: u32,
+}
+pub enum CommandContext<'a> {
+    ReadOnly { target: &'a TargetEvidence, deadline: std::time::Instant },
+    Change { guard: &'a OperationGuard, plan_id: &'a PlanId,
+        operation_id: &'a OperationId, deadline: std::time::Instant, cancelled: &'a bool },
+}
+pub struct CommandOutcome {
+    status: String, exit_code: Option<i32>, signal: Option<i32>,
+    stdout_bytes: u64, stderr_bytes: u64, elapsed_ms: u64, stopped: bool,
+}
+pub struct CommandOutput { outcome: CommandOutcome, stdout: Vec<u8>, stderr: Vec<u8> }
+```
+
+Change文脈は有効なExecutionContextを借用する内部構築器からだけ作る候補。guardより短い借用で各ID/期限/取消を無変更で参照し、JSONから直接構築しない。ReadOnlyからChangeへ昇格する変換を設けない。CommandOutcome.statusの固定値と数値/null条件は本書の結果契約を適用する。A02-93/98へ文脈のID差替えとstatus/exit_code矛盾を含め、起動前拒否と起動試行後の観測結果を区別する。
 
 配置案は`src/platform/command.rs`。`Command`の引数配列と`Instant`を再利用し、呼び出しごとに操作契約の制限値を必須入力とする。外部実行物の版・パス・引数・例外IDの照合なしに起動しない。
 
@@ -645,6 +701,10 @@ pub struct MachineId(String);
 pub struct UtcMillis(String);
 pub enum Profile { Master, Mining, Server }
 pub enum EntryOrigin { Media, Master }
+pub enum IdKind { Plan, Operation, Machine }
+pub fn parse_plan_id(input: &str) -> Result<PlanId, ContractError>;
+pub fn parse_operation_id(input: &str) -> Result<OperationId, ContractError>;
+pub fn parse_machine_id(input: &str) -> Result<MachineId, ContractError>;
 pub enum MaintenanceAction { Setup, Update, Backup, Recover, SelfInstall, SelfUpdate, SelfUninstall }
 pub enum EvidenceField {
     Observed(String), Absent { reason: String }, Unknown { reason: String },
@@ -677,6 +737,7 @@ pub struct ExecutionContext<'g> {
 }
 pub struct OperationStart {
     operation_id: OperationId, plan_id: PlanId, target: TargetEvidence, started_at: UtcMillis,
+    deadline: std::time::Instant,
 }
 pub enum BeginStage { Validated, IntentSynced, RunningSynced, EventSynced, Unknown }
 pub struct BeginFailure {
@@ -686,10 +747,11 @@ pub struct BeginFailure {
 pub struct StartEvidence {
     target: TargetEvidence, existing_operation_ids: Vec<OperationId>,
     previous_operation: Option<OperationRecord>, inventory_complete: bool,
-    verification_ref: String,
+    verification_ref: String, budget: OperationBudget,
 }
 pub fn prepare_start(guard: &OperationGuard, plan: &Plan,
-    operation_id: OperationId, started_at: UtcMillis, evidence: &StartEvidence)
+    operation_id: OperationId, started_at: UtcMillis, deadline: std::time::Instant,
+    evidence: &StartEvidence)
     -> Result<OperationStart, ContractError>;
 ```
 
@@ -698,6 +760,8 @@ EvidenceFieldの外部形式は[既存候補の3キー](#対象証拠と状態�
 ChangeFailureは開始後の部分結果を消さない共通の返却規約候補。開始前だけpartial=Noneを許容し、実適用または開始記録後はSomeを必須とする。persisted_evidenceは実在を確認した記録参照だけで、保存不能時は空を許すがerrorへ記録失敗を保持する。プロセス強制終了でこの返却自体がない場合は永続記録と実状態の照合へ戻る。ExecutionContext・OperationGuardの実所有権とOS上の寿命は`D02-04`のまま別途確定が必要であり、宣言から推測しない。
 
 ## 状態と中断の詳細案
+
+ID表記器のString返却は上記の各parse関数で対応型へ変換する候補。parseは表記だけを確認し、乱数源・既存集合・一意性の証拠を生成しない。Plan/Operation/Machineの誤った種別はMODEL_IDで拒否する。A02-71/82には三種の相互誤用と、正常表記でも未使用確認がない開始要求を含める。
 
 `P02-STORE`の確定候補は、排他取得→running同期→実適用→実状態検証→履歴確定→終了記録確定→補助記録照合→completeとする。各境界の中断判定を以下へ固定する案で、複数ファイル全体が原子的だとは主張しない。
 
@@ -1024,6 +1088,12 @@ root/OS以外でも適用外を使う場合は担当契約の明示条件が必�
 
 ### 記録集合と保存順序
 
+容量予約には各操作のrequest/intent/events、最終snapshot、資源journal、既存historyの全コピー、各置換時の旧物/一時物をFS別に含める候補。寿命が重ならない一時物は実行順に求めた同時保持最大量へ算入し、同一実体の二重算入も無根拠な除外もしない。未知の最大量/保存先/参照閉包はSTORE_CAPACITYでbegin前停止。記録16 MiB予約を既存history等の必要量へ置き換えず追加し、空き容量はguard下で再取得する。開始後に予約を超えても過去証拠の自動削除/別FS退避はしない。A02-110へ複数FS/最終snapshot二重保持/旧historyコピー不足を含める。
+
+操作別snapshotは各可変記録の最終確定byte列にだけ一回生成する候補。running版operationのsnapshotを終端版で上書きせず、beginの証拠は操作別eventsとintentへ残す。finishでは各最終記録を同期→その同一byte列の新規snapshotを同期→全hash照合→operation.end→intent.completeの依存順を守る。historyの論理追記行と操作別eventsの行はAppendBindingへ対応し、可変記録のsnapshotと混同しない。中断後の同名snapshotはbyte完全一致の照合だけを許し、差異はSTORE_CONFLICT。A02-115/116へrunning snapshot残存/最終snapshot未同期/同名別byteを追加して照合する。
+
+OperationStart.deadlineは今回の同一起動世代の外側実行器が固定した最終期限を渡す内部値で、JSON/保存記録には出さない候補。prepare_startは値を保持し、beginは受付時に残期限を検査してExecutionContextへ無延長で移す。begin受付から新しい全予算を作らず、開始同期/イベントの時間も元期限へ算入する。到達済みなら開始失敗、保存を開始した後の超過/応答不明はBeginFailureの確認済み段階を保持する。A02-104/123にprepare後beginまでの待機で期限到達した入力を含める。
+
 開始識別の候補順は、OS取得器によるOperationId/開始時刻の生成→監督unitと要求への束縛→対象guard取得→prepare_start→beginとする。prepare_startは取得済み値を照合するだけでID生成/時計/保存を行わず、親Planとguardの対象一致、ID未使用、未完了操作なしを検証する。begin内部でIDを新規生成しない。OperationStartは非Clone、消費は一回だけで、intentとrunningとイベントは同じID/開始時刻へ結合する。
 
 ID未使用/前操作の検査入力はStartEvidenceからだけ受ける。収集器がguard下で対象の全必要記録と監督単位を照合して構築し、inventory_completeの自己申告だけでは生成できない。existing_operation_idsは既存の操作/履歴/対応記録のID集合、previous_operationは不在の確証だけNoneとし、読取り不能をNoneへ補完しない。別target、集合欠損/重複、同じIDの既存操作、running/interrupted/未確認の前操作はSTORE_RECONCILE。今回の開始要求への予約と、既に開始した同じIDの記録を区別する。純粋prepare_startから不足資料の読取り/復旧を開始しない。A02-123にはこの入力欠損/別対象も含める。
@@ -1165,6 +1235,23 @@ DEFLATE本体は[RFC 1951の3.1.1/3.2.3〜3.2.7](https://www.rfc-editor.org/rfc/
 
 ### コマンドごとの検査閉包
 
+担当検査の閉包は、各PlanStepのcontractとcheck. stepのcheck_ids/expected_refs/execution_refsを同じ承認済み検査登録へ照合して求める候補。検査登録はid/source/適用条件/期待資料/採取契約を持つ固定集合で、参照だけの契約に検査が未定義ならunknownを残す。契約IDだけから架空の検査名を生成しない。参照の巡回はP01の六値閉包で止め、検査の実行依存循環は拒否する。A02-108/114では未知check、欠けた担当登録、同IDで異なる必須性を注入し、応答生成前の拒否を照合する。
+
+必須検査算定器の型付き境界候補を次へ閉じる。commandは共通CLIまたは媒体/マスターが検証した内部操作名だけ、state/profileは検証済み状態結果、plan_contractsはPlanの参照集合を借用する。状態不明を「未管理」へ変換しない。
+
+```rust
+pub enum CheckApplicability { Applicable, NotApplicable(ContractRef), Unknown }
+pub struct CheckRequirement {
+    id: String, required: bool, applicability: CheckApplicability,
+    source: ContractRef,
+}
+pub fn required_checks(command: &str, state: &StateDecision,
+    profile: Option<&Profile>, plan_contracts: &[ContractRef])
+    -> Result<Vec<CheckRequirement>, ContractError>;
+```
+
+返却順はCheck.idのASCII順、同じID/同じ義務は一件、異なるrequired/適用根拠の衝突はCLI_RENDER。NotApplicableは正本の明示条件を参照し、Unknownは検査結果unknownを要求する。実行・観測・ファイル取得は行わない。A02-108で状態UNKNOWN/未構成確証/非適用根拠欠損を区別する。
+
 beginの失敗はBeginFailureへ必ずID/段階/保存証拠を返す候補。last_confirmed_stageはUnknown以外、stage=Unknownなら最後に確認した段階を保持し、同期要求後の応答不明を前段階の未保存と断定しない。対象の実資源変更はcontext返却後だけなので、begin中の失敗で適用済みstepを捏造しない。呼出元は残存intent/runningを読み取り照合し、新規begin・削除で埋め合わせない。context成立後の実処理は既定のChangeResultを使い、BeginFailureを汎用エラーへ縮約しない。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -1189,6 +1276,29 @@ beginの失敗はBeginFailureへ必ずID/段階/保存証拠を返す候補。la
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A02-108` | doctorのpaths.protected欠損、同じ契約の二stepがpass/fail、未構成証拠なしでprofile非適用 | 集合欠損/集約fail/unknownを区別。必須検査の縮小・重複ID・推測非適用なし |
+
+### 再起動をまたぐ期限の照合
+
+[Instant](https://doc.rust-lang.org/std/time/struct.Instant.html)の値を保存して別bootへ復元せず、[SystemTime](https://doc.rust-lang.org/std/time/struct.SystemTime.html)の差だけで経過を保証しない候補。操作開始前に以下の不変予算をoperations/OperationId/budget.jsonへ同期し、intentの必須集合へ追加する。StartEvidence.budgetは同じID/計画/元開始時刻へ束縛する。保存失敗ならbegin/資源変更を開始しない。上限は各親操作の担当契約から固定し、利用者が再開時に増やせない。
+
+```rust
+pub struct OperationBudget {
+    schema_version: u32, operation_id: OperationId, plan_id: PlanId,
+    started_at: UtcMillis, total_ms: u64, clock_contract: ContractRef,
+}
+pub struct ResumeBudgetEvidence {
+    budget: OperationBudget, boot_id: String, observed_instant: std::time::Instant,
+    elapsed_lower_ms: u64, elapsed_upper_ms: u64, verification_ref: String,
+}
+pub fn resume_deadline(budget: &OperationBudget, evidence: &ResumeBudgetEvidence)
+    -> Result<std::time::Instant, ContractError>;
+```
+
+OperationBudgetの上記六キーだけを保存し、ResumeBudgetEvidenceは再収集した内部証拠で保存用Instant表現を設けない。clock_contractは停止/休止/電源断/時刻補正を含む元開始からの経過区間を保証する採用済み取得契約。収集器が同じ操作/対象と現在bootに対応する下限/上限を確認してから証拠を構築する。参照の存在や単なる時計の同期表示を保証にしない。純粋resume_deadlineは入力budgetと証拠内budgetの六値完全一致、0<=lower<=upper<totalを検査し、observed_instant+(total-upper)をchecked算定する。区間/対応/取得契約不明はMODEL_DEADLINE、再起動時点から全予算を再付与しない。
+
+同一boot内も外側deadlineを延長せず、再開時は算定期限と呼出元期限の早い方を使用する。期限不明/超過は読取り照合だけとし、記録修復/未実施変更は開始しない。新しい復旧計画が必要なら別の明示選択/確認/操作として扱い、旧開始時刻を改変しない。採用できるclock_contractの実現根拠はD02-01/04と担当入口の未達に残す。A02-73/104に上限=total、区間逆転、電源断分不明、時刻後退を含める。
+
+budget保存はguard下の開始準備で一回だけ行う候補。同じID/全byte列/hashに束縛された今回の予約と、既にintent/runningがある開始済みIDを区別する。予約存在だけを衝突や開始成功へ変換せず、別内容/出所不明の既存budgetはSTORE_CONFLICTで保持する。StartEvidenceのID集合が今回予約を除外する場合も、その対応根拠をverification_refへ必須とする。A02-123/124へ予約後中断と別要求の予算流用を含める。
 
 ### OS取得器の入力と停止
 

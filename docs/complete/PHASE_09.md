@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B10`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B11`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB10）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB11）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -141,6 +141,19 @@ ReconcileResultのdelivery=nullは記録を確認できない状態を含むた�
 
 ```rust
 pub enum RemoteAction { InstallBody, Setup, Update, Backup, Recover, InstallOs }
+pub struct ConnectionLimits {
+    connect_timeout_ms: u32, transfer_timeout_ms: u32, inspection_timeout_ms: u32,
+}
+pub struct BootstrapTransfer {
+    target_id: TargetId, binary_material: ReleaseArtifactRef,
+    manifest_material: ReleaseArtifactRef, signature_material: ReleaseArtifactRef,
+    build_metadata_material: ReleaseArtifactRef, keyring_ref: String,
+    staging_ref: String, entry_ref: String, privilege_ref: String,
+}
+pub struct MasterRemoteRecord {
+    schema_version: u32, request_sha256: String, request: RemoteRequest, sent_bytes: u64,
+    last_delivery: Option<DeliveryRecord>, observation_refs: Vec<String>,
+}
 pub struct RemoteSession {
     target: RegistryEntry, observed: TargetEvidence, master_machine_id: MachineId,
     trust_ref: String, authentication_ref: String, connection_ref: String,
@@ -182,7 +195,12 @@ pub struct RemoteFailure {
     error: ContractError, delivery: Option<DeliveryRecord>,
     request_may_have_arrived: bool,
 }
-pub fn validate_remote(input: &Value) -> Result<RemoteMessage, ContractError>;
+pub struct RemoteValidationEvidence {
+    plan_digest: PlanDigestEvidence, plan_bytes: Vec<u8>, plan_sha256: String,
+    request_bytes: Vec<u8>, request_sha256: String, verification_ref: String,
+}
+pub fn validate_remote(input: &Value, evidence: Option<&RemoteValidationEvidence>)
+    -> Result<RemoteMessage, ContractError>;
 pub fn send_change(session: &mut RemoteSession, request: &RemoteRequest)
     -> Result<DeliveryRecord, RemoteFailure>;
 pub fn query_change(session: &mut RemoteSession, request: &QueryRequest)
@@ -192,6 +210,8 @@ pub fn cancel_change(session: &mut RemoteSession, request: &CancelRequest)
 ```
 
 各メッセージのschema_version候補は1、kindはsubmit/query/cancel/indexで、kindとpayloadは一つだけ対応させる。QueryRequestとIndexRequestは変更計画を受け取らず、再送の代用品にしない。CancelRequestのID一致を権限証明にはせず、接続先・マスターの管理権限・現在の操作を再検査する。RemoteFailureは配送開始後の失敗を保持し、request_may_have_arrivedがtrueまたは判定不能なときは再投入不可とする。falseには送信前停止を確認した根拠が必要。
+
+Submitの検証はPlanの全キーを未封印値として検査→P03の固定byte列とplan_digest証拠を照合してseal_plan→Plan全byte列/plan_sha256→RemoteRequest全byte列/request_sha256の順とする候補。RemoteValidationEvidenceは採用hash取得器が同じ検証対象byte列へ束縛した証拠だけで構築し、文字列hexの自己申告を受けない。validate_remoteはI/Oなしで三byte列と証拠の対応を照合する。Submitで証拠なし、他kindで余分な証拠ありはREMOTE_BINDING。受信validatorを封印回避のPlan constructorにせず、比較digestと全入力hashを代用しない。A09-17/35へ同じdigestでも別Plan ID、別byte列のhash証拠、QueryへSubmit証拠の混入を含める。
 
 last_confirmed_statusのSome(Unknown)は型上表現可能でもvalidatorで拒否する。status=Unknownだけが直前の通常段階またはNoneを保持し、statusが通常段階なら同値を要求する。OperationReceiptを含む全子型も担当validatorへ照合し、再帰的なPlan/Request/CommandDataをreceiptへ内包しない。これらは外部全キー表のRust表現であって第二の配送形式ではない。
 
@@ -321,6 +341,8 @@ P09のadapterはtransport/remote protocol/reconcileの三境界とし、認証�
 
 ### SSH起動と初回搬入の分離
 
+ConnectionLimits/BootstrapTransfer/MasterRemoteRecordは担当全キー表の型候補。接続/検査/転送時間はmsへchecked変換して本書の各上限へ照合し、0・親残期限不足を接続前拒否する。MasterRemoteRecord.sent_bytesは固定wrapperのLF込み実長以下で、要求hashはRemoteRequest全体へ一致させる。初回転送のstagingが新規でも、SFTP側の初期mode/所有者/親の置換排除が確認できなければputを開始しない。mkdir後のchmodだけを作成からの保護根拠にせず、採用server/subsystemの生成条件を別途必要とする。A09-23/34/37へ単位違い・送信量超過・初期mode不明を含める。
+
 初回転送の具体候補はOpenSSH SFTPのbatchモードとする。SSHと同じ固定config/鍵/host検証、-b -、-B 32768、-R 1、-Pの固定portを使い、転送指示だけをstdinで渡す。destinationは検証済みuser/hostから生成し、pathや任意SSH設定を付加しない。圧縮・再開・再帰転送・失敗無視・ローカルshell escapeを使わない。[公式SFTP](https://man.openbsd.org/sftp)のbatch失敗停止と、転送完了/同期/真正性の別判定へ照合する。
 
 staging候補は対象の/var/tmp/serverseed-bootstrap一件。新規mkdirが失敗したら既存領域を再利用/削除せず、所有者・種別・未完了初回要求を照合する。新規成功後にmode=0700を確認し、四資材をserverseed/manifest.json/manifest.asc/build.jsonの固定名だけへputする。実行候補serverseedだけに固定chmod 0700を行い、データ三件は0600として種別/所有者/実modeを確認する。ローカル元名も保護領域内の同じ固定名としてglob/空白/引用の解釈を不要にする。put完了後の再取得/hash一致は転送の検証であってroot実行の許可ではない。転送上限300秒と各資材量を維持し、途中失敗の再開/上書き0回。
@@ -402,6 +424,16 @@ byte数に加え、wrapper・両側保存記録・応答の完成した各文書
 ## 未決事項と成立判定
 
 ### 配送結果の事前上界
+
+出力専用の狭い上界候補として、Diagnostic/ContractErrorのcodeは既存の固定コード集合・ASCII128bytes以内、messageは固定分類文・UTF-8で256bytes以内、fieldは既知Pointer/引数名またはnull・1,024bytes以内とする。Check.message/code/fieldも同じ条件、Check.idは登録済み固定IDの実長で計数する。入力stringの64 KiB制限や一般設定の受理範囲を変更しない。原入力/生診断を切り詰めてこの条件へ合わせず、固定分類と検証済み位置だけを生成する。上界違反の出力を成功receiptへ変換しない。
+
+固定済みtarget/ID/参照/記録pathは親Planと保存集合の実byte長、未固定の診断位置だけ上記最大値へ対応付ける。各stepのCheck集合はrequired_checksと担当登録から求め、診断は同じcode/fieldの集約後の最大件数を全失敗枝から算定する。無関係な全stringへ64 KiBを機械適用して全計画を常に拒否する算定と、根拠なく短く見積もる算定の両方を避ける。未登録コード/可変参照集合の上界不明は既定どおり受理前拒否。
+
+```rust
+pub struct ResultBound { bytes: u64, nodes: u64, depth: u32, logical_bytes: u64 }
+```
+
+A09-33/39には同じ短い正常計画の全失敗枝、最大長diagnostic、escape長、固定参照と未固定文字列の誤分類を含める。容量内となる非空計画のfixtureも必要とし、拒否するケースだけで配送の成立を認定しない。実行成功の証拠とは別に、候補の有限性/容量内経路を検証する。
 
 受理前の計算候補ResultBoundはbytes/nodes/depth/logical_bytesの四つの非負整数。型の全variantと必須/失敗枝を展開し、固定済みID/参照/時刻/文字列は実直列化長、未固定stringは担当契約のUTF-8長上限mに対する6*m+2、integerは20bytes、boolは5、nullは4を上界に使う。object/arrayの区切り・キー・末尾LFと、P02のキー込みノード数/深さ/Mを加算する。配列数は親Planの全step/固定Check集合/記録参照集合の最大件数で、実行成功時だけの短い枝へ限定しない。
 

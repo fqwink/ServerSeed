@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B10`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B11`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB10）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB11）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -296,9 +296,19 @@ pub struct PlanStep {
     resource_change: Option<ResourceChange>, payload: Option<StepPayload>,
 }
 pub struct PlanDigestEvidence { fixed_bytes: Vec<u8>, sha256: String, verification_ref: String }
+pub fn assemble_plan(identity: PlanIdentity, target: TargetEvidence,
+    resources: Vec<Resource>, observations: Vec<ResourceObservation>,
+    steps: Vec<PlanStep>, blocked_by: Vec<Diagnostic>) -> Result<PlanDraft, ContractError>;
+pub fn extend_plan(base: PlanDraft, identity: &PlanIdentity, target: &TargetEvidence,
+    resources: Vec<Resource>, observations: Vec<ResourceObservation>,
+    steps: Vec<PlanStep>, blocked_by: Vec<Diagnostic>) -> Result<PlanDraft, ContractError>;
 ```
 
+assemble_planは媒体/採掘/マスター/Cloudとアプリの担当生成結果を平坦に結合する純粋な共通構築器候補。build_planの資源差分も同じ構築器を通す。入力全件を消費し、一意性/対象/契約/非再帰payload→全依存先→単一トポロジカル順→正規順を検査する。stepsが資源に対応しない/二重/欠損、担当payload未宣言、親ID不一致は拒否し、先頭部分を返さない。封印済みPlanを生成できるのはseal_planだけで、assemble_planはhash取得・時計・ID生成・保存・確認を行わない。A03-27/31/33へ全生成器の未封印返却と平坦合成の入力不一致を含める。
+
 schema_versionは1だけ。PlanBodyはvalidator/計画器が所有し、外部から無検証で作らせない。ResourceSet.targetを計画targetへ一度だけ移し、identityから別targetを受けない。command・profile・requires_confirmationは担当操作/必須選択と照合し、呼出元がfalseを指定しただけで確認不要にしない。seal後のbody変更は不可、変更には新しいPlanDraftと再封印/再確認を要求する。
+
+extend_planは同じ親identity/対象の未封印baseを消費し、共通構築器内でのみ追加資源/観測/step/停止理由を結合する候補。親値の全一致を確認し、既存要素の除去/書換え/blocked理由の削除は行わず、全体の一意性/順序/参照を再検証する。master_planはmining Draftの非公開bodyを直接変更せずこの関数へ渡す。公開型の各値を検査する必要がある呼出元には同名フィールドの不変借用getterだけを用意し、書換えgetter/未検証constructor/封印済みPlanの分解APIは設けない。A03-31/33へ異なるidentityの追加、重複step、blocked除去要求を含める。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

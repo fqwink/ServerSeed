@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B10`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B11`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB10）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB11）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -71,13 +71,15 @@ MiningUpdateBinding候補の全キーはbefore_miner・after_miner（MaterialRef
 
 | 宣言案 | 入出力と副作用 |
 |---|---|
-| `mining_plan(config: &MiningConfig, target: &TargetEvidence, capabilities: &[DeviceCapability]) -> Result<Plan, ContractError>` | 検証済み設定と能力から適用計画を返す。用途を自動選択しない |
+| `mining_plan(config: &MiningConfig, target: &TargetEvidence, capabilities: &[DeviceCapability], identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 検証済み設定・能力・親識別から未封印適用計画を返す。ID/時刻/hashを生成せず、用途を自動選択しない |
 | 監視評価 | 宣言は[型付きevaluate_monitor](#型とapiの詳細案)へ集約。前状態・試料・設定を入力にする純粋処理 |
 | `control(ctx: &mut ExecutionContext, request: &ControlRequest) -> ChangeResult<ControlReceipt>` | 許可・競合・対象と同じ要求キーを再照合し、該当サービスだけを変更 |
 
 型はP02-MODEL。サンプル・状態遷移・actionの全スキーマはD07-03で審査する。旧実装はなし。将来のモジュール抽出・crate差し替えでは、fixtureの観測列を同じ順で与え、新旧の判定・待機・副作用・復旧を比較する。未確認の温度・機器契約を互換性の既定値にしない。
 
 ## データ契約の具体化案
+
+mining_planの親identityは入口が生成済みの値だけを受ける候補。standaloneではprofile=Mining、物理マスターへ組み込む場合は同じ親identityのprofile=Masterとし、資源owner=miningを変えない。能力/対象/構成の不一致は計画前拒否。生成後の封印はP03だけで行い、採掘生成器から外部hash/適用を開始しない。A07-01/02にidentity欠損、異なる親対象、Master内包時の単一親IDを含める。
 
 `P07-RUN`の純粋評価へ渡す観測列と制御候補を具体化する。機器・minerのAPIからの単位変換と能力表は`P07-DEVICE`が担当し、値がない場合の推測・0埋めをしない。
 
@@ -387,6 +389,23 @@ sample adapterは選択device_idsのみに限定し、各機器hashrateのchecke
 
 ### 監視記録の保存と再同定
 
+```rust
+pub enum ControlLedgerPhase { Prepared, Started, Finished, Unknown }
+pub struct ControlLedger {
+    schema_version: u32, request: ControlRequest, operation_id: OperationId,
+    phase: ControlLedgerPhase, receipt: Option<ControlReceipt>,
+    memory_before: MonitorMemory, memory_after: Option<MonitorMemory>,
+    verification_refs: Vec<String>,
+}
+pub struct MonitorRecord {
+    schema_version: u32, operation_id: OperationId, engine: Engine, epoch: String,
+    sample_elapsed_ms: u64, proposal: ControlProposal, receipt: Option<ControlReceipt>,
+    memory: MonitorMemory, config_sha256: String,
+}
+```
+
+保存器は上記型を本書の同名保存形式へ一対一に検証する候補。MonitorRecord.memoryとreceipt/requestのengine/epoch/設定/親操作を照合し、同じIDでも別試料のreceiptを受理しない。Ledger.phase=Finishedでもmemory_after欠損なら確定不可。Preparedのreceipt=Noneは未開始の証明でなく、実処理/共通operationとの照合が必要。A07-18/34/41へ型の未知キー/片側保存失敗/再起動後の同ID再消費を含める。
+
 再試行枠の判定候補を、新規要求の予約前と同じ要求の実行前で分ける。新規自動start/restartはattempts_used+既存予約数<retry_limitを要求する。予約した同一requestの実行は、自分の一予約を含めた和<=retry_limit、pending/reservedの同一ID、台帳preparedとの一致を検査する。予約直後に同じstrict比較で自分の最後の枠を拒否しない。別要求へ予約を貸し替えない。
 
 ControlLedger.preparedとmemoryのpending_control/reserved_retryを同期して照合してから制御を開始する。片側同期失敗は開始0件、途中保存不明はunknownとして既存予約を保全する。実開始の確証が得られたら、同じrequestについて予約解除とattempts_used+1を一つの次memoryへ計算し、台帳と照合して確定する。整数overflow/矛盾はMONITOR_RECEIPT。未開始の確証以外で予約を解放せず、同じreceiptを二度加算しない。
@@ -399,7 +418,7 @@ ControlLedger.preparedとmemoryのpending_control/reserved_retryを同期して�
 
 ControlLedgerの全キー候補はschema_version: 1、request: ControlRequest、operation_id: OperationId、phase: prepared/started/finished/unknown、receipt: ControlReceiptまたはnull、memory_before: MonitorMemory、memory_after: MonitorMemoryまたはnull、verification_refs: string[]。preparedを同期してから制御を開始し、実開始の確証/未確認を保存し、実サービスとreceiptを照合してmemory_afterを確定する。先にMonitorMemoryだけ更新して要求証拠を失う順序は不可。共通operation/historyの確定は親が行う。
 
-reserved_retryは開始不明の自動start/restartについて枠を予約する要求IDまたはnull。再試行許可はattempts_used+予約数（0/1）<retry_limitをchecked算定し、開始確証で予約を解除してattempts_usedへ一回加算する。未開始の確証なら予約だけ解除、未確認なら予約を維持する。初回の明示開始だけは同じ保存セッションの新規開始確認に対応付け、自動復旧へ読み替えない。停止要求は再試行枠を消費しないが、同一要求の重複発行は禁止する。
+reserved_retryは開始不明の自動start/restartについて枠を予約する要求IDまたはnull。新規予約前と同じ要求の実行前の比較は本節冒頭の二条件だけを使用し、予約後にもstrict比較を繰り返して最後の枠を拒否しない。開始確証で予約を解除してattempts_usedへ一回加算する。未開始の確証なら予約だけ解除、未確認なら予約を維持する。初回の明示開始だけは同じ保存セッションの新規開始確認に対応付け、自動復旧へ読み替えない。停止要求は再試行枠を消費しないが、同一要求の重複発行は禁止する。
 
 制御台帳の上限候補は各engineで1,000要求かつ64 MiB、ControlLedger一件64 KiB、MonitorMemory一件64 KiBとする。新規/一時保存分も加算し、どちらかの上限へ達する新規制御を停止する。未完了/unknown台帳は削除せず、完了台帳の退避も別の明示保守計画で参照閉包を保持する。容量不足を理由にstop_latched・attempts_used・reserved_retryを初期化しない。安全上必要な停止を発行できない場合は、その未実行と残存サービスを報告し、停止済みと偽らない。
 
