@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B13`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B14`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB13）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB14）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -368,7 +368,29 @@ docker argvの共通prefix候補は固定path、--config、保護された採用
 
 行形式の候補では全出力に通常capture上限を適用し、一行もP02の通常構文/量制限へ照合する。全行を読み終えてからcontainer IDで一意にし、project/service/実image/所有証拠を親AppPlanへ結合する。service名だけで一行へ上書きしない。scaleされた複数container、one-off、orphan、停止中/再起動中も観測事実として区別し、許可された期待集合が未定義ならAPP_BINDINGで保留する。空出力は「観測できたcontainerなし」であり、全サービス正常の意味ではない。
 
-psの人間向けimage表示を固定digestや所有labelの証拠へ転用しない。それらの追加観測に使う固定コマンド/版/出力契約が不足する間はD06-03の未達とする。構成にないcontainerを表示しただけで停止/削除せず、全結果と対象外の不変を照合する。
+psの人間向けimage表示を固定digestや所有labelの証拠へ転用しない。追加観測は次の[実containerへの束縛](#実containerへの束縛)を候補とし、固定版の出力/所有資料の成立根拠が不足する間はD06-03の未達とする。構成にないcontainerを表示しただけで停止/削除せず、全結果と対象外の不変を照合する。
+
+### 実containerへの束縛
+
+P06-APPの比較候補では、psで得た全containerを[container inspect](https://docs.docker.com/reference/cli/docker/container/inspect/)へ、得た実image IDを[image inspect](https://docs.docker.com/reference/cli/docker/image/inspect/)へ結合する。CLIの存在は固定版のJSON field・所有権・互換性の保証ではなく、下記profileを採用版の出力資料と照合する必要がある。
+
+共通prefixは固定docker path、--config、同じ保護設定directory。後続はcontainer/inspect/--/完全container ID一件、またはimage/inspect/--/完全image ID一件だけ。Composeのprefixをinspectへ連結しない。cwd=/、環境は先述のDocker固定集合、stdin空、通常captureの各1 MiBと親期限を維持する。format/template・--size・--platform・自由filterを追加しない。default JSON arrayの一要素だけを解析し、別版の表示形式へfallbackしない。外部出力は内部観測DTOへ射影し、製品設定の未知キー許可へ一般化しない。環境変数等を含み得る元JSONはログ/レポートへ保存せず、必要な非秘密項目以外を証拠へ採取しない。
+
+| 観測 | 固定版で照合する項目と条件 |
+|---|---|
+| container | Id/Created/Image、Config.Labelsのcom.docker.compose.project/service/oneoff/container-number（各suffixへ同じcom.docker.compose.接頭辞）、StateのStatus/Running/Restarting/Dead/Pid、HostConfigの実資源制限。完全ID・期待project/service・所有資料を照合し、psの短縮IDだけで別実体へ結合しない |
+| image | Id/RepoDigests/Os/Architecture。container.ImageとId一致、固定したrepository付きdigestがRepoDigestsに存在、対象OS/CPU一致。image IDとregistry manifest digestは異なる識別子として保持 |
+| 全集合 | projectの再列挙前後で完全container ID/Created/Image/対象label集合が同じこと。採取中の再作成・増減はAPP_CHANGED、片側だけの観測でverifiedにしない |
+
+本profileの完全container IDは小文字hex64桁、image IDはsha256:と小文字hex64桁の組だけ。oneoff labelは固定採用版が出力する文字列False/Trueを検証して内部boolへ変換し、未知表記/欠損をfalseへ補完しない。container-numberは先頭0なしの正十進整数。実版の文法が本profileと異なれば採用審査へ戻し、大小変換や短縮IDの推測展開で通さない。
+
+期待する個体数はアプリ別の採用行でサービスごとに1〜100、全サービス合計1,000以下の固定整数として指定する候補。初期の一個構成も明示して登録し、scale/one-off/orphanを無視して一件へ丸めない。oneoffの内部値true、未知service、同じservice/container-numberの重複、期待数超過は所有衝突として変更を停止し、対象外containerは不変。停止中・再起動中は観測事実として保持し、期待する稼働状態に一致したかを別に判定する。初回導入のcontainer不在だけは不在の確証として許容するが、導入後の稼働成功には全期待個体を要求する。
+
+期待個体数と所有資料の参照はComposeEvidence.contractの固定採用行へ置き、AppPlanのservice_names/image_digestsと完全一致させる。計画後の数の変更は再計画対象。前後一致は採取中変化の検出であって排他や対象所有の証明ではなく、RootBinding/実行中管理操作の照合は別に必要とする。個別アプリ行が0件である現在は数値を推測しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-37` | 同service二個で期待数2、別image ID、短縮ID衝突、one-off混在、採取中再作成 | 全期待個体だけ実image/labelへ対応。不一致/対象外/変化は停止し、サービス名の後勝ち・registry digestとimage IDの同一視・対象外停止なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

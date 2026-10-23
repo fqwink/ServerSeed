@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B13`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B14`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB13）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB14）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -66,7 +66,7 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 
 | 宣言案 | 所有権・動作 |
 |---|---|
-| `master_plan(registry: &TargetRegistry, server: &[AppPlan], mining: PlanDraft, capacity: &CapacityInput, target: &TargetEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ親identityへ三機能と共有資源を結合した未封印計画を所有して返す。子Planの再帰内包・hash実行なし |
+| `master_plan(registry: MasterRegistryInput<'_>, server: &[AppPlan], mining: PlanDraft, capacity: &CapacityInput, target: &TargetEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ親identityへ三機能と共有資源を結合した未封印計画を所有して返す。子Planの再帰内包・hash実行なし |
 | `apply_master(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<MasterProgress>` | MasterProgressはreceipt: OperationReceiptとfeatures: FeatureReadiness[]の二項目。開始後の部分位置と三機能の結果を保持 |
 | `reconcile_master(saved: &ControlTransfer, observed: &[ReconcileResult]) -> Result<Vec<Check>, ContractError>` | 固定した対象別証拠と観測結果を照合。失効・修復・再投入を実行しない |
 
@@ -75,6 +75,8 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 ## データ契約の具体化案
 
 master_planはprofile=Masterの同じ親identityで生成したmining Draftを消費し、serverのAppPlan資源/担当step、registry/capacityのstepと平坦に合成する候補。子Draft全体をpayloadへ入れず、target/identity/資源ID/path/step ID/参照版の衝突はPLAN_PAYLOAD。別IDの子計画を親IDへ書換えて取り込まない。封印は結合後の一回だけ、完了済み子Planのdigestを親digestとして流用しない。A08-01/15には別親のmining Draft、同pathのserver/mining競合、平坦合成後の循環を含める。
+
+初回計画の台帳入力候補は`MasterRegistryInput::Initial`、構成済みの操作は`Existing(&TargetRegistry)`へ区分する。Initialは対象に構成管理の証跡がない初回setupだけで、予定する対象数は0、管理先登録はまだ実行しない。空diskの計画前にMachineIdやTargetRegistryを生成する循環を作らない。P07の[Preinstall同定](PHASE_07.md#導入前後の機器同定)で能力を評価し、P02の初回構成確定時に一度生成したMachineIdから空のTargetRegistryを作り、同じmanaged/machine-idと照合してから保存する。readinessはこの保存後の実台帳を要求し、Initialから架空のMasterReadinessを返さない。既存台帳の欠損・破損はInitialへ変換しない。
 
 `P08-MASTER`の対象台帳、`P08-COHOST`の機能別結果と資源配分入力を具体化する候補。配置先は同節の候補を使用し、構成別仕様への正式反映・実ファイルの生成は行わない。
 
@@ -145,6 +147,7 @@ configured/applied/verifiedは工程の検証済み事実で、verified=trueな�
 
 ```rust
 pub struct TargetId(String);
+pub enum MasterRegistryInput<'a> { Initial, Existing(&'a TargetRegistry) }
 pub struct RegistryEntry {
     target_id: TargetId, host: String, port: u16, user: String,
     credential_ref: String, trust_ref: String, expected_machine_id: Option<MachineId>,
@@ -373,6 +376,10 @@ CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A08-36` | unit設定は一致するがcontainerは別親、測定後CPU offline、対象外負荷が予約CPUを使用 | 実効範囲/測定条件を再照合しreadyを保留。設定値だけの強制確認・CPU専有/応答保証の捏造なし |
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-37` | 空diskでInitial、既存台帳読取り失敗をInitialへ変換、初回保存時に異なるMachineId | 初回だけ未封印計画を生成可能、後二件は拒否。計画前のID生成・台帳欠損の空集合化・三機能の識別分裂なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

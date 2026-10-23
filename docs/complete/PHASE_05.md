@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B13`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B14`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB13）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB14）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -380,6 +380,8 @@ storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_boot
 [Subiquity公式資料](https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#shutdown)に記載されたshutdownはreboot/poweroffであり、未再起動のまま終了する値は確認できていない。late-commandsはinstaller側の環境で動くため、対象内の入口を直接指定するだけでは対象OS内実行にならない。固定した実行側入口と対象rootへの束縛を必要とする。
 
 本案はshutdownキーだけによる制御返却を実現済みとしない。ServerSeedが取り外し前の検証/同期/参照解除を行える監督・停止方式を固定版で特定するまで生成・導入を保留する。late処理の無限待機、installerを意図的に失敗させる方式、未確認のservice停止を成功経路へ追加しない。制御返却を必要としない別方式へ変える場合も、媒体なし起動と既存の引渡し要求への対応を別途審査する。
+
+late-commandsの制御主体はRAM上のinstaller側に置く候補とし、対象内の準備処理と分離する。外側入口は対象disk/root/Planと検証済み本体の同一性、残予算と排他を検査する。対象内の処理が必要な場合は、固定版の`curtin in-target --target=/target -- <固定入口と固定argv>`の成立根拠へ束縛し、引数をshell文字列へ連結しない。対象内の処理完了はユーザー/設定/本体の配置検証までで、稼働中サービスの検査や媒体参照解除を代行しない。外側は終了/記録を照合してから別段階で解除へ進み、対象内の成功をinstaller全体の終了確認にしない。この分離も正常な制御返却方式そのものを解決する案ではなく、D05-01/02/03の残条件とする。
 
 公式設定には導入後の更新既定値もあるため、refresh-installer.update=falseだけで全資材が固定されたとは扱わない。installerの実取得・package更新・driver/OEM/kernelの選定をrecipeの全変更集合へ対応付け、浮動する取得や未固定の生成結果が残ればD05-02の未達とする。新しい更新無効化キーを創作しない。
 

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-3-内製iacの観測差分計画)
 
-本案は`B13`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
+本案は`B14`、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)と既存の[宣言型管理](../BASIC_SPEC.md#宣言型構成管理内製iac)へ照合する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-011`・`REQ-012`。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P03-FS` | 対象ルートに対するパス・ファイルの観測 |
 | `P03-PLAN` | 差分・依存順序・固定した計画の生成 |
 
-共通参照（全フェーズB13）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
+共通参照（全フェーズB14）は`P02-MODEL`・[識別型](PHASE_02.md#p02-model)、`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-STATE`・[対象状態](PHASE_02.md#p02-state)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)。適用・記録・保全は`P04-APPLY`へ渡し、観測・計画だけでは実行しない。
 
 ## P03-RESOURCE
 
@@ -345,7 +345,7 @@ PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資
 
 ### 非資源stepの閉じたpayload
 
-payload復号の識別候補はcontract_idとstep.idの区分の組とする。check.で始まるIDを検証step専用に予約し、destructive=false・resource_change=null・CheckStepPayloadを要求する。残りでは担当表の型を使うが、P04-APPLYはpackage./unit.、P04-BACKUPはbackup.capture/backup.restoreの区分を必須とする。backupの二IDは完全一致、またはdot一つと資源IDを付けた形だけを許す。他の担当で同じcontract_idに複数の変更型を割り当てる案を追加しない。
+payload復号の識別候補はcontract_idとstep.idの区分の組とする。check.で始まるIDを検証step専用に予約し、destructive=false・resource_change=null・CheckStepPayloadを要求する。残りでは担当表の型を使うが、P04-APPLYはpackage./unit.、P04-BACKUPはbackup.capture/backup.restoreの区分を必須とする。backupの二IDは完全一致、またはdot一つと資源IDを付けた形だけを許す。P04-SELFのself.finalize.prepareは完全一致の清掃専用復旧の準備だけに予約する。他の担当で同じcontract_idに複数の変更型を割り当てる案を追加しない。
 
 型のキーを試し読みして都合のよいvariantを選ばず、復号前に上記の組から一型へ決める。check.以外でCheckの形が来た場合、check.なのに変更型が来た場合、package/unitの区分欠損はPLAN_PAYLOAD。検証stepのexecution_refsは非変更性を別に証明し、接続検査ならrequires_networkとの一致も要求する。資源stepはresource_changeのみという既定の境界を維持する。
 
@@ -357,7 +357,7 @@ PlanStep.payloadの候補は下表の担当型だけとする。型の選択は�
 
 | 担当契約 | payloadの型・全集合 |
 |---|---|
-| P04-SELF | PreparedSelf。action/target/plan_idを親へ照合 |
+| P04-SELF | self.finalize.prepareだけCleanupRecoveryPayload、それ以外の変更stepはPreparedSelf。action/target/plan_idを親へ照合し、清掃専用計画と本体配置を混在させない。準備とcore確定後の実清掃の境界は担当定義へ参照 |
 | P04-UPDATE | UpdatePayload: layers（os/configuration/application/miner/bodyの一意配列）、materials（MaterialRef/ReleaseArtifactRefの区分付き配列）、migration（MigrationRuleまたはnull）、backup_id（OperationIdまたはnull）。各層の具体stepが別に存在することを検査 |
 | P04-BACKUP | BackupSet。復元stepだけRestoreRequestとしてsource/destination/methodを全キーとし、step.idのbackup.capture/backup.restore区分と照合 |
 | P04-APPLY | file/directoryはresource_changeだけ。package/unit拡張は対応PackageResource/UnitResourceだけ。任意CommandSpecを外部入力として直結しない |
@@ -372,7 +372,8 @@ payloadの型は仕様上の担当フェーズが定義し、共通で運ぶdata
 
 ```rust
 pub enum StepPayload {
-    SelfChange(PreparedSelf), Update(UpdatePayload), Backup(BackupSet), Restore(RestoreRequest),
+    SelfChange(PreparedSelf), SelfFinalize(CleanupRecoveryPayload), Update(UpdatePayload),
+    Backup(BackupSet), Restore(RestoreRequest),
     Package(PackageResource), Unit(UnitResource), MediaInstall(InstallPayload),
     App(AppPlan), AppData(ApplicationDataMethod), MiningControl(ControlRequest),
     MiningUpdate(MiningUpdateBinding), Registry(RegistryChange), Capacity(CapacityInput),
@@ -432,6 +433,14 @@ Bindingの有効期間は採取世代から一つの親操作終了までで、b
 | P07/P08/P09 | 監視台帳/対象台帳/配送記録と初回staging。機器/マスター/遠隔先の同名pathを区別 |
 
 一方式で全行を保証できるとの前提を置かず、各対象/操作について採用根拠を持つ必要がある。Createの保証対象にはP02-STOREの新規最終名のhard_linkも含める候補とし、method_refはリンク元の実体/親と宛先の親/未存在名を同じ固定条件で扱える根拠を必要とする。通常fileのcreate_new成功だけをhard_linkの保証へ流用しない。保証できない行はその契約と依存工程の未達へ残す。A03-21/24/32で管理資源のreplaceだけ成功し記録のhard_link/removeが未保証の入力、復元先だけ別FS、ブートで失効したBindingを照合する。
+
+方式審査の証拠は操作単位に分ける候補。hard_link/renameは元実体・元親と宛先親/名前を同じ有効期間へ束縛し、同一FS条件、宛先の既存/未存在条件、原子性と同期対象を区別する。hard_linkによる新規名の確定は宛先既存時に失敗、置換用renameの許可はその既存実体まで明示した場合だけ。metadataは開いた当該実体、removeは当該entry/親、syncは必要なfileと変更した全親へ結合する。一方のpathだけの固定・同期で両端を充足しない。
+
+readの内容固定は開いたhandleだけでは成立しない。[RustのFile](https://doc.rust-lang.org/std/fs/struct.File.html)が指すfileも他のhandleから変更され得るため、取得全区間のwriter排除または採用済み不変snapshotの根拠を必要とする。hash前後の同値だけで途中の一貫性を証明せず、読んだ同じbyte列の長さ/hashを照合する。write/flush/dropと永続化も区別し、[Writeのflush](https://doc.rust-lang.org/std/io/trait.Write.html#tymethod.flush)や例外のないdropをfile/親同期の代わりにしない。正確なOS/FS契約が未選定の操作はmethod_ref不成立のまま保持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A03-39` | 宛先だけ固定したhard_link、renameの元親だけ同期、開いた後の同inode上書き | FS_BINDINGまたは内容未固定。片端保証・flush/dropだけの確定・handle保有だけの不変認定なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

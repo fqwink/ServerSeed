@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B13`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B14`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB13）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB14）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -440,10 +440,18 @@ controlのサービス操作はP04-APPLYのunitテンプレートを使い、cpu
 
 ```rust
 pub struct DeviceIdentity {
-    device_id: EvidenceField, target_machine_id: EvidenceField, boot_id: EvidenceField,
+    device_id: EvidenceField, target_identity: DeviceTarget, boot_id: EvidenceField,
     kind: EvidenceField, topology_ref: EvidenceField, vendor_id: EvidenceField,
     device_code: EvidenceField, subsystem_ref: EvidenceField, driver_ref: EvidenceField,
     observed_at: UtcMillis,
+}
+pub enum DeviceTarget {
+    Preinstall { plan_id: PlanId, disk_id: String, execution_id: String, boot_id: String },
+    Installed { machine_id: MachineId, boot_id: String },
+}
+pub struct DeviceTransition {
+    plan_id: PlanId, before: DeviceTarget, after: DeviceTarget,
+    device_ids: Vec<String>, verification_ref: String,
 }
 pub struct CapabilityRange { unit: String, min: i64, max: i64, step: i64 }
 pub struct DeviceCapability {
@@ -458,19 +466,34 @@ pub struct CapabilityEvidence {
 }
 ```
 
-CapabilityEvidenceは収集器が同じ対象/起動世代で検証した能力集合を保持する候補。全キーはtarget/devices/capabilities/verification_refだけ。devicesとcapabilitiesはdevice_idで一対一に解決し、MachineId/boot/topologyと選択機器・材料/algorithm/sensorの照合を終えてから構築する。能力行を別対象へ単独で貸与し、device_idの文字列だけで利用可としない。mining_planはevidence.targetと今回targetの固定証拠を照合し、時刻だけの更新と起動世代の変化を区別する。証拠参照だけ存在し元の観測を取得できない場合はDEVICE_EVIDENCEで保留する。型の存在は実機検証済みの意味ではない。
+CapabilityEvidenceは収集器が同じ対象/起動世代で検証した能力集合を保持する候補。全キーはtarget/devices/capabilities/verification_refだけ。devicesとcapabilitiesはdevice_idで一対一に解決し、[導入前後の同定](#導入前後の機器同定)と選択機器・材料/algorithm/sensorの照合を終えてから構築する。能力行を別対象へ単独で貸与し、device_idの文字列だけで利用可としない。mining_planはevidence.targetと今回targetの固定証拠を照合し、時刻だけの更新と起動世代の変化を区別する。証拠参照だけ存在し元の観測を取得できない場合はDEVICE_EVIDENCEで保留する。型の存在は実機検証済みの意味ではない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A07-42` | 別対象で同じdevice_id、devices一件欠損、旧bootの能力行、同一bootで時刻だけ更新 | 前三件はDEVICE_EVIDENCEで計画不可。最後は固定証拠の照合を維持し、時刻だけの別機器判定・別対象の能力流用なし |
 
-driver_materialはCPUでもOS側の対応実行基盤を台帳参照で特定し、GPU専用driverを架空登録しない。温度は符号付き、電力は0以上で共通外部整数範囲内、step>0を要求する。device_idをObservedから抽出する前に、同じMachineId/boot/topologyの照合が必要。温度/電力のNoneは制御非対応または未確認の区別を担当検査へ残し、確認不能を非対応の確証として処理しない。表示の検出一覧をCapabilityの集合へ無検査変換しない。
+driver_materialはCPUでもOS側の対応実行基盤を台帳参照で特定し、GPU専用driverを架空登録しない。温度は符号付き、電力は0以上で共通外部整数範囲内、step>0を要求する。device_idをObservedから抽出する前に、同じDeviceTarget/boot/topologyの照合が必要。温度/電力のNoneは制御非対応または未確認の区別を担当検査へ残し、確認不能を非対応の確証として処理しない。表示の検出一覧をCapabilityの集合へ無検査変換しない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A07-40` | device_id未取得、電力minが負、CPUに架空GPU driver、同位置でboot変更 | 能力構築/値域/資材照合を拒否し再同定。検出だけの対応認定・型宣言のないAPI入力・0埋めなし |
 
-機器の列挙候補では、CPU packageは対象のtopology識別、GPUはPCIのdomain:bus:device.functionとvendor/device/subsystem/driverへ対応付ける。PCIアドレスは当該起動世代内の位置で、恒久的な個体識別子ではない。DeviceIdentity候補はdevice_id・target_machine_id・boot_id・kind・topology_ref・vendor_id・device_code・subsystem_ref・driver_ref・observed_atの全キーとし、未取得は理由付きのEvidenceFieldで表す。候補IDだけで別boot/交換機器へ設定を再適用しない。
+機器の列挙候補では、CPU packageは対象のtopology識別、GPUはPCIのdomain:bus:device.functionとvendor/device/subsystem/driverへ対応付ける。PCIアドレスは当該起動世代内の位置で、恒久的な個体識別子ではない。DeviceIdentityの全キーは上記structと同じ集合とし、EvidenceFieldの未取得は理由付きで表す。候補IDだけで別boot/交換機器へ設定を再適用しない。
+
+### 導入前後の機器同定
+
+P02-MODELのMachineIdは構成初回確定時だけ生成するため、空diskの初回計画へ既存MachineIdを要求しない候補。DeviceTargetの外部表現はkindとvalueの二キーで、kind=preinstallならvalueはplan_id/disk_id/execution_id/boot_id、installedならmachine_id/boot_idだけ。未知キー・null・空値・別kindの混在を拒否する。DeviceIdentity.boot_idは同じDeviceTargetのboot_idへ一致させる。
+
+Preinstallは媒体またはP09/P10の初回導入における今回の親計画・固定対象disk・機器検出を行った対象側の実行環境/bootに束縛する。対象root/OSの不在を既存のTargetEvidenceで許容するが、対象diskの同一性と検出対象機器との対応は省略しない。Live/一時環境のOS machine-idや新しい乱数を対象MachineIdへ代入しない。導入予定のdriver/kernel/minerは固定資材と採用済み互換行で評価し、一時環境上でその版が稼働しているとは報告しない。Preinstallの能力は初回構成の計画にだけ使用し、運転開始/温度制御/MonitorMemoryの生成を許可しない。
+
+Installedは対象内で確定したMachineIdと現在bootへ束縛し、実driver/kernel/miner/sensorを再採取する。初回構成の最終確定へ進む前にDeviceTransitionを同期し、beforeは保存したPreinstall、afterは新規に生成した同じ対象のMachineId/boot、device_idsは選択機器の一意な全ID集合とする。親plan/disk、OSを導入した場合のP05/P10の起動証拠、既存OSならP09の同一対象/boot証拠と各機器の取得済みtopology/個体対応を全件照合する。MachineIdの生成を機器対応の証明にせず、PCI位置だけしかない場合の個体対応は未確認として保留する。
+
+device_idはDeviceTarget内の論理識別子であって全機器共通の恒久IDではない。新bootへの継承は上記遷移証拠がある全機器だけ、欠損/交換/対応不明ならDEVICE_EVIDENCEで運転開始0回。設定のdevice_idsを検出順で別機器へ書き換えない。再選択が必要なら新しい計画・確認へ戻す。DeviceTransitionは当該操作の固定記録`operations/OperationId/mining-device-transition.json`へ保存し、P02の必須記録へ対応付ける。実同定のOS取得方式・対象機種の成立根拠はD07-01/04に残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-43` | MachineIdのない空disk、LiveのIDを流用、Preinstallのままstart要求 | 正しい親/disk/実検出だけ計画候補、後二件は拒否。初回MachineIdとの相互待ち・架空ID・導入前の運転なし |
+| `A07-44` | 新bootで同じ選択機器を再同定、一GPUだけ交換、PCI位置だけ一致 | 全件対応時だけ遷移を確定。交換/対応不明は運転保留、検出順による設定差替え・旧能力の無検査再利用なし |
 
 温度の標準観測候補は[Linux hwmon](https://www.kernel.org/doc/Documentation/hwmon/sysfs-interface)の入力を、選定済みsensor_contractが示す機器/labelへ対応付けて読む方式。最大4 KiB/一入力、符号付き十進整数と末尾LF一つだけ、許容範囲を照合し、元単位がmilli_cの場合は値をそのまま保持する。hwmon番号/列挙順だけでCPU/GPUへの接続を推測しない。driver固有の温度単位/offset/欠損/更新間隔が不明ならunknown。標準化された名前があっても実際のセンサー配線/用途が一致した証拠を必要とする。
 

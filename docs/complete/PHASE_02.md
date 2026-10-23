@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-2-共通契約と構成選択)
 
-案版`B13`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
+案版`B14`・採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。既存の設定値・状態・終了コード・記録例は基本仕様が正本であり、本書では未定義部分の候補を扱う。共通型・CLI・解析・状態・記録・外部実行の具体化と受入設計を収録する。契約内容の採用や既存仕様の切替を含めない。
 
 ## 要件と契約の対応
 
@@ -17,7 +17,7 @@
 | `P02-STORE` | 排他・記録・原子性。[共通基盤](../BASIC_SPEC.md#共通基盤と状態管理) |
 | `P02-EXEC` | 外部実行の制御。[外部コマンド](../BASIC_SPEC.md#外部コマンドの未確定契約) |
 
-`P01-CLI`・`P01-CHECK`はB13の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
+`P01-CLI`・`P01-CHECK`はB14の[Phase 1](PHASE_01.md#要件と境界)を参照する。Phase 2を使用する後続フェーズは必要な本書の契約IDと節を個別に参照し、共通値を再定義しない。
 
 ## P02-MODEL
 
@@ -618,7 +618,7 @@ TargetEvidenceの比較では、元の証拠を保存する完全比較と、観
 
 | 型 | 全キー・値域の候補 |
 |---|---|
-| RecordReceipt | operation_id: OperationId、stage: prepared・history_committed・complete、record_paths: string[]、verified: boolean。completeと全必須保存の成功時だけverified=true |
+| RecordReceipt | operation_id: OperationId、stage: prepared・history_committed・complete、record_paths: string[]、verified: boolean。completeと本契約のcore必須保存の成功時だけverified=true |
 | CommandOutcome | status: exited・spawn_failed・signaled・timed_out・cancelled・output_limit・io_failed・stop_unknown、exit_code: integerまたはnull、signal: integerまたはnull、stdout_bytes・stderr_bytes・elapsed_ms: 0以上integer、stopped: boolean |
 
 ```rust
@@ -659,6 +659,8 @@ CLIのCheckは検査実施時の構造で、[状態キャッシュ](../BASIC_SPE
 TargetEvidence.disk_id/root_idは[P03-FS](PHASE_03.md#p03-fs)の実対象固定と照合する。OS・ブートIDは観測時点の識別で、SSHのホスト鍵やMachineIdと単独で同一視しない。media/masterというSelection.originは入口の区分であり、config.ymlのusb/cloudを変更する理由にならない。保存するenvironmentは基本仕様の導入経路を使う。
 
 保存記録の終了状態と[P04-UPDATE](PHASE_04.md#データ契約の具体化案)のStepReceiptを照合し、`history_committed`だけを操作完了にしない。RecordReceiptは実際に確認できた保存先と段階だけを返し、復旧が必要な中断記録を通常のfinish呼出しで上書きしない。必須履歴の容量・同期・原子置換が成立しない場合、変更開始を保留する。
+
+RecordReceipt.completeは本契約が所有するcore記録集合の確定であり、担当工程が要求する終了処理の代わりではない候補。本体変更を含む操作は[P04-SELFの終了処理](PHASE_04.md#本体変更の終了処理)も必要とする。self-finalizationはrequired_paths/observed_after_hashes/snapshotへ入れず、core確定後の独立した必須終了記録とする。StartEvidenceの収集器はその未完結ledger/解消参照を全件照合し、coreのhistory/operationがsuccessでも未完結なら通常beginをSTORE_RECONCILEにする。明示的な清掃専用復旧だけは同節のVerifiedFinalizationRecoveryを収集/照合して可否を判定する。読取りは不足Checkだけを返し、ledgerの作成・清掃・補修をしない。
 
 外部実行のtimeoutは実行開始からの親予算に制限され、出力・終了待ちにも残予算を割り当てる候補。停止確認不能はstopped=false、status=stop_unknownとし、ロックを解放しただけで新変更を許可しない。stdだけによる停止・同期I/Oの期限保証の未達を外部ツールの暗黙採用で埋めない。
 
@@ -747,6 +749,7 @@ pub struct StartEvidence {
     target: TargetEvidence, existing_operation_ids: Vec<OperationId>,
     previous_operation: Option<OperationRecord>, inventory_complete: bool,
     verification_ref: String, budget: OperationBudget,
+    finalization_recovery: Option<VerifiedFinalizationRecovery>,
 }
 pub fn prepare_start(guard: &OperationGuard, plan: &Plan,
     operation_id: OperationId, started_at: UtcMillis, deadline: std::time::Instant,
@@ -1099,7 +1102,7 @@ OperationStart.deadlineは今回の同一起動世代の外側実行器が固定
 
 開始識別の候補順は、OS取得器によるOperationId/開始時刻の生成→監督unitと要求への束縛→対象guard取得→prepare_start→beginとする。prepare_startは取得済み値を照合するだけでID生成/時計/保存を行わず、親Planとguardの対象一致、ID未使用、未完了操作なしを検証する。begin内部でIDを新規生成しない。OperationStartは非Clone、消費は一回だけで、intentとrunningとイベントは同じID/開始時刻へ結合する。
 
-ID未使用/前操作の検査入力はStartEvidenceからだけ受ける。収集器がguard下で対象の全必要記録と監督単位を照合して構築し、inventory_completeの自己申告だけでは生成できない。existing_operation_idsは既存の操作/履歴/対応記録のID集合、previous_operationは不在の確証だけNoneとし、読取り不能をNoneへ補完しない。別target、集合欠損/重複、同じIDの既存操作、running/interrupted/未確認の前操作はSTORE_RECONCILE。今回の開始要求への予約と、既に開始した同じIDの記録を区別する。純粋prepare_startから不足資料の読取り/復旧を開始しない。A02-123にはこの入力欠損/別対象も含める。
+ID未使用/前操作の検査入力はStartEvidenceからだけ受ける。収集器がguard下で対象の全必要記録と監督単位を照合して構築し、inventory_completeの自己申告だけでは生成できない。existing_operation_idsは既存の操作/履歴/対応記録のID集合、previous_operationは不在の確証だけNoneとし、読取り不能をNoneへ補完しない。別target、集合欠損/重複、同じIDの既存操作、running/interrupted/未確認の前操作はSTORE_RECONCILE。finalization_recoveryは通常Noneだけで、清掃専用復旧の受理は[P04の束縛条件](PHASE_04.md#本体変更の終了処理)へ一致したSomeだけを許す。既存core記録や実資源の不明をこの例外で無視しない。今回の開始要求への予約と、既に開始した同じIDの記録を区別する。純粋prepare_startから不足資料の読取り/復旧を開始しない。A02-123にはこの入力欠損/別対象も含める。
 
 初回の固定管理directory/lockの確保は基本仕様が許す準備だけに限定し、既存記録を初期化しない。intent保存後のrunning/イベント失敗では開始記録の残存を保持し、資源変更0件でも同じIDを新規beginへ再利用しない。resume_media等は別の再開契約で照合する。開始記録後の失敗は残存intent/開始位置を保持した開始失敗として報告し、対象適用開始後のChangeFailureと区別する。
 
@@ -1277,6 +1280,8 @@ beginの失敗はBeginFailureへ必ずID/段階/保存証拠を返す候補。la
 | plan / 変更操作 | 適用する共通八検査とPlan.contracts全件の担当検査閉包。依存/保全/署名/容量/復旧経路の担当検査を除外しない |
 | verify | 対象の共通集合と、選択構成が要求するP04/P06/P07/P08の検査。未定義の個別能力行はunknownとして充足不可 |
 | support-bundle | P02-STORE/records.consistent、P02-CLI/bundle.scope、bundle.redacted、bundle.archive、bundle.saved。dry-runはarchive/savedを未実施として予定表示し、成功済みにしない |
+
+本体変更の履歴を含むstatus/inspect/report/doctorと親操作の結果には、[P04-SELFの終了検査](PHASE_04.md#本体変更の終了処理)を同節の必須性で結合する。Queryの同検査はP09の読取り契約へ接続する。core記録のsuccessだけから当該Checkを生成せず、通常変更開始時と清掃専用復旧の受理条件も同じ正本へ照合する。
 
 担当契約に複数の適用stepがある場合はCheckを重複生成せず、各stepの証拠を照合して一件へ集約する。全件passだけpass、一件failならfail、failなしで欠損/unknownならunknown、全件が明示非適用の場合だけnot_applicable。集約前の結果はStepReceiptへ保持する。必須集合に含まれない追加CheckもIDと担当根拠を必要とし、未知IDはCLI_RENDER。判定前に集合の過不足を検出し、空の配列だけでsuccessを構築しない。
 

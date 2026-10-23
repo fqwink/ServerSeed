@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B13`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B14`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB13）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB14）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -101,6 +101,8 @@ ReconcileResultのdelivery=nullは記録を確認できない状態を含むた�
 リクエストは検証済みの1文書を標準入力で渡し、入力上限・UTF-8・複数文書の拒否は共通解析へ参照する。応答もP02-CLIの構造化結果で一度だけ返す案。バナー・進捗・sudoのプロンプトがstdoutへ混ざる経路は成功として解析しない。配送・記録が別々に確定した場合の全中断位置、固定入口の初回準備、親停止後の処理寿命は`D09-01`・`D09-02`の未達に残る。
 
 ## 接続と責務の照合
+
+本体変更を含むresult_readyの追加照合先は[P04の終了処理](PHASE_04.md#本体変更の終了処理)とする候補。coreのRecordReceipt.completeに加え、SelfFinalization.Completeだけ成功候補、同期済みFailedは確定失敗として回収可能、Prepared/Cleaning/Unknownは結果未確定とする。Queryは両者を区別したreceipt/Checkを返すだけで、清掃やcore記録の書換えを行わない。清掃復旧は新しい明示recover計画へ戻す。
 
 配送の再照合は[対象側記録](PHASE_02.md#p02-store)と[適用結果](PHASE_04.md#データ契約の具体化案)の読み取りで行い、同じRemoteRequestを再送して実行状況を問い合わせる方式にしない。問い合わせ・取消と変更要求の固定入口・型の分離が未確定である間は、任意の遠隔shell文字列を代用にしない。
 
@@ -369,6 +371,14 @@ root確定の比較候補は、既存OS側の信頼済みプロビジョニン�
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A09-40` | 暗号化鍵だけでagent未準備、別socketへの交換、agentの鍵と公開identityが不一致 | 変更配送前停止。平文鍵へのfallback・環境agentの継承・対象での解錠待ちなし |
+
+認証方式の閉包候補として通常argvの-o列へPreferredAuthentications=publickey、PubkeyAuthentication=yes、PasswordAuthentication=no、KbdInteractiveAuthentication=no、GSSAPIAuthentication=no、HostbasedAuthentication=no、PKCS11Provider=none、AddKeysToAgent=no、CanonicalizeHostname=noを明示する。方式別の意味は[公式設定資料](https://man.openbsd.org/ssh_config)へ照合し、BatchModeだけを方式制限にしない。未対応optionを削って動かさず、固定版の全有効設定と実認証をD09-01で確認する。
+
+agent socket/公開identity/known_hostsの解決値は、固定の絶対pathでASCII英数字・/・dot・underscore・hyphenだけ、空成分・.・..を拒否する候補。OpenSSH側のtoken/環境/tilde展開を起こす値を受けず、引数配列だから再解釈がないとは扱わない。公開identityだけを置く専用保護領域とし、隣接する-cert.pubや秘密鍵の暗黙読込み、agent内の別資格/証明書による認証がないことを固定版の候補集合へ照合する。IdentitiesOnlyだけで証明書の自動探索まで無効になるとはしない。未確認なら認証前停止し、未確認のCertificateFile値を創作しない。SFTPは同じ候補設定集合をその対応する-F/-o/-i引数へ束縛し、ssh専用フラグをSFTPへコピーしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-41` | agent参照に%h/$/tilde、隣接-cert.pub、passwordのみ成功する接続先、未対応固定option | 入力/資格候補/方式/adapterの各不成立で配送0回。token展開・別認証・option削除での続行なし |
 
 固定入口の候補は`/usr/bin/sudo -n -- /usr/local/libexec/serverseed-remote-entry`という変更不能な文字列一つ。構造化stdin以外からactionやpathを取らず、wrapperは所有者・mode・hashと許可された呼出主体を確認し、同一本体の内部入口だけへ引き渡す。root-ownedであることだけでは許可主体を証明しない。初回にwrapperがない対象へ、この通常配送を呼び出してはならない。
 
