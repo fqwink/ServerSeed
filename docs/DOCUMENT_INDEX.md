@@ -5,11 +5,13 @@
 
 ## 仕様版情報
 
-- 仕様リビジョン: 0.30
+- 仕様リビジョン: 0.32
 - 確定日: 2026-10-16
 - ステータス: 確定
 
 本欄の確定は承認済みの文書版を表し、製品全体の完全仕様化や実装完了を意味しない。仕様充足の判定は[開発ポリシー](POLICIES.md#実装着手と仕様充足の判定)、現在の未達事項、開発フェーズと実装の進捗は[ロードマップ](ROADMAP.md)を参照する。
+
+フェーズ別完全仕様の本文案は下記の案内から確認する。各案の作成承認と契約内容の採用承認は別であり、採用未承認案を本欄の確定済み仕様版へ含めない。
 
 ## 文書体系
 
@@ -22,9 +24,11 @@
 | 完全仕様の成立・内製機能とcrateの必須契約 | [成立条件](CHARTER.md#完全仕様の成立条件)、[内製の必須契約](CHARTER.md#内製機能とcrateの完全仕様)、[完全仕様の必須条件](POLICIES.md#完全仕様の必須条件) |
 | 内製化の判断・差し替えの区分と工程 | [標準機能と内製化](CHARTER.md#標準機能と内製化の判断)、[差し替えの定義](CHARTER.md#内製crateの差し替え)、[工程](CHARTER.md#内製化と差し替えの工程)、[確認条件](POLICIES.md#内製化と差し替えの確認条件)、[実施手順](../AGENTS.md#内製化と差し替えの実施手順) |
 | 判定区分・工程通過・憲章の発効 | [憲章第9条](CHARTER.md#第9条-適合判定の責任)、[第11条](CHARTER.md#第11条-再開と工程通過)、[第12条](CHARTER.md#第12条-制定改定と発効) |
+| 検証コードの実装言語と確認手順 | [憲章第8条](CHARTER.md#検証コードの実装言語)、[作業ルール](../AGENTS.md#検証コードの確認)、[テスト体系](BASIC_SPEC.md#テスト体系) |
 | 製品全体の基本仕様と構成固有の定義 | [基本仕様](BASIC_SPEC.md)、[構成別仕様](#構成別仕様) |
+| 機能名・概要・詳細の参照先 | [機能一覧](BASIC_SPEC.md#機能一覧) |
 | 要求・受入条件・未達箇所の追跡 | [要求と受入条件](BASIC_SPEC.md#受入と追跡)、[受入検証・未達箇所の対応](BASIC_SPEC.md#要件別の受入未達参照)、[未確定事項の所在](BASIC_SPEC.md#未確定事項) |
-| 内製機能とcrateの未確定部分 | [内製契約の所在](BASIC_SPEC.md#内製機能とcrateの未確定契約)、[現在の未達](ROADMAP.md#仕様充足の現在地) |
+| 内製機能とcrateの未確定部分 | [内製契約の所在](BASIC_SPEC.md#内製機能とcrateの未確定契約)、[現在の未達](ROADMAP.md#仕様充足の現在地)、[所有者の入力・採用判断](ROADMAP.md#確定に必要な所有者入力) |
 | 共通CLI・機種別操作の未確定部分 | [共通CLI・調査成果物](BASIC_SPEC.md#共通cliの未確定契約)、[ファームウェア](BASIC_SPEC.md#ファームウェアの未確定契約) |
 | 計画・操作記録・排他・ログの未確定部分 | [共通管理記録](BASIC_SPEC.md#共通管理記録の未確定契約)、[更新計画](BASIC_SPEC.md#更新計画) |
 | ポリシー設定・外部実行の未確定部分 | [バックアップ設定](POLICIES.md#バックアップ設定の未確定条件)、[セキュリティ設定](SECURITY_POLICY.md#セキュリティ設定の未確定条件)、[外部コマンド](BASIC_SPEC.md#外部コマンドの未確定契約) |
@@ -35,7 +39,7 @@
 | CIの環境・実行区分と成果物の公開先・検証情報 | [CI/CD仕様](BASIC_SPEC.md#cicd)、[成果物保管](BASIC_SPEC.md#成果物保管) |
 | 文書体系の移行・策定手順 | [ロードマップ](ROADMAP.md#文書体系の移行)、[作業ルール](../AGENTS.md#基本仕様と完全仕様の策定手順) |
 
-フェーズ別の完全仕様は未策定。作成状況と未達事項は上表の移行状況と[ロードマップ](ROADMAP.md)を参照し、仕様充足の判定と区別する。
+フェーズ別完全仕様の格納先は[製品仕様の案内](#フェーズ別完全仕様)、作成状況と未達事項は上表の移行状況と[ロードマップ](ROADMAP.md)を参照し、仕様充足の判定と区別する。
 
 ## 憲章
 
@@ -71,6 +75,44 @@
 | 文書 | 定義する内容 |
 |---|---|
 | [BASIC_SPEC.md](BASIC_SPEC.md) | 製品全体の基本仕様。目的・利用、対象範囲、実行環境、全体構成、運用方式、共通機能、情報管理、非機能、継続性、提供・保守、受入・追跡、未確定事項 |
+
+### フェーズ別完全仕様
+
+| 格納先 | 配置・命名の確認先 | 策定状況の確認先 |
+|---|---|---|
+| [complete/](complete/) | [作業ルール](../AGENTS.md#完全仕様書の配置) | [文書体系の移行](ROADMAP.md#文書体系の移行) |
+
+| 本文案 | 担当する具体化 | 契約の確認先 |
+|---|---|---|
+| [PHASE_01.md](complete/PHASE_01.md) | 開発・検証基盤とCLI骨格、全案の適用範囲 | [契約と要件](complete/PHASE_01.md#要件と境界) |
+| [PHASE_02.md](complete/PHASE_02.md) | 共通型・CLI・解析・構成選択・記録・外部実行 | [契約一覧](complete/PHASE_02.md#要件と契約の対応)、[CLI詳細案B12](complete/PHASE_02.md#p02-cli)、[解析詳細案B12](complete/PHASE_02.md#p02-parse) |
+| [PHASE_03.md](complete/PHASE_03.md) | IaCの資源・観測・差分・計画 | [契約一覧](complete/PHASE_03.md#契約と共通参照) |
+| [PHASE_04.md](complete/PHASE_04.md) | 本体管理・更新・保全・復旧・IaC適用 | [契約一覧](complete/PHASE_04.md#契約と依存) |
+| [PHASE_05.md](complete/PHASE_05.md) | ISO・外部媒体・引継ぎ・ファームウェア | [契約一覧](complete/PHASE_05.md#契約と参照) |
+| [PHASE_06.md](complete/PHASE_06.md) | サーバ設定・アプリとデータ保全 | [契約一覧](complete/PHASE_06.md#契約と共通参照) |
+| [PHASE_07.md](complete/PHASE_07.md) | 採掘機器・設定・監視・復旧・更新 | [契約一覧](complete/PHASE_07.md#契約と共通参照) |
+| [PHASE_08.md](complete/PHASE_08.md) | 物理マスター・台帳・同居・固有保全 | [契約一覧](complete/PHASE_08.md#契約と参照) |
+| [PHASE_09.md](complete/PHASE_09.md) | SSH・要求配送・再接続・中断照合 | [契約一覧](complete/PHASE_09.md#契約と共通参照) |
+| [PHASE_10.md](complete/PHASE_10.md) | 一時環境・OS導入・起動不能時復旧 | [契約一覧](complete/PHASE_10.md#契約と共通参照) |
+| [PHASE_11.md](complete/PHASE_11.md) | 全体受入・成果物照合・リリース | [契約一覧](complete/PHASE_11.md#契約と依存範囲) |
+
+案の位置付け・照合元・案版と承認済み版の区別は[案の適用範囲](complete/PHASE_01.md#案の適用範囲)、策定・実装・受入の状態は[フェーズ別の進捗](ROADMAP.md#フェーズ別の進捗)を参照する。
+
+本文案B12の各フェーズには「型とAPIの詳細案」「入力と保存形式の詳細案」「実行と復旧の確定候補」「依存と受入の確定候補」を収録する。採用待ち/残る具体化/方式の成立根拠は各本文末尾の判断IDが正本であり、本索引へ状態や定義を複製しない。「確定候補」は採用済み・実装可能・試験済みの意味ではない。
+
+| 横断して確認する担当契約 | 直接参照 |
+|---|---|
+| シェル検証の具体化と限界 | [起動・構造解析・byte保持・監督](complete/PHASE_01.md#シェル検証の実行境界候補)、[契約別13項目の審査資料](complete/PHASE_11.md#受入条件の充足照合案) |
+| 対象固定を必要とする全操作 | [RootBindingの使用先](complete/PHASE_03.md#対象固定を使用する操作の閉包) |
+| 共通スキーマ・応答・開始/保存確定 | [形式](complete/PHASE_02.md#共通スキーマの型対応)、[CommandData](complete/PHASE_02.md#検査観測の固定集合)、[開始ID/記録順](complete/PHASE_02.md#記録集合と保存順序) |
+| 型付き状態入力・必須検査・再起動期限 | [記録の不在/不明/不正](complete/PHASE_02.md#状態入力の閉じた型)、[検査閉包](complete/PHASE_02.md#コマンドごとの検査閉包)、[期限証拠](complete/PHASE_02.md#再起動をまたぐ期限の照合) |
+| 計画生成から封印・確認への接続 | [共通構築器](complete/PHASE_03.md#依存と受入の確定候補)、[媒体の確認順](complete/PHASE_05.md#subiquity入力生成の対応表)、[マスターの平坦合成](complete/PHASE_08.md#データ契約の具体化案) |
+| 資源・封印済み計画 | [Plan型と封印](complete/PHASE_03.md#依存と受入の確定候補)、[型付きdigest射影](complete/PHASE_03.md#入力と保存形式の詳細案)、[payloadの復号区分](complete/PHASE_03.md#非資源stepの閉じたpayload) |
+| 署名検証・暗号/復元 | [二入力pipe](complete/PHASE_04.md#匿名pipeによるdetached検証)、[暗号profile/容量](complete/PHASE_04.md#暗号profileと容量の閉じた比較案)、[隔離容量](complete/PHASE_04.md#復元の検証先と平文容量) |
+| 媒体とCloudの入口 | [内蔵継続](complete/PHASE_05.md#内蔵os継続unitと二回の起動証拠)、[初回SSH搬入](complete/PHASE_09.md#ssh起動と初回搬入の分離)、[導入機構](complete/PHASE_10.md#curtin-adapterの比較入力) |
+| 遠隔結果・マスター復旧 | [失敗枝を含む結果上界](complete/PHASE_09.md#配送結果の事前上界)、[全要求索引](complete/PHASE_09.md#両側の配送保存と容量上限)、[master-v1と主体移行](complete/PHASE_08.md#単一制御主体の移行候補) |
+| 受入と未達の照合 | [13必須項目](complete/PHASE_11.md#受入条件の充足照合案)、[カタログ形式](complete/PHASE_11.md#受入カタログの閉包と更新)、[全ケースの割当](complete/PHASE_11.md#全ケースの実行割当案)、[Scopeへの束縛](complete/PHASE_11.md#設計行から実行scopeへの束縛) |
+| 許可条件と個別採用 | [一般ポリシー](POLICIES.md#形式互換と実行方式の審査候補)、[安全審査](SECURITY_POLICY.md#完全仕様化に伴う審査候補)、[例外候補](DEPENDENCY_EXCEPTIONS.md#追加の個別審査候補) |
 
 ### 構成別仕様
 

@@ -25,7 +25,37 @@
 
 OS・CIイメージなどの集合は、具体化時に使用パッケージ、実行ファイル、Action、プラグイン、配布資材ごとの採用情報へ分解する。集合の説明は個別の採用情報の代わりにしない。承認や検証の証跡は参照先で特定し、台帳の記載と変更理由の扱いは[憲章第3条](CHARTER.md#第3条-文書の責務と正本)へ照合する。
 
+## 追加の個別審査候補
+
+以下は完全仕様本文案を具体化するための未採用候補で、例外の追加・使用許可・現在状態の変更ではない。採用する場合は既存集合を実行物・成果物単位へ分解し、本書の個別採用情報を全項目揃えて所有者が決定する。固定版・ハッシュ・ライセンス・実行結果・承認根拠を推測で埋めない。
+
+| 候補・既存集合との対応 | 採用前に確定する個別範囲 |
+|---|---|
+| HTTPS取得用OS実行物、EX-001 | curl等の比較、取得先・TLS・redirect・容量/時間・全引数・実行時依存。現時点で実行物の採用なし |
+| tar.gz生成、EX-001/EX-008 | [tar/gzip生成と内製の一member検査](complete/PHASE_02.md#bundle生成adapterの比較契約)を照合。生成実行物の個別版と内製検査器の契約を区別し、内製検査を第三者crateの採用へ転用しない。bundle生成以外の抽出権限を追加しない |
+| バックアップ暗号化、EX-001/EX-008 | OS実行時と検証/配布時の用途を分け、GnuPGの[形式とargv](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補)、[比較profile/容量](complete/PHASE_04.md#暗号profileと容量の閉じた比較案)、[鍵用途](SECURITY_POLICY.md#鍵用途ごとの保護審査)を個別審査。開発ツールまたはgpgvの用途承認だけで対象OSの暗号化を許可しない |
+| 一時実行環境・監督/パス操作、EX-001 | rescue OS・CPU・必要コマンド、セッション切断後の寿命・対象排他・安全なroot固定。OS標準という名称だけで包括許可しない |
+| ISOのRAM実行と継続unit、EX-002/EX-008 | 対応ベース版のブート設定、RAM容量・参照解除・媒体取外し・内蔵OS引渡しの実証 |
+| Cloud導入機構A、EX-001/EX-002 | 第一候補Canonical Curtinの[adapter比較入力](complete/PHASE_10.md#curtin-adapterの比較入力)を審査。固定版・rootfs形式・Python/FS/loader等の推移依存と全設定を個別化し、媒体用Subiquityとの同一視や包括許可をしない |
+| 個別コマンド候補の資料対応、EX-001/EX-009 | [実行環境と期限](complete/PHASE_02.md#p02-exec)、[監督unit](complete/PHASE_02.md#実行と復旧の確定候補)、[取得argv/量](complete/PHASE_04.md#依存と受入の確定候補)、[OpenSSH](complete/PHASE_09.md#実行と復旧の確定候補)、[Release API](complete/PHASE_11.md#実行と復旧の確定候補)へ対応。cwd・環境・stdin・停止予約を含む全実行契約と版/例外情報を照合し、資料確認を実行成功としない |
+| 初回搬入/昇格、EX-001 | [SFTPと初回入口](complete/PHASE_09.md#ssh起動と初回搬入の分離)のclient/server/subsystem、sudoとpolicy plugin、root実体の固定方式を個別化。OpenSSH client採用だけでSFTP server能力・sudo権限・fd実行の成立を認定しない |
+| 新OS準備、EX-001/EX-002 | [target-prepare](complete/PHASE_10.md#新os信頼根拠の引渡し)で使うuseradd/visudo/sshd、対象内実行adapterとPAM/NSS/loader等の実依存を固定。内部helperの名称を未採用OSツールの包括許可にしない |
+| 非保存署名検証、EX-001/EX-008 | [匿名pipe検証](complete/PHASE_04.md#匿名pipeによるdetached検証)に対応するgpgvのfd/status/logger option、鍵方式/期限/失効を独立照合。Rustのpipe APIと外部検証実行物を別に評価 |
+| シェル検証基盤、EX-008 | [実行境界候補](complete/PHASE_01.md#シェル検証の実行境界候補)のGNU Bash、byte入出力/時計/監督/同期の各実行物を個別化する。検証対象として呼ぶ製品処理と検証専用の補助を区別し、外部言語パーサーや製品内試験専用機能による迂回を採用しない。正確な版・構造解析と内部注入の成立根拠は未確定 |
+
+候補の手順・キー・引数は各担当本文だけへ置き、本書は採用情報とその参照を管理する。監督方式の採用はsystemd全機能の包括許可ではなく、curlの候補はTLS/redirect/大容量保存方式の実証不足を解消しない。未選定の暗号・loader・機器コマンドは、別実行物を実装時に自由選択できる余地として扱わない。
+
+個別候補は担当本文の判断IDへ結び付ける。固定環境はD01-03、root操作はD03-02、取得/暗号はD04-01/02、媒体/機種はD05-01/04、アプリはD06-03、機器はD07-04、初回SSH搬入はD09-01、導入機構はD10-01、公開APIはD11-02を審査先とする。複数候補がある場合は比較対象のまま識別し、推奨の記載を個別採用・使用可能への変更にしない。採用前の候補情報と、下表の現在有効な状態を混同しない。
+
+参照種別の確認先は[MaterialRef/ReleaseArtifactRef](complete/PHASE_05.md#型とapiの詳細案)とする。独自リリース成果物へ架空の例外IDを付けず、第三者プログラムを独自成果物の参照へ移して本台帳の審査を省略しない。初回搬入の本体/manifest/署名/build metadataと、SSH/検証/昇格の各実行物は[P09-SSH](complete/PHASE_09.md#p09-ssh)で分けて照合する。本項は個別版の採用・現在状態の変更ではない。
+
+一次資料の確認結果は[標準機能の調査](complete/PHASE_01.md#標準機能の充足調査)、[新規成果物の確定方式候補](complete/PHASE_02.md#実行と復旧の確定候補)、[配布取得の比較](complete/PHASE_04.md#依存と受入の確定候補)、[API版の照合](complete/PHASE_11.md#実行と復旧の確定候補)へ対応付ける。APIの存在や文書例の版を、OSパッケージ/実行イメージの固定参照、ライセンス評価または対象環境での検証結果へ転用しない。
+
+調査時点の識別情報として、2026-10-22に[Ubuntu Nobleのgpg manpage](https://manpages.ubuntu.com/manpages/noble/man1/gpg.1.html)が示すパッケージ表記は2.4.4-2ubuntu17.6。これは取得した実パッケージの固定hash/署名/動作結果ではなく、採用版は未選定のままとする。Curtinの[公式資料](https://curtin.readthedocs.io/en/latest/topics/storage.html)に表示される文書版もUbuntuパッケージ版とは別で、採用版の根拠にしない。SRBMinerは[公式本文](https://github.com/doktor83/SRBMiner-Multi)の公開だけで再配布/ISO同梱の許可を認定せず、採用する個別版の条件確認を必要とする。
+
 ## 外部依存の例外一覧
+
+再起動をまたぐ予算の取得方式は[P02のclock_contract](complete/PHASE_02.md#再起動をまたぐ期限の照合)の採用対象で、EX-001のOS時計という集合名だけでは充足しない。停止/電源断/時刻補正を含む保証範囲、実行物/取得API・固定版・失敗条件を個別採用情報へ対応付ける。未選定の外部時刻サービスを追加利用しない。初回搬入は[P09の型と生成条件](complete/PHASE_09.md#ssh起動と初回搬入の分離)、暗号方式は[P04の内部profile根拠](complete/PHASE_04.md#公開鍵暗号化バックアップの形式候補)まで確認し、外側のツール名だけを包括許可にしない。いずれも下表の現在状態は変更しない。
 
 下表は既存仕様で使用対象とする用途を示す。個別の採用版・ライセンス・検証・承認根拠が揃っていないため、現在状態は全件`未確定`とする。Rustツールチェーンの採用版の定義も、その基盤全体が使用条件を満たしたことの証明とは区別する。
 
