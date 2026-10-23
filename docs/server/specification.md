@@ -33,7 +33,7 @@ Docker・Composeおよびアプリ固有の外部実行物は[外部依存の例
 | 担当する追加具体案 | 定義先 |
 |---|---|
 | 全設定/計画/結果の型とHTTP adapter | [型と結果の対応](../complete/PHASE_06.md#型とapiの詳細案)、[health adapter](../complete/PHASE_06.md#health-urlと外部adapter) |
-| Compose projectと全サービス・版別データ方法 | [Composeの範囲](../complete/PHASE_06.md#composeの範囲とデータ方法行)、[P06-DATA](../complete/PHASE_06.md#p06-data) |
+| Compose projectと全サービス・版別データ方法 | [Composeの範囲](../complete/PHASE_06.md#composeの範囲とデータ方法行)、[実container同定](../complete/PHASE_06.md#実containerへの束縛)、[P06-DATA](../complete/PHASE_06.md#p06-data) |
 | 元稼働集合と停止/復帰、全アプリの親予算 | [データ整合](../complete/PHASE_06.md#p06-data)、[P06-APP](../complete/PHASE_06.md#p06-app) |
 
 新形式の全キーと旧形式の扱いは[入力/保存形式](../complete/PHASE_06.md#入力と保存形式の詳細案)、停止取得/health試行の中断は[実行/復旧](../complete/PHASE_06.md#実行と復旧の確定候補)の候補へ集約する。既存backup.requiredの保護を維持し、旧backup.commandから復元/隔離検査を自動生成しない。新形式の採用・互換判断までは、下記の例を新形式に対応済みという根拠にしない。

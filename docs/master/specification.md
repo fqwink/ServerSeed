@@ -85,7 +85,7 @@ SSH切断、マスター停止、対象再起動で結果を受け取れなか�
 
 | 担当する具体案 | 定義先 |
 |---|---|
-| 台帳・編集・readiness・型 | [Phase 8の入力](../complete/PHASE_08.md#入力と保存形式の詳細案)、[型/API](../complete/PHASE_08.md#型とapiの詳細案)、[集計](../complete/PHASE_08.md#データ契約の具体化案) |
+| 台帳・編集・readiness・型 | [Phase 8の入力](../complete/PHASE_08.md#入力と保存形式の詳細案)、[型/API](../complete/PHASE_08.md#型とapiの詳細案)、[集計](../complete/PHASE_08.md#データ契約の具体化案)、[初回入力と生成順](../complete/PHASE_08.md#内製api差し替え案) |
 | 自身を遠隔対象にしない照合 | [対象台帳の同一性](../complete/PHASE_08.md#データ契約の具体化案) |
 | CLI解析・必須選択・型付き応答・送信後の未確認 | [MasterInvocation/MasterData](../complete/PHASE_08.md#マスターcliの解析と応答全集合) |
 | 同居資源・測定 | [測定と割当算定](../complete/PHASE_08.md#同居資源の測定と割当算定) |
