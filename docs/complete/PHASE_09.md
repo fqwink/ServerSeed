@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-9-マスターから既存osへのssh導入保守)
 
-採用未承認の`B12`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
+採用未承認の`B13`であり、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。担当は`REQ-001`・`REQ-002`・`REQ-003`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスターの処理](../master/specification.md#自動処理の流れ)と[Cloud導入](../BASIC_SPEC.md#sshによるcloud環境の導入と保守)を具体化する候補で、OS未導入の導入機構はPhase 10へ分離する。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P09-REMOTE` | 計画・対象・操作の結合と配送 |
 | `P09-RECONNECT` | 切断・再起動・中断後の照合と再接続 |
 
-使用する契約（全フェーズB12）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
+使用する契約（全フェーズB13）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-CLI`・[出力](PHASE_02.md#p02-cli)、`P02-STORE`・[排他](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P04-SELF`・[配置](PHASE_04.md#p04-self)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P08-MASTER`・[対象台帳](PHASE_08.md#p08-master)。信頼・認証・秘密情報の許可条件は[Cloudの管理経路](../SECURITY_POLICY.md#cloudの管理経路)へ参照し、本書で独立したセキュリティ仕様を設けない。
 
 ## P09-SSH
 
@@ -362,7 +362,13 @@ root確定の比較候補は、既存OS側の信頼済みプロビジョニン�
 |---|---|---|
 | `A09-37` | staging既存/途中put、四資材一致だが昇格入口なし、fdexecだけ確認し同時writerあり | 再利用/自動再開/worker開始を行わない。未設置wrapperへの依存循環・転送成功だけのroot実行・digestだけの対象固定認定なし |
 
-通常配送のargv候補は`ssh -F /dev/null -T -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=none -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o VerifyHostKeyDNS=no -o UserKnownHostsFile=<固定known_hosts> -o GlobalKnownHostsFile=/dev/null -o ConnectionAttempts=1 -o ConnectTimeout=30 -o ControlMaster=no -o ControlPath=none -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes -o PermitLocalCommand=no -o ProxyCommand=none -o ProxyJump=none -i <固定identity> -p <port> -l <user> -- <host> <固定入口>`とする。各空白区切りは独立した引数で、山括弧部分は検証済み参照の解決値だけ。host/user/portの文法は台帳の正本へ照合し、hostをoptionとして扱わない。cwdはマスターの固定作業領域、環境はLANG/LC_ALLと必要な固定PATHだけを新規構成し、SSH_AUTH_SOCK・SSH_ASKPASS・DISPLAYを継承しない。秘密鍵の保護条件はセキュリティポリシーで審査する。
+通常配送のargv候補は`ssh -F /dev/null -T -o BatchMode=yes -o IdentitiesOnly=yes -o IdentityAgent=<固定agent_socket> -o StrictHostKeyChecking=yes -o UpdateHostKeys=no -o VerifyHostKeyDNS=no -o UserKnownHostsFile=<固定known_hosts> -o GlobalKnownHostsFile=/dev/null -o ConnectionAttempts=1 -o ConnectTimeout=30 -o ControlMaster=no -o ControlPath=none -o ForwardAgent=no -o ForwardX11=no -o ClearAllForwardings=yes -o PermitLocalCommand=no -o ProxyCommand=none -o ProxyJump=none -i <固定公開identity> -p <port> -l <user> -- <host> <固定入口>`とする。各空白区切りは独立した引数で、山括弧部分は検証済み参照の解決値だけ。host/user/portの文法は台帳の正本へ照合し、hostをoptionとして扱わない。cwdはマスターの固定作業領域、環境はLANG/LC_ALLと必要な固定PATHだけを新規構成し、SSH_AUTH_SOCK・SSH_ASKPASS・DISPLAYを継承しない。秘密鍵の保護条件はセキュリティポリシーで審査する。
+
+本候補の認証は、所有者が許可したローカルagentの固定socketと公開鍵の組に限定する。[OpenSSH公式設定](https://man.openbsd.org/ssh_config#IdentityAgent)のIdentityAgentは環境変数の継承と別に指定でき、IdentityFileはagent内の鍵を選ぶ公開鍵にもできる。暗号化秘密鍵を非対話SSHが自力で解錠できるとは仮定しない。解錠/署名操作を含む資格準備はマスター側の事前工程で完了し、対象VPSでの追加入力、平文秘密鍵file、汎用agentの自動探索へ切り替えない。socket所有者/実体/利用資格/寿命と対象公開鍵の対応が未確認ならSSH_AUTHENTICATIONで停止する。SFTPも同じ固定認証契約を使う。方式の採用と実認証の根拠はD09-01に残す。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-40` | 暗号化鍵だけでagent未準備、別socketへの交換、agentの鍵と公開identityが不一致 | 変更配送前停止。平文鍵へのfallback・環境agentの継承・対象での解錠待ちなし |
 
 固定入口の候補は`/usr/bin/sudo -n -- /usr/local/libexec/serverseed-remote-entry`という変更不能な文字列一つ。構造化stdin以外からactionやpathを取らず、wrapperは所有者・mode・hashと許可された呼出主体を確認し、同一本体の内部入口だけへ引き渡す。root-ownedであることだけでは許可主体を証明しない。初回にwrapperがない対象へ、この通常配送を呼び出してはならない。
 
@@ -456,7 +462,7 @@ A09-33/39には同じ短い正常計画の全失敗枝、最大長diagnostic、e
 
 | 判断ID | 必要な判断・確認 | 影響 |
 |---|---|---|
-| `D09-01` | [SSHと初回搬入](#ssh起動と初回搬入の分離)に通常argv案あり。初回転送/署名検証/昇格/入口設置の循環しない実契約と固定版は未完了 | 初回搬入・遠隔実行 |
+| `D09-01` | [SSHと初回搬入](#ssh起動と初回搬入の分離)に通常argv/固定agent案あり。資格準備の安全条件・実認証と、初回転送/署名検証/昇格/入口設置の循環しない実契約・固定版は未完了 | 初回搬入・遠隔実行 |
 | `D09-02` | [両側配送保存](#両側の配送保存と容量上限)に順序/上限案あり。対象worker寿命・部分同期の実方式と採用判断が残る。Queryは修復しない | 重複防止・切断復旧 |
 | `D09-03` | 三独立照合・有限再接続に案あり。固定fixture/隔離VM・各対象証拠条件と採用判断が残る。成功接続を再送許可にしない | 遠隔の結果判定 |
 

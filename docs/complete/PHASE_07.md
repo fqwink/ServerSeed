@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-7-マイニング構成監視自動復旧)
 
-本書は`B12`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
+本書は`B13`の審査用本文で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。担当は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[マイニング構成仕様](../mining/specification.md)と各運転ポリシーの既存定義を変更しない。
 
 ## 契約と共通参照
 
@@ -13,7 +13,7 @@
 | `P07-RUN` | CPU/GPU別の監視・制御・復旧 |
 | `P07-UPDATE` | 採掘プログラム・設定の更新と失敗時復旧 |
 
-共通契約（全フェーズB12）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
+共通契約（全フェーズB13）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-STORE`・[排他と記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部起動](PHASE_02.md#p02-exec)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)。ホスト共有条件は`P08-COHOST`へ接続する。
 
 ## P07-DEVICE
 
@@ -71,7 +71,7 @@ MiningUpdateBinding候補の全キーはbefore_miner・after_miner（MaterialRef
 
 | 宣言案 | 入出力と副作用 |
 |---|---|
-| `mining_plan(config: &MiningConfig, target: &TargetEvidence, capabilities: &[DeviceCapability], identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 検証済み設定・能力・親識別から未封印適用計画を返す。ID/時刻/hashを生成せず、用途を自動選択しない |
+| `mining_plan(config: &MiningConfig, target: &TargetEvidence, evidence: &CapabilityEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ対象/起動世代へ束縛された検証済み能力と親識別から未封印計画を返す。ID/時刻/hashを生成せず、用途を自動選択しない |
 | 監視評価 | 宣言は[型付きevaluate_monitor](#型とapiの詳細案)へ集約。前状態・試料・設定を入力にする純粋処理 |
 | `control(ctx: &mut ExecutionContext, request: &ControlRequest) -> ChangeResult<ControlReceipt>` | 許可・競合・対象と同じ要求キーを再照合し、該当サービスだけを変更 |
 
@@ -452,7 +452,17 @@ pub struct DeviceCapability {
     algorithms: Vec<String>, sensor_contract: ContractRef,
     temperature_range: Option<CapabilityRange>, power_range: Option<CapabilityRange>,
 }
+pub struct CapabilityEvidence {
+    target: TargetEvidence, devices: Vec<DeviceIdentity>, capabilities: Vec<DeviceCapability>,
+    verification_ref: String,
+}
 ```
+
+CapabilityEvidenceは収集器が同じ対象/起動世代で検証した能力集合を保持する候補。全キーはtarget/devices/capabilities/verification_refだけ。devicesとcapabilitiesはdevice_idで一対一に解決し、MachineId/boot/topologyと選択機器・材料/algorithm/sensorの照合を終えてから構築する。能力行を別対象へ単独で貸与し、device_idの文字列だけで利用可としない。mining_planはevidence.targetと今回targetの固定証拠を照合し、時刻だけの更新と起動世代の変化を区別する。証拠参照だけ存在し元の観測を取得できない場合はDEVICE_EVIDENCEで保留する。型の存在は実機検証済みの意味ではない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A07-42` | 別対象で同じdevice_id、devices一件欠損、旧bootの能力行、同一bootで時刻だけ更新 | 前三件はDEVICE_EVIDENCEで計画不可。最後は固定証拠の照合を維持し、時刻だけの別機器判定・別対象の能力流用なし |
 
 driver_materialはCPUでもOS側の対応実行基盤を台帳参照で特定し、GPU専用driverを架空登録しない。温度は符号付き、電力は0以上で共通外部整数範囲内、step>0を要求する。device_idをObservedから抽出する前に、同じMachineId/boot/topologyの照合が必要。温度/電力のNoneは制御非対応または未確認の区別を担当検査へ残し、確認不能を非対応の確証として処理しない。表示の検出一覧をCapabilityの集合へ無検査変換しない。
 

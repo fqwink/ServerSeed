@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B12`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B13`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB12）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB13）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -280,6 +280,12 @@ IPv4字句の候補はASCII十進4octet、各0〜255、0以外の先頭zero・�
 InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致→layout/boot.mode一致→sectorと全partition算定→network→user/公開鍵契約→loader/次endpointの順。NetworkInputはinterface_id/method/addresses/gateway/dns/mac_address/mtuの七項目だけで、八つ目を補完しない。dhcpの値集合とstaticの値集合は相互排他とし、staticのCIDRは一つのIPv4とprefix、gateway/dnsはCIDRを持たないIPv4へ照合する。複数アドレス・未知method・未確認MAC・必須の鍵/昇格方式未定義はINSTALL_PAYLOADで消去前停止。installerが後で補正することを成功条件にしない。
 
 entryは検証器を呼ぶ入口が指定する候補で、payloadから自己申告させない。Mediaではnext_endpoint=nullを要求し、物理PCの導入にマスター台帳への登録やSSH再接続を追加しない。SshBootstrapでは登録済み参照が必須で、nullはINSTALL_PAYLOAD。同じstorage/network/user/loaderの共通検証を再利用し、起動後の確認先だけを媒体の内蔵表示/記録とCloudのP09再接続へ分ける。
+
+起動方式は実行側CPUだけでなく、対象CPU・固定OS資材・loader・installerの対応集合へ照合する候補。arm64媒体のUEFIとamd64のUEFI/BIOSは[P11の経路表](PHASE_11.md#p11-accept)へ対応付け、whole_disk_biosの形式が存在することをarm64 BIOS対応の根拠にしない。Cloud側も採用したInstallerBindingのarchitecture/boot両条件と当該組合せの実契約を必要とし、二つの許可配列の無条件直積を対応済みにしない。未知の組はINSTALL_BINDINGで消去前停止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-36` | arm64媒体にBIOS、対象CPUとloaderが不一致、配列には各値があるが組の契約なし | 導入前拒否。実行側CPU・配列の存在・レイアウト名だけの対応認定、別方式への変更なし |
 
 これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
 

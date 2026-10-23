@@ -38,7 +38,7 @@ OS・CIイメージなどの集合は、具体化時に使用パッケージ、�
 | ISOのRAM実行と継続unit、EX-002/EX-008 | 対応ベース版のブート設定、RAM容量・参照解除・媒体取外し・内蔵OS引渡しの実証 |
 | Cloud導入機構A、EX-001/EX-002 | 第一候補Canonical Curtinの[adapter比較入力](complete/PHASE_10.md#curtin-adapterの比較入力)を審査。固定版・rootfs形式・Python/FS/loader等の推移依存と全設定を個別化し、媒体用Subiquityとの同一視や包括許可をしない |
 | 個別コマンド候補の資料対応、EX-001/EX-009 | [実行環境と期限](complete/PHASE_02.md#p02-exec)、[監督unit](complete/PHASE_02.md#実行と復旧の確定候補)、[取得argv/量](complete/PHASE_04.md#依存と受入の確定候補)、[OpenSSH](complete/PHASE_09.md#実行と復旧の確定候補)、[Release API](complete/PHASE_11.md#実行と復旧の確定候補)へ対応。cwd・環境・stdin・停止予約を含む全実行契約と版/例外情報を照合し、資料確認を実行成功としない |
-| 初回搬入/昇格、EX-001 | [SFTPと初回入口](complete/PHASE_09.md#ssh起動と初回搬入の分離)のclient/server/subsystem、sudoとpolicy plugin、root実体の固定方式を個別化。OpenSSH client採用だけでSFTP server能力・sudo権限・fd実行の成立を認定しない |
+| 初回搬入/昇格、EX-001 | [SFTPと初回入口](complete/PHASE_09.md#ssh起動と初回搬入の分離)のclient/server/subsystem、固定agentと資格準備、sudoとpolicy plugin、root実体の固定方式を個別化。OpenSSH client採用だけで認証・SFTP server能力・sudo権限・fd実行の成立を認定しない |
 | 新OS準備、EX-001/EX-002 | [target-prepare](complete/PHASE_10.md#新os信頼根拠の引渡し)で使うuseradd/visudo/sshd、対象内実行adapterとPAM/NSS/loader等の実依存を固定。内部helperの名称を未採用OSツールの包括許可にしない |
 | 非保存署名検証、EX-001/EX-008 | [匿名pipe検証](complete/PHASE_04.md#匿名pipeによるdetached検証)に対応するgpgvのfd/status/logger option、鍵方式/期限/失効を独立照合。Rustのpipe APIと外部検証実行物を別に評価 |
 | シェル検証基盤、EX-008 | [実行境界候補](complete/PHASE_01.md#シェル検証の実行境界候補)のGNU Bash、byte入出力/時計/監督/同期の各実行物を個別化する。検証対象として呼ぶ製品処理と検証専用の補助を区別し、外部言語パーサーや製品内試験専用機能による迂回を採用しない。正確な版・構造解析と内部注入の成立根拠は未確定 |

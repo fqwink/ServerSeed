@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B12`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B13`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB13）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -455,6 +455,14 @@ file-sinkの候補は親が保護directoryにcreate_newで開いた通常fileだ
 curlの全argv候補は、固定実行path、--disable、--globoff、--proto、=https、--proto-redir、=https、--connect-timeout、30、--max-time、残通常秒の十進値、--retry、0、--silent、--show-error、--fail、--max-filesize、許可bytes、--output、固定一時path、--write-out、固定書式、--url、検証済みURLの順。書式はhttp_code/size_download/redirect_urlを各一行とする。URL/pathは固定構築した一引数、--locationなし、cwdは当該作業directory、環境はLANG=C/LC_ALL=Cだけ、stdinは空。API認証が必要なら登録済み認証参照から生成したheaderをstdinへ渡す--header/@-の二引数だけを追加する候補とし、秘密値をargv/環境/記録へ置かない。
 
 redirect比較方式では3xxの応答を完成bodyへ昇格せず、Location由来のredirect_urlを元URLとの相対解決後に再検証する。origin許可・最大三段・循環・認証の非転送を全段に適用する。各段は新しい空の一時fileを使い、3xx bodyを最終payloadへ連結しない。固定write-outの量/行数/整数/URLを検証し、外部出力をコマンドとして評価しない。curlの非ゼロ、取得量の相違、HTTP 200以外の最終応答はFETCH_RESPONSE。採用版で全option・TLS・容量強制を実証するまで実行不可。
+
+redirect_url一値だけでは複数Locationの拒否を証明できない。比較方式を採用するには、最終応答のLocation全出現を保持するheader観測を別に固定し、欠損/二件以上/空値/不正文法を拒否する候補とする。正規化後の一値しか取得できないadapterは不成立。curlの[write-out資料](https://curl.se/docs/manpage.html#-w)にあるheader_jsonは値を配列で表すが、固定版での出現保持・応答区分・量制限の実証は別に必要であり、ここでargvへ自動追加しない。
+
+取得の容量・hashはfile-sinkに保存した実byte列から求める。size_download等の表示値は補助情報であり、短い受信、HTTPエラー、同期失敗を成功へ変換しない。--max-timeの値は残通常時間を正の十進秒へ変換し、0または表現不能なら起動しない。外側の期限・停止予約を維持し、秒への変換で親期限を延長しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-50` | 同一/異なるLocationが二件、redirect_urlは一値、残通常時間を秒化すると0 | header観測不足/複数値を拒否し、0秒の取得を起動しない。一値表示・取得量表示・timeout無効化による成功なし |
 
 metadataのplan/dry-run取得はP02のReadOnly文脈とメモリーcaptureだけで、file-sinkを作らない。二入力の第一比較候補は[匿名pipeによるdetached検証](#匿名pipeによるdetached検証)とする。固定版での成立確認・採用はD04-01に残し、計画作成を理由に一時保存・署名検証省略を追加しない。
 

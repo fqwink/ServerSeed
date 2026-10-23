@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B12`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B13`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB13）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -367,6 +367,12 @@ WorkloadProfile候補の全キーはprofile_id、対象機器/OS/driverの固定
 CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの共通部分とする候補。論理CPU IDを昇順に管理→サーバ→採掘へ重複なく分配し、各必要数と総量式を照合する。systemdのAllowedCPUs/MemoryMaxと、Dockerの実効cgroupを読み戻し、全対象サービスが正しい親/範囲にあることを検証する。CPUQuotaやMemoryLowだけで専有・優先/実負荷応答を保証しない。SMT/共有memory/GPU/IOの干渉は同じ負荷試験へ含める。
 
 管理/サーバ/採掘の一件でも有効制限不明、最低要求未選定、GPUの未確認共有、負荷profile不一致ならresources.enforced/measured/minimumをpassにせずready=false。資源不足を理由に一機能を削る縮退masterへ変えない。実際の最低値/対象負荷と強制方式の採用はD08-02に残す。
+
+制限の読み戻しはunitの設定値だけでなく、全管理対象PID/containerの実所属と親からの実効値へ対応付ける候補。Docker daemonのunitとcontainerのcgroupが同じ親であると仮定しない。CPU online/許可集合・親制限・container再作成で所属が変われば旧測定/強制結果を失効させる。AllowedCPUsは他の全処理からの専有を単独では保証しないため、OS/対象外処理との共有を同じ負荷条件へ含め、未測定の干渉を予約済みの保証へ変換しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-36` | unit設定は一致するがcontainerは別親、測定後CPU offline、対象外負荷が予約CPUを使用 | 実効範囲/測定条件を再照合しreadyを保留。設定値だけの強制確認・CPU専有/応答保証の捏造なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-6-サーバ構成)
 
-本文は`B12`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
+本文は`B13`の採用未承認案。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。[構成固有仕様](../server/specification.md)は個別に維持し、本案で既存本文を移動しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P06-APP` | アプリの導入・更新・検証・復旧 |
 | `P06-DATA` | アプリ固有の整合性・保全・復元検証 |
 
-参照する契約（全フェーズB12）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
+参照する契約（全フェーズB13）は`P02-PARSE`・[解析](PHASE_02.md#p02-parse)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P04-UPDATE`・[更新](PHASE_04.md#p04-update)、`P04-APPLY`・[資源適用](PHASE_04.md#p04-apply)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。共通データ型は`P02-MODEL`とし、サーバ用の別状態基盤を作らない。
 
 ## P06-CONFIG
 
@@ -349,7 +349,7 @@ docker argvの共通prefix候補は固定path、--config、保護された採用
 | 操作 | prefix後のargvと照合候補 |
 |---|---|
 | 設定観測 | config、--format、json、--no-interpolate、--no-env-resolution。未展開変数・env_file/include/extendsの未固定参照は拒否し、暗黙読取り/取得しない |
-| 稼働観測 | ps、--all、--format、json。全サービス名と固定image/所有label/稼働状態を対応付け、同project名だけで所有認定しない |
+| 稼働観測 | ps、--all、--format、json。出力の形式と複数コンテナの結合は[下記の観測行の契約](#compose観測行の結合)へ照合し、同project名だけで所有認定しない |
 | 資材準備 | pull、--、固定した全サービス列。変更計画内だけ、digestと取得後の実imageを再照合 |
 | 適用 | up、--detach、--no-build、--pull、never、--no-deps、--、計画対象サービス列。未計画のbuild/pull/依存起動なし |
 | 停止/復帰 | stopまたはstart、--、元状態/保全計画で確定したサービス列。down/rm/prune/remove-orphans/volume削除なし |
@@ -362,10 +362,22 @@ docker argvの共通prefix候補は固定path、--config、保護された採用
 |---|---|---|
 | `A06-31` | nameがApp/app、未固定env_file、未計画service、image版だけ異なるデータ方法行 | caseを保つ別projectとし、未固定/範囲外/方法不一致は拒否。環境継承・依存の暗黙起動・任意DB対応の認定なし |
 
+### Compose観測行の結合
+
+[Compose ps公式資料](https://docs.docker.com/reference/cli/docker/compose/ps/)はjson出力を一行一objectの形式として記載する。固定版の出力profileを一つに決め、単一JSON文書のP02-PARSEへ複数行をそのまま渡さない候補とする。JSON配列の版と行形式の版を内容から自動判別せず、版差をadapter審査へ戻す。
+
+行形式の候補では全出力に通常capture上限を適用し、一行もP02の通常構文/量制限へ照合する。全行を読み終えてからcontainer IDで一意にし、project/service/実image/所有証拠を親AppPlanへ結合する。service名だけで一行へ上書きしない。scaleされた複数container、one-off、orphan、停止中/再起動中も観測事実として区別し、許可された期待集合が未定義ならAPP_BINDINGで保留する。空出力は「観測できたcontainerなし」であり、全サービス正常の意味ではない。
+
+psの人間向けimage表示を固定digestや所有labelの証拠へ転用しない。それらの追加観測に使う固定コマンド/版/出力契約が不足する間はD06-03の未達とする。構成にないcontainerを表示しただけで停止/削除せず、全結果と対象外の不変を照合する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A06-36` | 二行のJSON、同service二container、重複ID、空出力、image名だけ一致 | 固定profile/全行/実体を照合。不正・未定義集合は保留し、行の切捨て・後勝ち・空集合の稼働成功なし |
+
 | 判断ID | 所有者の採用判断・調査対象 | 依存範囲 |
 |---|---|---|
 | `D06-01` | AppConfigと工程名に案あり。新形式/旧形式の移行、全子型閉包と採用判断が残る。enabled=falseを停止/除去へ変換しない | サーバ入力 |
 | `D06-02` | [health adapter](#health-urlと外部adapter)にURL/argv案あり。固定版のHTTP構文/出力分離・終了観測とcommandの非変更性の根拠が残る | health判定 |
-| `D06-03` | [Composeとデータ方法行](#composeの範囲とデータ方法行)に形式/argv案あり。実アプリ未指定、採用済み方法行0件。Docker/アプリ版・隔離/復元/TTLの個別確定が必要 | アプリ導入・更新・保全 |
+| `D06-03` | [Composeとデータ方法行](#composeの範囲とデータ方法行)に形式/argv案あり。[観測行](#compose観測行の結合)の固定profile/実image/所有証拠が未完了。実アプリ未指定、採用済み方法行0件。Docker/アプリ版・隔離/復元/TTLの個別確定が必要 | アプリ導入・更新・保全 |
 
 既存構成別仕様の未確定部分は維持する。共通契約と候補の採用承認、非機能要求の不足が残るため、本案だけでサーバ機能を完全仕様成立・実装着手可能とはしない。
