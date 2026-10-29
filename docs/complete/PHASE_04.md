@@ -322,7 +322,11 @@ pub struct CleanupRecoveryPayload {
     entries: Vec<CleanupEntry>,
 }
 pub struct VerifiedFinalizationRecovery {
-    payload: CleanupRecoveryPayload, old_core_intent_sha256: String, verification_ref: String,
+    payload: CleanupRecoveryPayload, lineage: Vec<FinalizationNodeProof>, verification_ref: String,
+}
+pub struct FinalizationNodeProof {
+    ledger: FinalizationRef, core_intent_sha256: String,
+    predecessor: Option<FinalizationRef>, verification_ref: String,
 }
 pub fn finalize_self(ctx: &mut ExecutionContext, core: &RecordReceipt,
     saved: &SelfFinalization) -> ChangeResult<SelfFinalization>;
@@ -342,11 +346,38 @@ Removedはevidence_ref必須・errorなし、Pendingは両方null、Failedはerr
 
 清掃失敗時のCLIは通常dataと親receiptを保持し、`SELF_FINALIZATION`をerrorsへ、finalizationへ実段階を返す。本体変更開始後なのでP02-CLIの既存分類を適用し成功にしない。report/status/Queryはcore結果と終了処理の未完結を別Checkへ出し、historyのsuccessだけで正常終了を推測しない。清掃完結後のstdout失敗だけはCLI_OUTPUTとし、Completeを取消・再清掃しない。
 
-再開は通常selfの再実行でなく、入口から選択・確認した新しいrecover計画に限定する。CleanupRecoveryPayloadは上記全キー、親Plan.action=Recover、唯一の変更step=P04-SELF/self.finalize.prepare、他は担当検証stepだけとする。entriesは旧ledgerと同じpath_id/identity_ref/content_sha256集合をPendingで固定し、resolvesは旧未完結ledgerの操作IDと取得した実hashを指す。通常PreparedSelf/本体再配置/他資源変更を混在させない。旧coreがcompleteで不変snapshotと実本体を確認済み、他の未完了操作/子処理なし、残る停止原因が当該清掃だけと証明した収集器だけがVerifiedFinalizationRecoveryを構築する。P02の開始審査は、このpayload/旧core hash/現target/新planの完全一致を確認し、当該ledgerに限る停止を外す。旧core不明や複数の未解消ledgerを黙認しない。
+再開は通常selfの再実行でなく、入口から選択・確認した新しいrecover計画に限定する。CleanupRecoveryPayloadは上記全キー、親Plan.command=recover、唯一の変更step=P04-SELF/self.finalize.prepare、他は担当検証stepだけとする。entriesは旧ledgerと同じpath_id/identity_ref/content_sha256集合をPendingで固定し、resolvesは直前の未完結ledgerの操作IDと取得した実hashを指す。通常PreparedSelf/本体再配置/他資源変更を混在させない。開始例外の対象と全旧coreの証明は[参照連鎖](#清掃復旧の参照連鎖)だけで判定し、単一ledgerしか残っていないという条件に置き換えない。
 
 self.finalize.prepareの担当範囲は旧entry/所有/RootBinding/期限の照合と新Prepared ledgerの同期まで。この範囲を満たした場合だけStepReceiptをverifiedとし、削除実行済みとは報告しない。親coreのfinishはこの準備と検証stepを確定し、実削除/終了確定はその後のfinalize_selfだけが行う。finishの前提に清掃Completeを要求する循環を作らず、逆に準備stepのverifiedを親の清掃成功へ転用しない。
 
-旧記録は不変で、新操作のPrepared保存/資源照合/core確定後だけCleaningへ進む。元entryが不在なら旧証拠と現在の不在を照合して新しいRemoved証拠へ結合し、残存物だけ同じ実体/親/hashを確認して除去する。別物は削除しない。新操作のcore記録とComplete ledgerの双方が旧未完結を解消する根拠となる。解消参照の重複・循環・別対象・別entry集合は拒否する。次の通常beginは、この対応を含む全未完結の照合が終わるまで停止する。旧coreの記録修復が必要な場合は本清掃契約の対象外で、P02-STOREの是正条件を先に満たす必要がある。
+旧記録は不変で、新操作のPrepared保存/資源照合/core確定後だけCleaningへ進む。元entryが不在なら旧証拠と現在の不在を照合して新しいRemoved証拠へ結合し、残存物だけ同じ実体/親/hashを確認して除去する。別物は削除しない。新操作のcore記録とComplete ledgerの双方が、参照連鎖に含む旧未完結を解消する根拠となる。次の通常beginは、この対応を含む全未完結の照合が終わるまで停止する。旧coreの記録修復が必要な場合は本清掃契約の対象外で、P02-STOREの是正条件を先に満たす必要がある。
+
+### 清掃復旧の参照連鎖
+
+清掃復旧自体が失敗した場合も、新たに選択・確認した清掃専用recoverを同じ規則で審査する候補。resolvesは一つ前のleafを指し、rootはresolves=nullの元の本体変更とする。AをBが復旧し、Bのcore確定後に清掃が失敗した場合、CはBを直接参照してA/Bを同じ連鎖として照合する。A/Bが複数残ることだけではCを拒否せず、無関係な未完了を同じ例外へ取り込まない。
+
+収集器は対象guard下で、全self-finalizationと対応するcore/監督単位を列挙する。各ledgerはLF込み64 KiB以下、連鎖は新操作を含め最大64件とし、参照先をrootまで辿った実byte列/hash、operation/plan/対象、coreのintent.complete/不変snapshot、全entryの所有集合を照合する。lineageはrootから直前leafまでのFinalizationNodeProofを一度ずつ保持し、各ledger/ref/predecessorは保存済み元byte列から得る。predecessorは当該ledger.resolves、core_intent_sha256は当該操作の実coreを検証したhashだけとし、ledger側の未取得hashを推測で補わない。新payload.resolvesはlineage末尾へ完全一致させる。
+
+元の本体変更を含め、ledgerの全成功/失敗/Unknown枝の直列化量を準備前に確認する候補。64件のentryを登録できることと64 KiBへ収まることは別条件で、量/深さ/ノード/診断の上界不明なら本体変更または新recoverを開始しない。core確定前にPreparedを同期できても、後のFailedを保存できる根拠がなければ準備成立としない。lineageは検証済み内部証拠だけで外部payloadへ追加せず、保存するresolves一件から全祖先を再取得する。空entriesも許容するが、Completeの同期/参照照合を省略しない。
+
+| 審査する条件 | 受理・停止の候補 |
+|---|---|
+| root/親/子と全集合 | 一root・一leafの単方向連鎖だけ。欠損、hash不一致、循環、同じ親から二子、別対象/別entry集合、参照元の列挙不能はSELF_FINALIZATION。既に子がある祖先へ別の復旧を直接付けない |
+| 旧処理の寿命 | 旧worker/子孫の全停止と書込み主体の排除を照合し、同じguard保持中に採取/再照合する。旧ledgerを新段階へ書き戻さず、新操作の開始以後は旧finalizeの続行を禁止。停止不明・採取中変化は受理不可 |
+| 旧core | 連鎖の全操作についてcoreの確定と不変資料を必要とする。core未確定、旧履歴破損、別の未完了操作はこの例外の対象外。P02の是正案・承認・検証を先に必要とする |
+| 旧leafの段階 | Failed/Unknownのほか、異常終了でPrepared/Cleaningのままでも、旧処理停止・core確定・entry実状態を全件照合できた場合だけ候補にできる。段階名だけで未実行/削除済みを認定しない。Completeの正常leafへ新清掃を追加しない |
+| entryと残量 | rootと同じ固定所有集合を維持し、entry追加/参照の付替えは拒否。不在は旧削除の証拠または結果不明だった旧要求との対応、現在の不在と親同期を全て検査してから新Removedへ結合する。不在だけで旧Removedを捏造しない |
+| 境界・新しい予算 | 旧63件までに新一件を追加可能。64件の既存連鎖、各ledger量超過、列挙/照合/同期/残清掃の容量・親予算不足では開始0件。過去証拠の自動削除・根の付替え・古い操作への予算再付与で回避しない |
+
+VerifiedFinalizationRecoveryはこの全件照合を終えた収集器だけが生成する。prepare_startはpayload/lineage/現target/新Planの対応を検査し、この連鎖に属する清掃未完結だけを開始停止から除外する。旧実本体の一致と新core/終了記録の必要集合を緩和しない。新操作がcore確定前に失敗した場合は、次の清掃復旧へ進まずcoreの是正へ戻す。
+
+解消は読み取りで算定する。leafのComplete、同じleafのcore確定、rootまでの全参照/hash/対象/所有集合が一致した場合だけ、連鎖全体の清掃停止を解消済みと判定する。A/Bの元history・Failed/Unknown・ledger byte列は不変で、旧操作の失敗を成功へ変更しない。Cも失敗した場合は次の明示recoverでCをleafとして同じ有限審査を繰り返す。Queryは照合結果だけを返し、旧deliveryやledgerを修復しない。参照先が後に変化/欠損したら解消根拠は無効で、通常beginを再び停止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-53` | A清掃失敗、BはAを参照してcore確定後清掃失敗、CはBを参照し完結。別入力はCも失敗 | 前者はCのcore/Completeと全連鎖でA/Bの清掃停止を解消、元記録不変。後者は停止を維持し次の明示復旧の候補へ。複数ledgerだけの拒否・自動再清掃なし |
+| `A04-54` | 同親への二子、参照欠損/循環/別hash、旧worker残存、旧core未確定、別対象entry | 各入力は開始前拒否、削除0件。履歴の推測補完・祖先への分岐・無関係な停止の免除なし |
+| `A04-55` | 旧63/64件へ新一件、ledger64 KiB/+1、core確定した旧Cleaningで処理死亡/停止不明 | 数/量の内側だけ次の条件へ。死亡かつ全件実状態照合済みだけ復旧候補、停止不明は拒否。容量削除・予算延長・段階の書戻しなし |
 
 終了検査IDの候補は`P04-SELF/finalization.complete`とする。親成功と通常変更開始ではCompleteまたは検証済み解消参照だけpass、Failedはfail、Prepared/Cleaning/Unknownまたは欠損/読取り不能はunknown。本体変更のない履歴だけでledger不要と確認した範囲は理由付きnot_applicable。読取りのstatus/report/Queryでは任意Checkとして未完結を表示し、記録整合そのものの失敗とは分離する。doctorと親成功の照合は必須、検査のために清掃・記録変更を実行しない。
 

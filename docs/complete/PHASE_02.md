@@ -481,6 +481,23 @@ byte_offsetは原入力の先頭を0とするusizeで、EOFは入力長。line�
 
 初回の構成選択結果は、利用者の対話結果、対象証拠、計画IDに結合する値としてメモリー上で保持する案。設定ファイルだけで選択成立とはしない。変更開始直前に再照合し、保存は最終構成検証後にP02-STOREへ渡す。保存された構成の値と三構成の適用範囲は[各正本](../POLICIES.md#構成選択と継続管理)へ参照する。
 
+初回MachineIdの確定候補は、begin後に対象内で構成の識別準備を行い、最終構成検証より前に一度だけ生成して固定する。識別準備の保存先は同じ操作の`operations/OperationId/initial-identity.json`、全キーはschema_version: 1、operation_id、plan_id、target、machine_id、selection_sha256とする。最後の値は同じ初回Selectionの全キーを共通JSONのキー順/escape・末尾LFなしで直列化した元byte列のhashで、生成したIDと対象/計画/選択を同期してからP07のInstalled同定/P08の初期台帳へ貸与する。最終config/managed/machine-id/versionの成功確定と区別し、準備記録だけでMANAGEDや構成完了を返さない。
+
+```rust
+pub struct InitialIdentity {
+    schema_version: u32, operation_id: OperationId, plan_id: PlanId,
+    target: TargetEvidence, machine_id: MachineId, selection_sha256: String,
+}
+```
+
+全キー必須・null不可・未知キー拒否、selection_sha256はhex64へ照合する。OS導入で変化したtargetはP05/P10の予定した識別遷移を通し、ctx/元Plan/Selectionの対応を保持した同じ対象とする。新OSの実証拠を元Planへ書き戻したり、Live側のMachineIdを準備IDにしたりしない。形式は担当validatorで検査し、未登録の汎用Valueを各機能へ通さない。
+
+識別準備は初回setupだけに許し、保存済みMachineId/構成管理証跡がある対象で新しいIDを生成しない。保存後の応答欠損・途中失敗では同じ操作の記録と実状態を照合し、再生成・別操作への流用・値の上書きをしない。記録欠損/破損/別選択/ID衝突ならSTORE_RECONCILE。最終構成検証後に同じIDを管理記録へ反映し、準備記録も不変snapshotを持つ必須集合へ含める。これにより「構成全体の最終検証までIDがない」と「IDがなければ内包機能を検証できない」の相互待ちを作らない。保存/対象固定の実方式はD02-01/05の未達を維持する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-126` | 初回setupのID準備後にmining/台帳へ貸与、準備同期後応答欠損、既存MachineIdあり、別Selectionの準備記録 | 初回だけ同じIDを全担当へ束縛。欠損応答は読取り照合、既存/別選択は停止。再生成・初回成功の先行確定・Live IDの流用なし |
+
 構成リビジョンの旧二択形式移行、初回選択結果を媒体・SSHへ渡す形式は`D02-03`と各入口の契約へ残す。既存の版番号を変更・互換認定しない。
 
 ### 状態入力の閉じた型
@@ -662,6 +679,12 @@ TargetEvidence.disk_id/root_idは[P03-FS](PHASE_03.md#p03-fs)の実対象固定�
 
 RecordReceipt.completeは本契約が所有するcore記録集合の確定であり、担当工程が要求する終了処理の代わりではない候補。本体変更を含む操作は[P04-SELFの終了処理](PHASE_04.md#本体変更の終了処理)も必要とする。self-finalizationはrequired_paths/observed_after_hashes/snapshotへ入れず、core確定後の独立した必須終了記録とする。StartEvidenceの収集器はその未完結ledger/解消参照を全件照合し、coreのhistory/operationがsuccessでも未完結なら通常beginをSTORE_RECONCILEにする。明示的な清掃専用復旧だけは同節のVerifiedFinalizationRecoveryを収集/照合して可否を判定する。読取りは不足Checkだけを返し、ledgerの作成・清掃・補修をしない。
 
+清掃復旧の開始例外は[P04の全参照連鎖](PHASE_04.md#清掃復旧の参照連鎖)だけへ適用する候補。全旧coreが確定した同一連鎖の未完結を一件に潰さず照合し、新payloadが直前leafを参照した場合だけ許容する。別連鎖、旧core未確定、列挙/子孫停止不明はSTORE_RECONCILE。通常beginのprev-operation検査で、清掃連鎖を構成する確定済みfailed結果だけを理由に復旧を自己拒否しない一方、running/interrupted/記録未完了を免除しない。解消済みの過去coreは不変snapshotから照合し、現行operationが新しい復旧操作へ更新されたことを過去hash破損にしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A02-125` | A/Bのcore確定・同一清掃連鎖、Cがleaf Bを明示復旧。別入力は無関係なD未完了、B core未確定、C完結後にA snapshot破損 | 最初だけ開始例外の候補、他はSTORE_RECONCILE。過去failedの書換え・無関係操作の免除・現行記録への古いhash強制なし |
+
 外部実行のtimeoutは実行開始からの親予算に制限され、出力・終了待ちにも残予算を割り当てる候補。停止確認不能はstopped=false、status=stop_unknownとし、ロックを解放しただけで新変更を許可しない。stdだけによる停止・同期I/Oの期限保証の未達を外部ツールの暗黙採用で埋めない。
 
 ## 受入ケース案
@@ -825,6 +848,7 @@ P02-PARSEの後段へ渡すスキーマ登録を以下の候補へ固定する�
 | last-success・last-failure | operation_id・plan_id・target・finished_at・result・history_sha256を全キーとする。last-successはsuccess、last-failureはfailedまたはinterrupted。hashは該当履歴行のLF込みbyte列。初回未作成は許容、破損は不在扱い不可 |
 | history.jsonl | [履歴](../BASIC_SPEC.md#実行履歴)の集合にtarget: TargetEvidence、plan_id: PlanIdを追加する案。両versionとprofileだけ未導入時null可。resultはsuccess/failed/interrupted、完結したJSONとLFを一行として扱う |
 | self-transaction/state.json | [本体取引](../BASIC_SPEC.md#本体の置換と復旧)の8キーだけ。phaseは同節の工程へ対応付ける。before_sha256/previous_pathは初回導入時null、after_sha256/staged_pathはuninstall時null。それ以外のhashはhex64桁、パスは固定生成先だけ |
+| initial-identity.json | [初回識別準備](#p02-state)のInitialIdentityだけ。SchemaKind::InitialIdentityへ束縛し、managedやinstall形式を流用しない |
 | ログ・成果物 | [ログ](../BASIC_SPEC.md#ログ形式)・P02-CLIのreport/plan/bundleを担当形式とする。状態記録をログ形式で代用しない |
 
 追加するoperation/historyのキーは採用前の既存記録へ書かない。形式の版変更と旧形式の移行可否はP04-UPDATEの互換表へ結合する。チェック集合はos.supported、architecture.supported、target.identity、records.consistent、profile.selected、operation.clear、dependency.approved、plan.currentを共通候補とし、各入口は担当契約の検査を加える。適用外は理由必須、欠損をpassへしない。実行環境だけのversion/helpには対象検査を要求しない。
@@ -911,19 +935,19 @@ planと変更操作は適用可能な八検査と担当step検査を要求する
 
 ### 共通スキーマの型対応
 
-validate_documentの登録対象を次の13形式へ閉じる候補とする。machine-idはJSONでないためparse_machine_idのASCII検証だけを使い、ログ/他フェーズの形式は各担当validatorへ渡す。未登録型を本enumの汎用Valueへ取り込まない。各structの外部キー・null・値域は[登録表](#入力と保存形式の詳細案)、出力は[P02-CLI](#p02-cli)だけを参照し、型から別のJSON名を生成しない。
+validate_documentの登録対象を次の14形式へ閉じる候補とする。machine-idはJSONでないためparse_machine_idのASCII検証だけを使い、ログ/他フェーズの形式は各担当validatorへ渡す。未登録型を本enumの汎用Valueへ取り込まない。各structの外部キー・null・値域は[登録表](#入力と保存形式の詳細案)、出力は[P02-CLI](#p02-cli)だけを参照し、型から別のJSON名を生成しない。
 
 ```rust
 pub enum SchemaKind {
     Config, Policy, Managed, Install, State, Operation, History,
-    SelfTransaction, Version, LastSuccess, LastFailure, CliEnvelope, Event,
+    SelfTransaction, Version, LastSuccess, LastFailure, CliEnvelope, Event, InitialIdentity,
 }
 pub enum ValidatedDocument {
     Config(ConfigDocument), Policy(PolicyDocument), Managed(ManagedRecord),
     Install(InstallRecord), State(StateSnapshot), Operation(OperationRecord),
     History(HistoryRecord), SelfTransaction(SelfTransaction), Version(VersionRecord),
     LastSuccess(LastResultRecord), LastFailure(LastResultRecord),
-    CliEnvelope(Envelope), Event(EventRecord),
+    CliEnvelope(Envelope), Event(EventRecord), InitialIdentity(InitialIdentity),
 }
 pub enum Environment { Usb, Cloud }
 pub enum OperationStatus { Running, Success, Failed, Interrupted }

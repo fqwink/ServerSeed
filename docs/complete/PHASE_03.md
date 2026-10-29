@@ -240,8 +240,9 @@ digest入力は次の型付き射影だけから生成する候補。最初に�
 | 射影する位置 | 除外する値・事前条件 |
 |---|---|
 | Plan直下 | plan_id・created_at・digest。PlanDraftにはdigestがない |
-| 今回の対象を表すTargetEvidence | Plan.target、SelfChange.target、Backup.source、Restore.destination、App.resources.target、MiningControl.target、Capacity.evidenceのobserved_atだけ。各対象は親Planの対象同一性検査を通す |
+| 今回の対象を表すTargetEvidence | Plan.target、SelfChange.target、SelfFinalize.target、Backup.source、Restore.destination、App.resources.target、MiningControl.target、Capacity.evidenceのobserved_atだけ。各対象は親Planの対象同一性検査を通す |
 | SelfChange | PreparedSelf.plan_idだけ。親Plan.plan_idとの完全一致が必要 |
+| SelfFinalize | CleanupRecoveryPayload.plan_idだけ。親Plan.plan_idとの完全一致と[P04の清掃復旧束縛](PHASE_04.md#清掃復旧の参照連鎖)が必要。resolvesの過去operation_id/sha256とentryの所有・内容参照は除外しない |
 | MediaInstall / OsInstall.install | StorageInput.erase_confirmed_for_planだけ。親Plan.plan_idとの完全一致が必要。実際の消去許可は別の確認工程で検証する |
 
 Restore.sourceに含む過去のBackupReceipt/RestoreEvidence、backup_id・request_id・epoch、検証済み保全物の参照、ContractRef.commit、payloadの意味を持つ時刻は除外しない。過去計画の参照を現在の親IDとして削除しない。表にない新しい親ID/対象証拠を持つvariantの追加は、この射影契約と受入の改定前にはPLAN_PAYLOADで停止する。
@@ -251,6 +252,7 @@ Restore.sourceに含む過去のBackupReceipt/RestoreEvidence、backup_id・requ
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A03-36` | SelfChangeとOsInstallを含む同じ計画で親と対応する子ID/今回の観測時刻だけ変更。次に子IDだけ不一致、過去backup_idだけ変更 | 前者の固定byte列/digestは同一。子だけの不一致は射影前拒否、過去保全参照の変更は別digest。P09の全Plan hashは前者でも変わる |
+| `A03-40` | SelfFinalizeを含む二計画で親/子plan_idと今回target.observed_atだけ変更。別入力は子ID不一致、resolvesのID/hash変更、entry内容変更 | 最初だけ固定byte列が同一、全Planの配送hashは相違。子不一致はPLAN_PAYLOADで射影前拒否、過去参照/entry変更は異なる固定byte列。清掃復旧を新variantとして一律拒否せず、履歴を射影しない |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -345,13 +347,14 @@ PlanStep.idはresource_idと同じ文字/長さ制約を使う候補だが、資
 
 ### 非資源stepの閉じたpayload
 
-payload復号の識別候補はcontract_idとstep.idの区分の組とする。check.で始まるIDを検証step専用に予約し、destructive=false・resource_change=null・CheckStepPayloadを要求する。残りでは担当表の型を使うが、P04-APPLYはpackage./unit.、P04-BACKUPはbackup.capture/backup.restoreの区分を必須とする。backupの二IDは完全一致、またはdot一つと資源IDを付けた形だけを許す。P04-SELFのself.finalize.prepareは完全一致の清掃専用復旧の準備だけに予約する。他の担当で同じcontract_idに複数の変更型を割り当てる案を追加しない。
+payload復号の識別候補はcontract_idとstep.idの区分の組とする。check.で始まるIDを検証step専用に予約し、destructive=false・resource_change=null・CheckStepPayloadを要求する。残りでは担当表の型を使うが、P04-APPLYはpackage./unit.、P04-BACKUPはbackup.capture/backup.restoreの区分を必須とする。backupの二IDは完全一致、またはdot一つと資源IDを付けた形だけを許す。P04-SELFのself.finalize.prepareは完全一致の清掃専用復旧の準備だけに予約する。以下に列挙した区分以外で、同じcontract_idへ複数の変更型を割り当てない。
 
-型のキーを試し読みして都合のよいvariantを選ばず、復号前に上記の組から一型へ決める。check.以外でCheckの形が来た場合、check.なのに変更型が来た場合、package/unitの区分欠損はPLAN_PAYLOAD。検証stepのexecution_refsは非変更性を別に証明し、接続検査ならrequires_networkとの一致も要求する。資源stepはresource_changeのみという既定の境界を維持する。
+P08-MASTERのregistry.initializeは完全一致でRegistryInitializationだけへ対応し、初回空台帳作成以外を許可しない。既存台帳編集の同契約stepはRegistryChangeだけへ対応する。型のキーを試し読みして都合のよいvariantを選ばず、復号前に上記の組から一型へ決める。check.以外でCheckの形が来た場合、check.なのに変更型が来た場合、package/unitの区分欠損はPLAN_PAYLOAD。検証stepのexecution_refsは非変更性を別に証明し、接続検査ならrequires_networkとの一致も要求する。資源stepはresource_changeのみという既定の境界を維持する。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A03-37` | 同じP04-BACKUPでcapture/restore/checkの三step、区分不明ID、checkにPackageResource | 最初の三つはそれぞれ一型へ解決。他は封印前拒否。キー推測・variant tag追加・非変更検査からの更新なし |
+| `A03-41` | P08-MASTERのregistry.initializeへRegistryInitialization、同IDへRegistryChange、checkへ初期作成payload | 最初だけ一型に解決。他はPLAN_PAYLOAD、初期作成を非変更検査へ偽装しない。実行時に確定したMachineIdを封印済みPlanへ後付けしない |
 
 PlanStep.payloadの候補は下表の担当型だけとする。型の選択は上記のcontract_id/step.idの組で行い、入力の自己申告で別契約へ切り替えない。表にない契約を変更stepとして受理しない。観測/検証だけのstepはCheckStepPayloadを使い、対象検査ID・期待参照・非変更の実行契約を固定する。外側のMediaRequest/RemoteRequest/Planをpayloadへ入れる循環形式を作らない。
 
@@ -364,7 +367,7 @@ PlanStep.payloadの候補は下表の担当型だけとする。型の選択は�
 | P05-MEDIA | InstallPayload。action=installのsetup計画だけで、adoptへpartition工程を加えない |
 | P06-APP / P06-DATA | AppPlan / ApplicationDataMethod。アプリ名/全サービス/方法と同じ保全stepへ結合 |
 | P07-RUN / P07-UPDATE | ControlRequest / MiningUpdateBinding。ホスト更新を運転制御へ混入しない |
-| P08-MASTER / P08-COHOST | RegistryChange / CapacityInput。台帳変更と同居制約設定は別step |
+| P08-MASTER / P08-COHOST | RegistryChangeまたはregistry.initialize専用RegistryInitialization / CapacityInput。初回作成・既存編集・同居制約設定は別step |
 | P10-OS | InstallPayloadとInstallerBindingを持つInstallStepPayload。マスターの配送wrapperを内包しない |
 | 各担当の検証step | CheckStepPayload: check_ids（重複なしstring[]）、expected_refs（ContractRef[]）、execution_refs（ContractRef[]）。空集合・未採用の変更実行を検査と偽装した参照を拒否 |
 
@@ -376,7 +379,7 @@ pub enum StepPayload {
     Backup(BackupSet), Restore(RestoreRequest),
     Package(PackageResource), Unit(UnitResource), MediaInstall(InstallPayload),
     App(AppPlan), AppData(ApplicationDataMethod), MiningControl(ControlRequest),
-    MiningUpdate(MiningUpdateBinding), Registry(RegistryChange), Capacity(CapacityInput),
+    MiningUpdate(MiningUpdateBinding), Registry(RegistryChange), RegistryInit(RegistryInitialization), Capacity(CapacityInput),
     OsInstall(InstallStepPayload), Check(CheckStepPayload),
 }
 pub struct CheckStepPayload {

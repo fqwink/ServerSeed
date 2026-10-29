@@ -488,6 +488,8 @@ Preinstallは媒体またはP09/P10の初回導入における今回の親計画
 
 Installedは対象内で確定したMachineIdと現在bootへ束縛し、実driver/kernel/miner/sensorを再採取する。初回構成の最終確定へ進む前にDeviceTransitionを同期し、beforeは保存したPreinstall、afterは新規に生成した同じ対象のMachineId/boot、device_idsは選択機器の一意な全ID集合とする。親plan/disk、OSを導入した場合のP05/P10の起動証拠、既存OSならP09の同一対象/boot証拠と各機器の取得済みtopology/個体対応を全件照合する。MachineIdの生成を機器対応の証明にせず、PCI位置だけしかない場合の個体対応は未確認として保留する。
 
+初回のIDは[P02-STATEの識別準備](PHASE_02.md#p02-state)から貸与された同じ値だけを使い、本担当で生成しない。Installedは対象ID/bootの束縛が成立したという区分であり、managedの成功確定や採掘対応の認定を先取りしない。DeviceTransition/機器検査と構成全体の最終検証を終えてから共通管理記録を確定する。A07-43/44には準備IDだけ一致し機器対応が不明の入力も含める。
+
 device_idはDeviceTarget内の論理識別子であって全機器共通の恒久IDではない。新bootへの継承は上記遷移証拠がある全機器だけ、欠損/交換/対応不明ならDEVICE_EVIDENCEで運転開始0回。設定のdevice_idsを検出順で別機器へ書き換えない。再選択が必要なら新しい計画・確認へ戻す。DeviceTransitionは当該操作の固定記録`operations/OperationId/mining-device-transition.json`へ保存し、P02の必須記録へ対応付ける。実同定のOS取得方式・対象機種の成立根拠はD07-01/04に残す。
 
 | ケースID | 固定入力 | 期待結果 |

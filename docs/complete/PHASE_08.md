@@ -76,7 +76,7 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 
 master_planはprofile=Masterの同じ親identityで生成したmining Draftを消費し、serverのAppPlan資源/担当step、registry/capacityのstepと平坦に合成する候補。子Draft全体をpayloadへ入れず、target/identity/資源ID/path/step ID/参照版の衝突はPLAN_PAYLOAD。別IDの子計画を親IDへ書換えて取り込まない。封印は結合後の一回だけ、完了済み子Planのdigestを親digestとして流用しない。A08-01/15には別親のmining Draft、同pathのserver/mining競合、平坦合成後の循環を含める。
 
-初回計画の台帳入力候補は`MasterRegistryInput::Initial`、構成済みの操作は`Existing(&TargetRegistry)`へ区分する。Initialは対象に構成管理の証跡がない初回setupだけで、予定する対象数は0、管理先登録はまだ実行しない。空diskの計画前にMachineIdやTargetRegistryを生成する循環を作らない。P07の[Preinstall同定](PHASE_07.md#導入前後の機器同定)で能力を評価し、P02の初回構成確定時に一度生成したMachineIdから空のTargetRegistryを作り、同じmanaged/machine-idと照合してから保存する。readinessはこの保存後の実台帳を要求し、Initialから架空のMasterReadinessを返さない。既存台帳の欠損・破損はInitialへ変換しない。
+初回計画の台帳入力候補は`MasterRegistryInput::Initial`、構成済みの操作は`Existing(&TargetRegistry)`へ区分する。Initialは対象に構成管理の証跡がない初回setupだけで、予定する対象数は0、管理先登録はまだ実行しない。空diskの計画前にMachineIdやTargetRegistryを生成する循環を作らない。P07の[Preinstall同定](PHASE_07.md#導入前後の機器同定)で能力を評価し、begin後に[P02の識別準備](PHASE_02.md#p02-state)から貸与されたMachineIdで空のTargetRegistryを作る。同じID/対象/選択を照合して保存し、三機能の最終検証後に共通管理記録を確定する。readinessは保存後の実台帳を要求し、Initialから架空のMasterReadinessを返さない。既存台帳の欠損・破損はInitialへ変換しない。
 
 `P08-MASTER`の対象台帳、`P08-COHOST`の機能別結果と資源配分入力を具体化する候補。配置先は同節の候補を使用し、構成別仕様への正式反映・実ファイルの生成は行わない。
 
@@ -178,8 +178,10 @@ pub struct RegistrySnapshot {
 }
 pub enum RegistryEdit { Register(RegistryEntry), Remove(TargetId) }
 pub struct RegistryChange {
-    before_sha256: String, after: TargetRegistry, affected: Vec<TargetId>,
+    before_sha256: Option<String>, absence_ref: Option<String>,
+    after: TargetRegistry, affected: Vec<TargetId>,
 }
+pub struct RegistryInitialization { absence_ref: String }
 pub fn validate_registry(input: &Value) -> Result<TargetRegistry, ContractError>;
 pub fn registry_change(current: &RegistrySnapshot, edit: RegistryEdit, pending: &[TargetId],
     known_machines: &std::collections::BTreeMap<String, MachineId>)
@@ -187,6 +189,16 @@ pub fn registry_change(current: &RegistrySnapshot, edit: RegistryEdit, pending: 
 ```
 
 validate_registry・registry_changeはI/Oなし。RegistrySnapshotは収集器が読んだ元byte列・その検証済みhash・同じbyte列を解析した台帳と検証参照を保持し、任意hexだけで構築しない。registry_changeはそのsha256をbefore_sha256へ保持し、自身でhash実行物を起動しない。known_machinesは検証済みのtarget_id→MachineIdの観測集合で、台帳/今回登録のID以外を拒否する。expected_machine_idと観測済みIDのいずれからも同一実体の別名登録を検出する。pending対象の解除・同じIDの置換を拒否し、未確認のhostを名前だけで別機器と認定しない。台帳保存・対象側操作は別の実行契約とする。
+
+RegistryChangeの外部全集合はbefore_sha256/absence_ref/after/affectedだけとする候補。既存台帳編集はbefore_sha256=Some(実hash)、absence_ref=None。初回だけbefore_sha256=None、absence_ref=Some(同じ対象の台帳不在の確認資料)とし、after.targets/affectedは空、master_machine_idはP02の識別準備IDへ一致させる。両方null・両方非null・不在をzero hashで表す入力をREGISTRY_BASELINEで拒否する。初回の未封印計画は空台帳作成という範囲と不在条件を固定し、ID準備後の実台帳を担当生成器が構築して同じ計画の条件へ照合する。計画後に任意対象を追加できる穴にしない。
+
+初回台帳の生成境界候補は`initial_registry(identity: &MachineId, absence: &RecordObservation<TargetRegistry>) -> Result<RegistryChange, ContractError>`とし、同一対象のAbsentだけを受ける純粋処理。未知/破損/PresentをAbsentへ変換せず、実保存直前にも同じ不在を再確認する。master_planのInitialでは、未生成のID付きRegistryChangeをPlan.payloadへ要求せず、唯一の初期作成step `registry.initialize`へRegistryInitializationを保持する。全外部キーはabsence_ref一つだけで、同じ親対象の初回不在証拠へ照合する。これはrequired=trueの変更stepであり、check.へ偽装しない。
+
+apply_masterは同じctx/Planに結合したP02の同期済み識別準備を照合し、そのMachineIdと不在証拠からinitial_registryを呼ぶ。保存する内容はそのID/版と空targetsに一意に固定し、入力にない対象登録・ID差替えは行わない。生成したRegistryChangeは実適用/receiptの証拠で、封印済みPlanへ後付けしない。未知の実値をゼロhash/仮IDでPlanへ埋めず、計画には担当契約で固定した生成規則と不在根拠を封印する。既存台帳の変更payloadは従来どおりRegistryChangeを使用し、beforeのhashとafterの全内容を封印する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-38` | 初回不在+準備ID、既存編集+実hash、両baseline null、保存前に台帳出現、初回へ対象追加 | 初回/既存を別条件で構築。後三件は拒否、上書き0件。空台帳hashの創作・計画前ID生成・未封印の対象追加なし |
 
 マスターCLIの具体候補は`serverseed master targets list`、`serverseed master targets add`、`serverseed master targets remove`、`serverseed master run`、`serverseed master reconcile`の5入口。add/remove/runは対話入力・必要確認を要求し、--yesで対象・操作・構成を補完しない。list/reconcileは照合だけ。新構文の採用・全オプションと結果の確定は`D08-01`で行い、共通CLIが今すでに受理するとは扱わない。
 

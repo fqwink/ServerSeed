@@ -2207,7 +2207,8 @@ CLI・移行・同居制御など未確定の契約に依存するケースは�
 |---|---|
 | 対象固定・内部入口・遠隔の確認 | [全使用先のBinding](complete/PHASE_03.md#対象固定を使用する操作の閉包)、[起動用途の選別](complete/PHASE_02.md#変更workerの固定起動契約)、[確認を含む要求](complete/PHASE_09.md#入力と保存形式の詳細案) |
 | 計画の比較と配送 | [Planの型付き射影](complete/PHASE_03.md#入力と保存形式の詳細案)、[要求全体のhash](complete/PHASE_09.md#入力と保存形式の詳細案) |
-| 操作開始と中断後の媒体継続 | [開始ID/記録順](complete/PHASE_02.md#記録集合と保存順序)、[再開時の対象と所有](complete/PHASE_05.md#内蔵os継続unitと二回の起動証拠) |
+| 操作開始と中断後の媒体継続 | [開始ID/記録順](complete/PHASE_02.md#記録集合と保存順序)、[初回識別準備](complete/PHASE_02.md#p02-state)、[再開時の対象と所有](complete/PHASE_05.md#内蔵os継続unitと二回の起動証拠) |
+| 本体清掃の再復旧 | [清掃復旧の参照連鎖](complete/PHASE_04.md#清掃復旧の参照連鎖)。coreの確定・清掃停止の解消・元操作結果を分け、候補を既存手順の採用済み変更にしない |
 | 非保存の署名検証・保全/復元 | [二入力pipe](complete/PHASE_04.md#匿名pipeによるdetached検証)、[暗号量の比較profile](complete/PHASE_04.md#暗号profileと容量の閉じた比較案)、[隔離平文容量](complete/PHASE_04.md#復元の検証先と平文容量) |
 | マスター喪失・初回SSH・OS導入 | [固有保全/主体切替](complete/PHASE_08.md#単一制御主体の移行候補)、[初回搬入](complete/PHASE_09.md#ssh起動と初回搬入の分離)、[要求全件索引](complete/PHASE_09.md#両側の配送保存と容量上限)、[installer工程群](complete/PHASE_10.md#curtin-adapterの比較入力)、[ユーザー/信頼の準備](complete/PHASE_10.md#新os信頼根拠の引渡し) |
 | 受入の全件設計と実証拠 | [全ケース割当](complete/PHASE_11.md#全ケースの実行割当案)、[成果物/環境の束縛](complete/PHASE_11.md#設計行から実行scopeへの束縛)。設計行・未束縛行・製品Scope・実行結果を区別 |

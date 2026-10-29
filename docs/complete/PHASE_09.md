@@ -104,6 +104,12 @@ ReconcileResultのdelivery=nullは記録を確認できない状態を含むた�
 
 本体変更を含むresult_readyの追加照合先は[P04の終了処理](PHASE_04.md#本体変更の終了処理)とする候補。coreのRecordReceipt.completeに加え、SelfFinalization.Completeだけ成功候補、同期済みFailedは確定失敗として回収可能、Prepared/Cleaning/Unknownは結果未確定とする。Queryは両者を区別したreceipt/Checkを返すだけで、清掃やcore記録の書換えを行わない。清掃復旧は新しい明示recover計画へ戻す。
 
+旧要求の後に清掃復旧の連鎖が完結した場合も、Queryは旧要求の同期済みreceipt/元失敗と、[清掃停止の解消根拠](PHASE_04.md#清掃復旧の参照連鎖)をCheckで区別する候補。解消Checkのmessageへ新しい自由情報を連結せず、固定分類と検証資料へ対応付ける。旧delivery/receiptを新leafの成功receiptで置換しない。旧Unknownを成功またはresult_readyへ自動書換えせず、確定結果が存在しない事実は維持する。新recoverは新request/plan/operationを必要とし、旧Submitを再送しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A09-42` | Aの同期済み清掃失敗後にB/Cで連鎖完結、別入力はAの終了がUnknownのまま | QueryはAの元結果と解消Checkを分離、旧記録の保存0件。Unknownからの成功/結果確定の捏造、Cのreceipt転用、旧Submit再送なし |
+
 配送の再照合は[対象側記録](PHASE_02.md#p02-store)と[適用結果](PHASE_04.md#データ契約の具体化案)の読み取りで行い、同じRemoteRequestを再送して実行状況を問い合わせる方式にしない。問い合わせ・取消と変更要求の固定入口・型の分離が未確定である間は、任意の遠隔shell文字列を代用にしない。
 
 対象側の排他取得は受理と実行の境界で検証し、accepted・running・startedの部分確定では復旧照合を必要とする。マスター側が未受理と判定できても、変更の自動再送は0回を維持する。再投入を許容する根拠がある場合も、対象・前提・選択・計画を再確認した明示操作として扱う候補であり、resubmit_allowedの値だけで送信しない。
