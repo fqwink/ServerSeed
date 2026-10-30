@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-4-本体導入更新バックアップ復旧とiac適用)
 
-採用審査用の`B12`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
+採用審査用の`B14`。契約採用・仕様充足の承認はなく、[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-004`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。
 
 ## 契約と依存
 
@@ -13,7 +13,7 @@
 | `P04-BACKUP` | 独立バックアップ・復元と更新前保全の共通手段 |
 | `P04-APPLY` | IaC資源の適用・検証・中断と復旧 |
 
-共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
+共通参照（全フェーズB14）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-PARSE`・[形式](PHASE_02.md#p02-parse)、`P02-STORE`・[記録と排他](PHASE_02.md#p02-store)、`P02-EXEC`・[実行制御](PHASE_02.md#p02-exec)、`P03-RESOURCE`・[資源](PHASE_03.md#p03-resource)、`P03-FS`・[観測](PHASE_03.md#p03-fs)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)。共通CLIは`P02-CLI`、秘密情報・真正性・権限は[セキュリティポリシー](../SECURITY_POLICY.md)を参照する。
 
 ## P04-SELF
 
@@ -132,17 +132,17 @@ PreparedSelfを作る前に親PlanIdを一度だけ生成する候補。prepare_
 |---|---|
 | PreparedSelf | target: TargetEvidence、plan_id: PlanId、action: install・update・uninstall・recover、release_version: string、binary_sha256: stringまたはnull、metadata_sha256: string、source: stringまたはnull、checks: Check[] |
 | StepReceipt | step_id: string、contract: ContractRef、phase: not_started・started・applied・verified・failed・unknown、before_ref・after_ref・backup_ref: stringまたはnull、checks: Check[]、error: Diagnosticまたはnull |
-| OperationReceipt | operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、steps: StepReceipt[]、recovery: not_needed・available・unavailable・unknown、record: RecordReceipt、checks: Check[] |
+| OperationReceipt | operation_id: OperationId、plan_id: PlanId、target: TargetEvidence、steps: StepReceipt[]、recovery: not_needed・available・unavailable・unknown、record: RecordReceipt、finalization: SelfFinalizationまたはnull、checks: Check[]。finalizationの条件は[本体変更の終了処理](#本体変更の終了処理)だけで定義 |
 | BackupReceipt | backup_id: string、operation_id: OperationId、target: TargetEvidence、profile: 既存構成、data_kind: configuration・application・database・master、location: string、bytes: 0以上integer、sha256: string、restore: RestoreEvidence |
 | RestoreEvidence | method_ref: ContractRef、artifact_sha256: string、target_ref: string、verified_at・valid_until: 時刻string、checks: Check[]、verified: boolean |
 
 ハッシュは[既存マニフェスト](../BASIC_SPEC.md#更新マニフェスト)の実値制約へ参照する。PreparedSelfのuninstallだけbinary_sha256・sourceをnullとし、それ以外は対象候補の識別を必須とする。recoverの正常版の選定条件は本体復旧の正本を維持する。準備段階のchecksは本体未取得の検査をpassへしない。互換性に使うリビジョンは適用済み記録から取得し、本体の収録値で置換しない。
 
-StepReceiptは親計画の各stepと1対1に対応し、未開始も省略しない。started後に結果を確認できなければunknownとし、not_startedへ戻さない。検証済みの前提が変わったら、そのstepだけでなく依存する後続の実行可否を再判定する。OperationReceiptは全必須stepがverifiedかつRecordReceiptがcompleteの場合にだけ親が成功を返せる根拠となる。復旧操作が成功しても元stepのfailedは保持する。
+StepReceiptは親計画の各stepと1対1に対応し、未開始も省略しない。started後に結果を確認できなければunknownとし、not_startedへ戻さない。検証済みの前提が変わったら、そのstepだけでなく依存する後続の実行可否を再判定する。OperationReceiptは全必須stepがverified、RecordReceiptがcomplete、かつ適用する[終了処理](#本体変更の終了処理)がcompleteの場合にだけ親が成功を返せる根拠となる。復旧操作が成功しても元stepのfailedは保持する。
 
 同じ親操作から呼ぶself/apply/backupと構成別の子処理は、親のoperation_idとguardを使用する候補。子の完了は担当StepReceiptまでで、finishによる履歴/終了記録の確定は全step照合後に親だけが一度行う。子APIが返すOperationReceipt.recordはその時点の親の記録段階であり、completeでないことを子資源の検証失敗と混同しない。逆に子資源verifiedを親全体のsuccessへ変換しない。
 
-本体変更後の清掃候補は、元計画で破棄を許可した受信用/配置用の一時物だけを対象とする。verifiedのself-transaction記録と、親intent/history/snapshot/復旧参照を清掃で削除しない。固定self-transaction保存先を次操作が使う前に、前操作の不変snapshotと完了を照合し、未完了なら置換しない。既存の本体配置契約どおり操作状態/履歴の確定後に清掃し、清掃と必要な保存/出力も同じguard/親期限の内側へ含める。清掃失敗で成功を返したり、不変の完了記録を書き換えたり、最終名の本体や保全済み旧版を無条件削除したりしない。記録確定後の清掃失敗を保持する補助記録/CLI結果と再試行の全形式はD04-01の未達へ残し、通常の資源step完了と混同しない。A04-03/12/33とA02-115/119で記録完了後の一時物残存、次操作の開始、清掃先交換を照合する。
+本体変更後の清掃・完了表示・次操作の開始判定は[本体変更の終了処理](#本体変更の終了処理)へ集約する。子の資源検証と、親による必須記録・終了処理の完結を同一視しない。
 
 BackupReceiptは取得・保存・復元確認の参照を結合する候補で、既存のバックアップ成功状態の代替ではない。verified=trueは同じartifact_sha256の保全物を所定の隔離先へ復元し、方法が要求する全必須検査に成功した場合だけ。`verified_at <= now < valid_until`で判定し、時刻不明・逆転・方法/版/対象不一致は無効とする候補。具体的な有効期間と対象別の検査方法は`D04-02`で決め、仮の共通期限を作らない。
 
@@ -213,7 +213,8 @@ pub struct StepReceipt {
 }
 pub struct OperationReceipt {
     operation_id: OperationId, plan_id: PlanId, target: TargetEvidence,
-    steps: Vec<StepReceipt>, recovery: RecoveryAvailability, record: RecordReceipt, checks: Vec<Check>,
+    steps: Vec<StepReceipt>, recovery: RecoveryAvailability, record: RecordReceipt,
+    finalization: Option<SelfFinalization>, checks: Vec<Check>,
 }
 pub struct RestoreEvidence {
     method_ref: ContractRef, artifact_sha256: String, target_ref: String,
@@ -297,6 +298,95 @@ preparingもアプリ停止などの副作用を含み得る候補とし、stage
 | 復旧も失敗・不明 | unavailable/unknownを保持。新しい通常更新へ進まない |
 
 資源復元の候補は、元計画で許可された保全元と同一対象だけを逆依存順に処理する。作成したdirectoryへ他者のファイルが増えた場合は再帰削除せず復旧不能範囲として止める。復旧成功でも元操作のfailedをsuccessへ変更しない。バックアップの暗号形式と不完全物の保存・除去条件が未確定な間は、cleanupを理由にデータを自動削除しない。
+
+### 本体変更の終了処理
+
+P04-SELFの未採用候補として、資源検証、P02-STOREの必須記録確定、清掃完結、CLI送達を四つの別結果にする。既存手順の「操作状態/履歴確定後に清掃」を維持し、確定済みhistory/operation/snapshotを清掃失敗で書き換えない。record.completeだけでは本体変更全体の成功を表示せず、以下の終了処理も照合する。
+
+```rust
+pub enum FinalizationStage { Prepared, Cleaning, Complete, Failed, Unknown }
+pub enum CleanupState { Pending, Removed, Failed, Unknown }
+pub struct FinalizationRef { operation_id: OperationId, sha256: String }
+pub struct CleanupEntry {
+    path_id: String, identity_ref: String, content_sha256: String,
+    state: CleanupState, evidence_ref: Option<String>, error: Option<Diagnostic>,
+}
+pub struct SelfFinalization {
+    schema_version: u32, operation_id: OperationId, plan_id: PlanId,
+    target: TargetEvidence, stage: FinalizationStage,
+    record_intent_sha256: Option<String>, entries: Vec<CleanupEntry>,
+    resolves: Option<FinalizationRef>, error: Option<Diagnostic>,
+}
+pub struct CleanupRecoveryPayload {
+    plan_id: PlanId, target: TargetEvidence, resolves: FinalizationRef,
+    entries: Vec<CleanupEntry>,
+}
+pub struct VerifiedFinalizationRecovery {
+    payload: CleanupRecoveryPayload, lineage: Vec<FinalizationNodeProof>, verification_ref: String,
+}
+pub struct FinalizationNodeProof {
+    ledger: FinalizationRef, core_intent_sha256: String,
+    predecessor: Option<FinalizationRef>, verification_ref: String,
+}
+pub fn finalize_self(ctx: &mut ExecutionContext, core: &RecordReceipt,
+    saved: &SelfFinalization) -> ChangeResult<SelfFinalization>;
+```
+
+保存先候補は当該親操作の`operations/OperationId/self-finalization.json`一件。全キーは上記structの同名項目だけで、schema_version=1、外部列挙値は小文字snake_caseとする。entriesは固定保存先ID順・一意・最大64件。削除を計画した受信用/配置用の新規一時物だけを列挙し、実体/親/内容hashとP03-FSのRemove保証を先に照合する。配置本体、previous、署名資料、verifiedのself取引、intent/history/snapshot、保全物は登録不可。親Planに本体変更も清掃専用復旧もない場合だけOperationReceipt.finalization=nullを許す。本体変更の子が返る時点はPreparedで、親finish前のCompleteを許さない。親だけがfinish後にfinalize_selfを呼び、同じcore/ctx/savedのID・対象と実同期済みledgerを照合する。別段階の先行呼出しや未確認coreはSELF_FINALIZATIONで削除0件。
+
+| 順序・位置 | 必須条件と保存結果 |
+|---|---|
+| 親finish前 | 全清掃entryと容量/残期限を確定しPreparedを同期。record_intent_sha256=null、全entry=Pending。保存不能ならfinishを開始せず、対象変更済みの位置を保持 |
+| 親finish後 | 同じID/対象のintent.completeと不変snapshotを再照合し、そのintentの実hashを結合してCleaningを同期。この同期前に削除しない |
+| 一entryの除去 | 固定IDから解決した同じ実体/親/hashを再確認し、単一entryだけを除去、親同期、不在証拠の保存を順に行う。交換/参照残存なら削除せずFailed、要求後の結果不明はUnknown |
+| 全清掃終了 | 全entry=Removed、各不在/親同期の証拠、core記録との対応を照合しCompleteを同期。空集合でもこの確定を省略しない |
+| 応答と解除 | 同じguard/親期限内で最終結果を生成。Complete同期まで成功・終了10・成功結果のresult_readyを許可しない。Failedを同期できた場合は失敗結果を返して所有を終了できるが、次の通常変更は停止したまま。異常終了でOSがlockを解放しても未完結判定は残る |
+
+Removedはevidence_ref必須・errorなし、Pendingは両方null、Failedはerror必須、Unknownは未確認理由をerrorへ保持する。ledger.errorはPrepared/Cleaning/Completeでnull、Failed/Unknownで必須。Preparedはhash=nullかつ全entry=Pending、Cleaning/Completeはrecord_intent_sha256必須で、Completeは全entry=Removedを必要とする。Failed/Unknownは確認済みのcore hash/entry位置を保持し、後の読取り不能を理由に既知hashやRemovedをnull/Pendingへ戻さない。Cleaningへ未到達でcore hashを取得不能ならnullかつ全entry=Pendingとして削除開始を禁止する。未知のhashを生成しない。Failed/Unknownの後に残りの削除を自動続行しない。終端記録の保存自体が失敗した場合は最後の同期済み位置と実entryを照合し、削除済み/未削除を推測しない。finalize_selfの失敗はその確認済み位置をChangeFailure.partial/保存参照へ返す。最終ledgerはP02のcore snapshotへ再帰内包せず、coreの不変intentへ片方向で結ぶ独立した必須終了記録とする。
+
+清掃失敗時のCLIは通常dataと親receiptを保持し、`SELF_FINALIZATION`をerrorsへ、finalizationへ実段階を返す。本体変更開始後なのでP02-CLIの既存分類を適用し成功にしない。report/status/Queryはcore結果と終了処理の未完結を別Checkへ出し、historyのsuccessだけで正常終了を推測しない。清掃完結後のstdout失敗だけはCLI_OUTPUTとし、Completeを取消・再清掃しない。
+
+再開は通常selfの再実行でなく、入口から選択・確認した新しいrecover計画に限定する。CleanupRecoveryPayloadは上記全キー、親Plan.command=recover、唯一の変更step=P04-SELF/self.finalize.prepare、他は担当検証stepだけとする。entriesは旧ledgerと同じpath_id/identity_ref/content_sha256集合をPendingで固定し、resolvesは直前の未完結ledgerの操作IDと取得した実hashを指す。通常PreparedSelf/本体再配置/他資源変更を混在させない。開始例外の対象と全旧coreの証明は[参照連鎖](#清掃復旧の参照連鎖)だけで判定し、単一ledgerしか残っていないという条件に置き換えない。
+
+self.finalize.prepareの担当範囲は旧entry/所有/RootBinding/期限の照合と新Prepared ledgerの同期まで。この範囲を満たした場合だけStepReceiptをverifiedとし、削除実行済みとは報告しない。親coreのfinishはこの準備と検証stepを確定し、実削除/終了確定はその後のfinalize_selfだけが行う。finishの前提に清掃Completeを要求する循環を作らず、逆に準備stepのverifiedを親の清掃成功へ転用しない。
+
+旧記録は不変で、新操作のPrepared保存/資源照合/core確定後だけCleaningへ進む。元entryが不在なら旧証拠と現在の不在を照合して新しいRemoved証拠へ結合し、残存物だけ同じ実体/親/hashを確認して除去する。別物は削除しない。新操作のcore記録とComplete ledgerの双方が、参照連鎖に含む旧未完結を解消する根拠となる。次の通常beginは、この対応を含む全未完結の照合が終わるまで停止する。旧coreの記録修復が必要な場合は本清掃契約の対象外で、P02-STOREの是正条件を先に満たす必要がある。
+
+### 清掃復旧の参照連鎖
+
+清掃復旧自体が失敗した場合も、新たに選択・確認した清掃専用recoverを同じ規則で審査する候補。resolvesは一つ前のleafを指し、rootはresolves=nullの元の本体変更とする。AをBが復旧し、Bのcore確定後に清掃が失敗した場合、CはBを直接参照してA/Bを同じ連鎖として照合する。A/Bが複数残ることだけではCを拒否せず、無関係な未完了を同じ例外へ取り込まない。
+
+収集器は対象guard下で、全self-finalizationと対応するcore/監督単位を列挙する。各ledgerはLF込み64 KiB以下、連鎖は新操作を含め最大64件とし、参照先をrootまで辿った実byte列/hash、operation/plan/対象、coreのintent.complete/不変snapshot、全entryの所有集合を照合する。lineageはrootから直前leafまでのFinalizationNodeProofを一度ずつ保持し、各ledger/ref/predecessorは保存済み元byte列から得る。predecessorは当該ledger.resolves、core_intent_sha256は当該操作の実coreを検証したhashだけとし、ledger側の未取得hashを推測で補わない。新payload.resolvesはlineage末尾へ完全一致させる。
+
+元の本体変更を含め、ledgerの全成功/失敗/Unknown枝の直列化量を準備前に確認する候補。64件のentryを登録できることと64 KiBへ収まることは別条件で、量/深さ/ノード/診断の上界不明なら本体変更または新recoverを開始しない。core確定前にPreparedを同期できても、後のFailedを保存できる根拠がなければ準備成立としない。lineageは検証済み内部証拠だけで外部payloadへ追加せず、保存するresolves一件から全祖先を再取得する。空entriesも許容するが、Completeの同期/参照照合を省略しない。
+
+| 審査する条件 | 受理・停止の候補 |
+|---|---|
+| root/親/子と全集合 | 一root・一leafの単方向連鎖だけ。欠損、hash不一致、循環、同じ親から二子、別対象/別entry集合、参照元の列挙不能はSELF_FINALIZATION。既に子がある祖先へ別の復旧を直接付けない |
+| 旧処理の寿命 | 旧worker/子孫の全停止と書込み主体の排除を照合し、同じguard保持中に採取/再照合する。旧ledgerを新段階へ書き戻さず、新操作の開始以後は旧finalizeの続行を禁止。停止不明・採取中変化は受理不可 |
+| 旧core | 連鎖の全操作についてcoreの確定と不変資料を必要とする。core未確定、旧履歴破損、別の未完了操作はこの例外の対象外。P02の是正案・承認・検証を先に必要とする |
+| 旧leafの段階 | Failed/Unknownのほか、異常終了でPrepared/Cleaningのままでも、旧処理停止・core確定・entry実状態を全件照合できた場合だけ候補にできる。段階名だけで未実行/削除済みを認定しない。Completeの正常leafへ新清掃を追加しない |
+| entryと残量 | rootと同じ固定所有集合を維持し、entry追加/参照の付替えは拒否。不在は旧削除の証拠または結果不明だった旧要求との対応、現在の不在と親同期を全て検査してから新Removedへ結合する。不在だけで旧Removedを捏造しない |
+| 境界・新しい予算 | 旧63件までに新一件を追加可能。64件の既存連鎖、各ledger量超過、列挙/照合/同期/残清掃の容量・親予算不足では開始0件。過去証拠の自動削除・根の付替え・古い操作への予算再付与で回避しない |
+
+VerifiedFinalizationRecoveryはこの全件照合を終えた収集器だけが生成する。prepare_startはpayload/lineage/現target/新Planの対応を検査し、この連鎖に属する清掃未完結だけを開始停止から除外する。旧実本体の一致と新core/終了記録の必要集合を緩和しない。新操作がcore確定前に失敗した場合は、次の清掃復旧へ進まずcoreの是正へ戻す。
+
+解消は読み取りで算定する。leafのComplete、同じleafのcore確定、rootまでの全参照/hash/対象/所有集合が一致した場合だけ、連鎖全体の清掃停止を解消済みと判定する。A/Bの元history・Failed/Unknown・ledger byte列は不変で、旧操作の失敗を成功へ変更しない。Cも失敗した場合は次の明示recoverでCをleafとして同じ有限審査を繰り返す。Queryは照合結果だけを返し、旧deliveryやledgerを修復しない。参照先が後に変化/欠損したら解消根拠は無効で、通常beginを再び停止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-53` | A清掃失敗、BはAを参照してcore確定後清掃失敗、CはBを参照し完結。別入力はCも失敗 | 前者はCのcore/Completeと全連鎖でA/Bの清掃停止を解消、元記録不変。後者は停止を維持し次の明示復旧の候補へ。複数ledgerだけの拒否・自動再清掃なし |
+| `A04-54` | 同親への二子、参照欠損/循環/別hash、旧worker残存、旧core未確定、別対象entry | 各入力は開始前拒否、削除0件。履歴の推測補完・祖先への分岐・無関係な停止の免除なし |
+| `A04-55` | 旧63/64件へ新一件、ledger64 KiB/+1、core確定した旧Cleaningで処理死亡/停止不明 | 数/量の内側だけ次の条件へ。死亡かつ全件実状態照合済みだけ復旧候補、停止不明は拒否。容量削除・予算延長・段階の書戻しなし |
+
+終了検査IDの候補は`P04-SELF/finalization.complete`とする。親成功と通常変更開始ではCompleteまたは検証済み解消参照だけpass、Failedはfail、Prepared/Cleaning/Unknownまたは欠損/読取り不能はunknown。本体変更のない履歴だけでledger不要と確認した範囲は理由付きnot_applicable。読取りのstatus/report/Queryでは任意Checkとして未完結を表示し、記録整合そのものの失敗とは分離する。doctorと親成功の照合は必須、検査のために清掃・記録変更を実行しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-51` | core確定後unlink失敗、unlink後親同期不明、Complete同期後stdout失敗 | 順にFailed/Unknown/送達失敗を保持。旧history不変、通常begin停止、最後の入力だけは再清掃なし |
+| `A04-52` | 旧一時名が別inode、明示recoverで旧ledger参照、解消参照の循環 | 別物削除0回、同一対象/残存分だけ復旧候補、循環拒否。再配置・旧結果の成功への書換えなし |
+
+型/保存/再開の候補は本節へ集約し、OS側の対象固定・同期・停止の成立根拠はD03-02/D02-05/D04-01へ残す。文書上の候補追加を実清掃・復旧の実施としない。
 
 ## 依存と互換性の詳細案
 
@@ -455,6 +545,14 @@ file-sinkの候補は親が保護directoryにcreate_newで開いた通常fileだ
 curlの全argv候補は、固定実行path、--disable、--globoff、--proto、=https、--proto-redir、=https、--connect-timeout、30、--max-time、残通常秒の十進値、--retry、0、--silent、--show-error、--fail、--max-filesize、許可bytes、--output、固定一時path、--write-out、固定書式、--url、検証済みURLの順。書式はhttp_code/size_download/redirect_urlを各一行とする。URL/pathは固定構築した一引数、--locationなし、cwdは当該作業directory、環境はLANG=C/LC_ALL=Cだけ、stdinは空。API認証が必要なら登録済み認証参照から生成したheaderをstdinへ渡す--header/@-の二引数だけを追加する候補とし、秘密値をargv/環境/記録へ置かない。
 
 redirect比較方式では3xxの応答を完成bodyへ昇格せず、Location由来のredirect_urlを元URLとの相対解決後に再検証する。origin許可・最大三段・循環・認証の非転送を全段に適用する。各段は新しい空の一時fileを使い、3xx bodyを最終payloadへ連結しない。固定write-outの量/行数/整数/URLを検証し、外部出力をコマンドとして評価しない。curlの非ゼロ、取得量の相違、HTTP 200以外の最終応答はFETCH_RESPONSE。採用版で全option・TLS・容量強制を実証するまで実行不可。
+
+redirect_url一値だけでは複数Locationの拒否を証明できない。比較方式を採用するには、最終応答のLocation全出現を保持するheader観測を別に固定し、欠損/二件以上/空値/不正文法を拒否する候補とする。正規化後の一値しか取得できないadapterは不成立。curlの[write-out資料](https://curl.se/docs/manpage.html#-w)にあるheader_jsonは値を配列で表すが、固定版での出現保持・応答区分・量制限の実証は別に必要であり、ここでargvへ自動追加しない。
+
+取得の容量・hashはfile-sinkに保存した実byte列から求める。size_download等の表示値は補助情報であり、短い受信、HTTPエラー、同期失敗を成功へ変換しない。--max-timeの値は残通常時間を正の十進秒へ変換し、0または表現不能なら起動しない。外側の期限・停止予約を維持し、秒への変換で親期限を延長しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A04-50` | 同一/異なるLocationが二件、redirect_urlは一値、残通常時間を秒化すると0 | header観測不足/複数値を拒否し、0秒の取得を起動しない。一値表示・取得量表示・timeout無効化による成功なし |
 
 metadataのplan/dry-run取得はP02のReadOnly文脈とメモリーcaptureだけで、file-sinkを作らない。二入力の第一比較候補は[匿名pipeによるdetached検証](#匿名pipeによるdetached検証)とする。固定版での成立確認・採用はD04-01に残し、計画作成を理由に一時保存・署名検証省略を追加しない。
 

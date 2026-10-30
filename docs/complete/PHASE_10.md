@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-10-os未導入のcloudへの導入復旧)
 
-案版`B12`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
+案版`B14`の契約候補で、採用未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)を適用する。対象要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。基本仕様の[実行環境と対象OS](../BASIC_SPEC.md#cloudの実行環境と対象os)を正本とし、OSがない対象を扱う要求を削除しない。
 
 ## 契約と共通参照
 
@@ -12,7 +12,7 @@
 | `P10-OS` | 対象ディスクへのOS導入・起動構成 |
 | `P10-RECOVER` | 起動不能・導入中断時の照合と復旧 |
 
-参照（全フェーズB12）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
+参照（全フェーズB14）は`P02-MODEL`・[対象識別](PHASE_02.md#p02-model)、`P02-STATE`・[判定](PHASE_02.md#p02-state)、`P02-EXEC`・[実行上限](PHASE_02.md#p02-exec)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-HANDOFF`・[対象OSへの引継ぎ](PHASE_05.md#p05-handoff)、`P09-SSH`・[接続](PHASE_09.md#p09-ssh)、`P09-REMOTE`・[配送](PHASE_09.md#p09-remote)、`P09-RECONNECT`・[照合](PHASE_09.md#p09-reconnect)。媒体に固有の起動をCloudへ必須化しない。
 
 ## P10-BOOTSTRAP
 
@@ -281,6 +281,12 @@ InstallPayloadの候補検証は全キー/型→storage.disk_idと対象一致�
 
 entryは検証器を呼ぶ入口が指定する候補で、payloadから自己申告させない。Mediaではnext_endpoint=nullを要求し、物理PCの導入にマスター台帳への登録やSSH再接続を追加しない。SshBootstrapでは登録済み参照が必須で、nullはINSTALL_PAYLOAD。同じstorage/network/user/loaderの共通検証を再利用し、起動後の確認先だけを媒体の内蔵表示/記録とCloudのP09再接続へ分ける。
 
+起動方式は実行側CPUだけでなく、対象CPU・固定OS資材・loader・installerの対応集合へ照合する候補。arm64媒体のUEFIとamd64のUEFI/BIOSは[P11の経路表](PHASE_11.md#p11-accept)へ対応付け、whole_disk_biosの形式が存在することをarm64 BIOS対応の根拠にしない。Cloud側も採用したInstallerBindingのarchitecture/boot両条件と当該組合せの実契約を必要とし、二つの許可配列の無条件直積を対応済みにしない。未知の組はINSTALL_BINDINGで消去前停止する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-36` | arm64媒体にBIOS、対象CPUとloaderが不一致、配列には各値があるが組の契約なし | 導入前拒否。実行側CPU・配列の存在・レイアウト名だけの対応認定、別方式への変更なし |
+
 これらは寸法・対応範囲の提案値であり、Ubuntu公式資材・Subiquity・Cloud導入方式との適合は未確認。未対応のIPv6環境をIPv4へ勝手に変更せず導入前停止とする。公開鍵・昇格方法・loader実行引数は個別外部契約とセキュリティ審査が成立するまで未達として残す。
 
 | ケースID | 固定入力 | 期待結果 |
@@ -294,6 +300,27 @@ P10-BOOTSTRAPの事前記録は消去対象外の永続領域を対象一時環�
 永続領域が消去対象内、RAMだけ、保存元の実機器不明、他プロセスとの対象排他不成立なら消去前停止。新しく領域を作るため先に対象を消去する循環を認めない。SSHに接続できるすべての環境へ導入可能とは保証しない。
 
 消去前の記録候補はrequest/plan/disk/digest・InstallerBinding・全InstallStage・保全物参照を両側で照合する。preparedの双方同期を確認してからpartition.startedを記録し、startedの双方同期成功を確認した後だけ消去する。片側だけstartedで中断した場合は消去済みとは断定せず、消去の可能性ありとして実disk照合へ進む。対象側記録とマスター側記録のどちらも実状態の代替にはせず、片側の正常記録で他方を自動修復しない。
+
+### 消去前journalの束縛
+
+永続記録の方式審査に用いる候補型を次へ固定する。保存域の生成/取得コマンドを暗黙に補完せず、これは方式の成立条件を運ぶ契約とする。
+
+```rust
+pub struct InstallJournalBinding {
+    request_id: OperationId, plan_id: PlanId, operation_id: OperationId,
+    plan_digest: String, target: TargetEvidence, disk_id: String,
+    root_binding: RootBinding, backing_device_ids: Vec<String>,
+    durable_method: ContractRef, exclusion_ref: String, evidence_ref: String,
+}
+```
+
+全キーはstructと同名、backing_device_idsは一意・昇順・1〜64件の実行環境で同定できる記憶機器ID、その他は各担当共通型へ照合する。root_bindingの必要操作はRead/Create/Replace/Syncで、清掃を計画するときだけRemoveを追加する。FS/volume/partitionからOS可視の最下位block deviceまでの依存閉包を取得し、消去対象/そのpartitionとの書込み範囲の交差が空である証拠をevidence_refへ結ぶ。VPSで非公開のホスト物理disk番号を必須にせず、ゲストに提示されたdiskの同一性・変化・許可範囲を採用契約で固定する。可視の依存閉包不明、循環、ネットワーク保存先の永続化保証不明も不成立。単なる別mountpointを消去外の証明にしない。接続切断と予定した一時環境/対象OSの再起動を越えた保持・再取得・対象排他をdurable_method/exclusion_refで保証できる必要がある。
+
+準備記録、不可分実行群のstarted、各工程検証結果、再起動要求と引渡し位置の各同期に、両側の同じrequest/plan/digestと単調増加する世代を対応付ける。ackは同世代の元記録hash・同期完了の根拠にだけ返し、送信成功/SSH終了0を永続ackにしない。応答欠損では新世代を書いて旧startedを覆わず、両側記録と実diskを読み直す。排他の復旧前に消去を再投入しない。世代/元hash/工程状態の保存形式と監督方式の具体化はD10-02へ残し、本型の存在だけでjournal.durableをpassにしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A10-37` | journalは別mountだが同じbacking、SSH送信だけ成功、startedのhashが両側で相違 | 導入前拒否またはunknown照合。保存先名/疎通を永続性に転用せず、世代上書き・再消去なし |
 
 | 保存・応答の位置 | 中断後の照合 |
 |---|---|

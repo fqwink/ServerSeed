@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-8-物理マスター構築内包機能の統合)
 
-案版は`B12`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
+案版は`B14`、採用判断は未承認。[案の適用範囲](PHASE_01.md#案の適用範囲)の対象とする。要件は`REQ-001`・`REQ-002`・`REQ-004`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-011`・`REQ-012`。既存の[マスター管理構成](../master/specification.md)を統合・削除せず参照する。
 
 ## 契約と参照
 
@@ -12,7 +12,7 @@
 | `P08-COHOST` | 三機能の同居・共有変更・準備状態 |
 | `P08-BACKUP` | マスター固有の保全と喪失時復旧 |
 
-共通参照（全フェーズB12）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
+共通参照（全フェーズB14）は`P02-MODEL`・[型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P05-MEDIA`・[導入](PHASE_05.md#p05-media)、`P05-HANDOFF`・[引継ぎ](PHASE_05.md#p05-handoff)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)。SSH自動処理はP09-SSH・P09-REMOTEに分離する。
 
 ## P08-MASTER
 
@@ -66,7 +66,7 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 
 | 宣言案 | 所有権・動作 |
 |---|---|
-| `master_plan(registry: &TargetRegistry, server: &[AppPlan], mining: PlanDraft, capacity: &CapacityInput, target: &TargetEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ親identityへ三機能と共有資源を結合した未封印計画を所有して返す。子Planの再帰内包・hash実行なし |
+| `master_plan(registry: MasterRegistryInput<'_>, server: &[AppPlan], mining: PlanDraft, capacity: &CapacityInput, target: &TargetEvidence, identity: PlanIdentity) -> Result<PlanDraft, ContractError>` | 同じ親identityへ三機能と共有資源を結合した未封印計画を所有して返す。子Planの再帰内包・hash実行なし |
 | `apply_master(ctx: &mut ExecutionContext, plan: &Plan) -> ChangeResult<MasterProgress>` | MasterProgressはreceipt: OperationReceiptとfeatures: FeatureReadiness[]の二項目。開始後の部分位置と三機能の結果を保持 |
 | `reconcile_master(saved: &ControlTransfer, observed: &[ReconcileResult]) -> Result<Vec<Check>, ContractError>` | 固定した対象別証拠と観測結果を照合。失効・修復・再投入を実行しない |
 
@@ -75,6 +75,8 @@ ControlTransferの候補ではtarget_idsをASCII昇順に固定し、二つの�
 ## データ契約の具体化案
 
 master_planはprofile=Masterの同じ親identityで生成したmining Draftを消費し、serverのAppPlan資源/担当step、registry/capacityのstepと平坦に合成する候補。子Draft全体をpayloadへ入れず、target/identity/資源ID/path/step ID/参照版の衝突はPLAN_PAYLOAD。別IDの子計画を親IDへ書換えて取り込まない。封印は結合後の一回だけ、完了済み子Planのdigestを親digestとして流用しない。A08-01/15には別親のmining Draft、同pathのserver/mining競合、平坦合成後の循環を含める。
+
+初回計画の台帳入力候補は`MasterRegistryInput::Initial`、構成済みの操作は`Existing(&TargetRegistry)`へ区分する。Initialは対象に構成管理の証跡がない初回setupだけで、予定する対象数は0、管理先登録はまだ実行しない。空diskの計画前にMachineIdやTargetRegistryを生成する循環を作らない。P07の[Preinstall同定](PHASE_07.md#導入前後の機器同定)で能力を評価し、begin後に[P02の識別準備](PHASE_02.md#p02-state)から貸与されたMachineIdで空のTargetRegistryを作る。同じID/対象/選択を照合して保存し、三機能の最終検証後に共通管理記録を確定する。readinessは保存後の実台帳を要求し、Initialから架空のMasterReadinessを返さない。既存台帳の欠損・破損はInitialへ変換しない。
 
 `P08-MASTER`の対象台帳、`P08-COHOST`の機能別結果と資源配分入力を具体化する候補。配置先は同節の候補を使用し、構成別仕様への正式反映・実ファイルの生成は行わない。
 
@@ -145,6 +147,7 @@ configured/applied/verifiedは工程の検証済み事実で、verified=trueな�
 
 ```rust
 pub struct TargetId(String);
+pub enum MasterRegistryInput<'a> { Initial, Existing(&'a TargetRegistry) }
 pub struct RegistryEntry {
     target_id: TargetId, host: String, port: u16, user: String,
     credential_ref: String, trust_ref: String, expected_machine_id: Option<MachineId>,
@@ -175,8 +178,10 @@ pub struct RegistrySnapshot {
 }
 pub enum RegistryEdit { Register(RegistryEntry), Remove(TargetId) }
 pub struct RegistryChange {
-    before_sha256: String, after: TargetRegistry, affected: Vec<TargetId>,
+    before_sha256: Option<String>, absence_ref: Option<String>,
+    after: TargetRegistry, affected: Vec<TargetId>,
 }
+pub struct RegistryInitialization { absence_ref: String }
 pub fn validate_registry(input: &Value) -> Result<TargetRegistry, ContractError>;
 pub fn registry_change(current: &RegistrySnapshot, edit: RegistryEdit, pending: &[TargetId],
     known_machines: &std::collections::BTreeMap<String, MachineId>)
@@ -184,6 +189,16 @@ pub fn registry_change(current: &RegistrySnapshot, edit: RegistryEdit, pending: 
 ```
 
 validate_registry・registry_changeはI/Oなし。RegistrySnapshotは収集器が読んだ元byte列・その検証済みhash・同じbyte列を解析した台帳と検証参照を保持し、任意hexだけで構築しない。registry_changeはそのsha256をbefore_sha256へ保持し、自身でhash実行物を起動しない。known_machinesは検証済みのtarget_id→MachineIdの観測集合で、台帳/今回登録のID以外を拒否する。expected_machine_idと観測済みIDのいずれからも同一実体の別名登録を検出する。pending対象の解除・同じIDの置換を拒否し、未確認のhostを名前だけで別機器と認定しない。台帳保存・対象側操作は別の実行契約とする。
+
+RegistryChangeの外部全集合はbefore_sha256/absence_ref/after/affectedだけとする候補。既存台帳編集はbefore_sha256=Some(実hash)、absence_ref=None。初回だけbefore_sha256=None、absence_ref=Some(同じ対象の台帳不在の確認資料)とし、after.targets/affectedは空、master_machine_idはP02の識別準備IDへ一致させる。両方null・両方非null・不在をzero hashで表す入力をREGISTRY_BASELINEで拒否する。初回の未封印計画は空台帳作成という範囲と不在条件を固定し、ID準備後の実台帳を担当生成器が構築して同じ計画の条件へ照合する。計画後に任意対象を追加できる穴にしない。
+
+初回台帳の生成境界候補は`initial_registry(identity: &MachineId, absence: &RecordObservation<TargetRegistry>) -> Result<RegistryChange, ContractError>`とし、同一対象のAbsentだけを受ける純粋処理。未知/破損/PresentをAbsentへ変換せず、実保存直前にも同じ不在を再確認する。master_planのInitialでは、未生成のID付きRegistryChangeをPlan.payloadへ要求せず、唯一の初期作成step `registry.initialize`へRegistryInitializationを保持する。全外部キーはabsence_ref一つだけで、同じ親対象の初回不在証拠へ照合する。これはrequired=trueの変更stepであり、check.へ偽装しない。
+
+apply_masterは同じctx/Planに結合したP02の同期済み識別準備を照合し、そのMachineIdと不在証拠からinitial_registryを呼ぶ。保存する内容はそのID/版と空targetsに一意に固定し、入力にない対象登録・ID差替えは行わない。生成したRegistryChangeは実適用/receiptの証拠で、封印済みPlanへ後付けしない。未知の実値をゼロhash/仮IDでPlanへ埋めず、計画には担当契約で固定した生成規則と不在根拠を封印する。既存台帳の変更payloadは従来どおりRegistryChangeを使用し、beforeのhashとafterの全内容を封印する。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-38` | 初回不在+準備ID、既存編集+実hash、両baseline null、保存前に台帳出現、初回へ対象追加 | 初回/既存を別条件で構築。後三件は拒否、上書き0件。空台帳hashの創作・計画前ID生成・未封印の対象追加なし |
 
 マスターCLIの具体候補は`serverseed master targets list`、`serverseed master targets add`、`serverseed master targets remove`、`serverseed master run`、`serverseed master reconcile`の5入口。add/remove/runは対話入力・必要確認を要求し、--yesで対象・操作・構成を補完しない。list/reconcileは照合だけ。新構文の採用・全オプションと結果の確定は`D08-01`で行い、共通CLIが今すでに受理するとは扱わない。
 
@@ -367,6 +382,16 @@ WorkloadProfile候補の全キーはprofile_id、対象機器/OS/driverの固定
 CPUの割当可能集合はonline、現在のCpus_allowed_list、有効cpusetの共通部分とする候補。論理CPU IDを昇順に管理→サーバ→採掘へ重複なく分配し、各必要数と総量式を照合する。systemdのAllowedCPUs/MemoryMaxと、Dockerの実効cgroupを読み戻し、全対象サービスが正しい親/範囲にあることを検証する。CPUQuotaやMemoryLowだけで専有・優先/実負荷応答を保証しない。SMT/共有memory/GPU/IOの干渉は同じ負荷試験へ含める。
 
 管理/サーバ/採掘の一件でも有効制限不明、最低要求未選定、GPUの未確認共有、負荷profile不一致ならresources.enforced/measured/minimumをpassにせずready=false。資源不足を理由に一機能を削る縮退masterへ変えない。実際の最低値/対象負荷と強制方式の採用はD08-02に残す。
+
+制限の読み戻しはunitの設定値だけでなく、全管理対象PID/containerの実所属と親からの実効値へ対応付ける候補。Docker daemonのunitとcontainerのcgroupが同じ親であると仮定しない。CPU online/許可集合・親制限・container再作成で所属が変われば旧測定/強制結果を失効させる。AllowedCPUsは他の全処理からの専有を単独では保証しないため、OS/対象外処理との共有を同じ負荷条件へ含め、未測定の干渉を予約済みの保証へ変換しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-36` | unit設定は一致するがcontainerは別親、測定後CPU offline、対象外負荷が予約CPUを使用 | 実効範囲/測定条件を再照合しreadyを保留。設定値だけの強制確認・CPU専有/応答保証の捏造なし |
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A08-37` | 空diskでInitial、既存台帳読取り失敗をInitialへ変換、初回保存時に異なるMachineId | 初回だけ未封印計画を生成可能、後二件は拒否。計画前のID生成・台帳欠損の空集合化・三機能の識別分裂なし |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|

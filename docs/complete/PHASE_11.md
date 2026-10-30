@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-11-全体の統合受入初期リリース)
 
-採用未承認案`B12`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
+採用未承認案`B14`。[案の適用範囲](PHASE_01.md#案の適用範囲)に従う。対象は`REQ-001`〜`REQ-012`。製品の[受入と追跡](../BASIC_SPEC.md#受入と追跡)、[CI/CD](../BASIC_SPEC.md#cicd)、[リリース工程](../BASIC_SPEC.md#リリース工程)を参照し、新しい公開経路や署名鍵の運用規則を本書に作らない。
 
 ## 契約と依存範囲
 
@@ -11,7 +11,7 @@
 | `P11-ACCEPT` | 全要件・経路・構成の受入集合と結果の追跡 |
 | `P11-RELEASE` | 固定入力・成果物・試験と公開対象の同一性 |
 
-本フェーズは各契約（全フェーズB12）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
+本フェーズは各契約（全フェーズB14）の`P01-CHECK`・[検査](PHASE_01.md#p01-check)、`P02-MODEL`・[共通型](PHASE_02.md#p02-model)、`P02-CLI`・[CLI](PHASE_02.md#p02-cli)、`P03-PLAN`・[計画](PHASE_03.md#p03-plan)、`P04-SELF`・[本体](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P05-ISO`・[媒体](PHASE_05.md#p05-iso)、`P06-APP`・[サーバ](PHASE_06.md#p06-app)、`P07-RUN`・[採掘](PHASE_07.md#p07-run)、`P08-COHOST`・[同居](PHASE_08.md#p08-cohost)、`P09-RECONNECT`・[SSH照合](PHASE_09.md#p09-reconnect)、`P10-OS`・[OS導入](PHASE_10.md#p10-os)を統合する。各担当の残る契約も受入対象の依存として追跡する。
 
 ## P11-ACCEPT
 
@@ -81,12 +81,12 @@
 
 | 型 | 全キー・値域の候補 |
 |---|---|
-| AcceptanceRow | requirement_id: 既存要件ID、contract: ContractRef、case_id: 受入ID、architecture: 既存CPU値、profile: 既存構成またはnull、entry: media・ssh_existing・ssh_bootstrap・internal、execution_class: CaseExecutionClass、environment_ref・artifact_sha256・expected_ref: string、result: pass・fail・not_run・not_applicable、actual_ref・reason: stringまたはnull |
+| AcceptanceRow | requirement_id: 既存要件ID、contract: ContractRef、case_id: 受入ID、branch_id: CaseBranchの識別子、architecture: 既存CPU値、profile: 既存構成またはnull、entry: media・ssh_existing・ssh_bootstrap・internal、execution_class: CaseExecutionClass、environment_ref・artifact_sha256・expected_ref・verification_ref: string、result: pass・fail・not_run・not_applicable、actual_ref・reason: stringまたはnull |
 | AcceptanceMatrix | schema_version: 1、implementation_commit: 完全コミットID、rows: AcceptanceRow[]、complete: boolean |
 | ReleaseEvidence | schema_version: 1、tag・commit・build_environment_ref: string、artifacts: ArtifactEvidence[]、acceptance: AcceptanceMatrix、publishable: boolean |
 | ArtifactEvidence | name・sha256: string、bytes: 正のinteger、producer_ref: string、verification_refs: string[] |
 
-受入行の結合キーは要件ID・契約ID・ケースID・CPU・構成・入口・execution_class・environment_refの組で一意にする。契約のfile/anchor/版/commitとexpected_refも別に完全一致を検査する。pass/failはactual_ref必須、not_run/not_applicableはreason必須。not_applicableには担当正本の非適用根拠への参照を要求し、能力未確認・試験困難・未実装を非適用にしない。必須行のnot_run/fail、欠損・重複・承認済み契約や期待結果の不在が一件でもあればcomplete=false。
+受入行の結合キーは要件ID・契約ID・ケースID・branch_id・CPU・構成・入口・execution_class・environment_refの組で一意にする。契約のfile/anchor/版/commitとexpected_ref/verification_refも別に完全一致を検査する。pass/failはactual_ref必須、not_run/not_applicableはreason必須。not_applicableには担当正本の非適用根拠への参照を要求し、能力未確認・試験困難・未実装を非適用にしない。必須行のnot_run/fail、欠損・重複・承認済み契約や期待結果の不在が一件でもあればcomplete=false。
 
 expected_refは実出力から作らず、採用済みの受入条件と固定した入力・前提への参照とする。actual_refは実行コマンド・対象・前後状態・実出力・成否を特定する所有者管理下の証拠を指す。証拠のバイト列・対象コミット・環境・成果物が変わった場合は、同じケース名でも結果を自動再利用しない。
 
@@ -148,9 +148,9 @@ ReleaseEvidenceは「同じ本体をISOに収録した」証拠と、手動VM試
 
 集計処理collect_acceptanceの入力は、照合済みAcceptanceScope、ActualCaseの集合、VerifiedEvidenceのcatalog。出力はAcceptanceMatrixまたは固定診断とし、証拠取得・試験実行・保存を行わない。呼出し構文・データ受渡し・解析・診断の符号化はD11-01で確定する。
 
-resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseの結合キーに含める識別項目だけで結果を結合し、expected_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。出力のcompleteは集計処理が算出し、入力のtrueを信頼しない。
+resultの許容値は[受入行](#データ契約の具体化案)へ参照する。ExpectedCaseの結合キーに含める識別項目だけで結果を結合し、expected_ref・verification_ref・承認済みcommitも別に完全一致を検証する。同じcase_idでもCPU・構成・入口が違えば別行。参照先がない期待値、未知の行、欠損・重複を失敗とし、実結果側からscopeを縮小しない。出力のcompleteは集計処理が算出し、入力のtrueを信頼しない。
 
-結合の候補順はrequirement_id・contract.contract_id・case_id・architecture・profile・entry・execution_class・environment_refのUTF-8バイト辞書順で、profile=nullはstringより前とする。残るContractRef全項目・expected_ref・artifact_ref・requiredも固定scopeと完全一致させ、同じ結合キーで内容だけ変えた行を受理しない。Scopeのcase_id集合は担当本文の全受入設計へ照合し、同一ケースの全直積を自動生成しない。各ケースの適用行/拒否行が未決ならscope未成立とし、集計器の成功と分ける。
+結合の候補順はrequirement_id・contract.contract_id・case_id・branch_id・architecture・profile・entry・execution_class・environment_refのUTF-8バイト辞書順で、profile=nullはstringより前とする。残るContractRef全項目・expected_ref・verification_ref・artifact_ref・requiredも固定scopeと完全一致させ、同じ結合キーで内容だけ変えた行を受理しない。Scopeのcase_id集合は担当本文の全受入設計へ照合し、同一ケースの全直積を自動生成しない。各ケースの適用行/拒否行が未決ならscope未成立とし、集計器の成功と分ける。
 
 ExpectedCase.expected_refは検証済みEvidenceRef、AcceptanceRow.expected_refは同じ証拠のevidence_idだけを保持する。ActualCase.keyから既定の識別組を複写し、実結果を照合してrowを作る。参照を丸ごと別の自由stringへ直列化しない。not_runの実artifactが存在しない場合にゼロhashを生成せず、その行のartifact_sha256は期待する成果物hashとしてscopeの証拠から照合し、実取得の有無はactual_ref/evidenceで区別する。未確定の成果物を必要とするscopeは生成せず、document_draftの検査結果で製品scopeを補完しない。
 
@@ -233,7 +233,7 @@ P11-ACCEPTの証拠参照を以下の候補へ閉じる。所有者の判定資�
 | 型 | 全キー・型 |
 |---|---|
 | EvidenceRef | evidence_id: ASCII識別子、relative_path: string、sha256: hex64string、bytes: u64、commit: Git完全ID、environment_id: string、scope_id: string |
-| ExpectedCase | requirement_id・contract・case_id・architecture・profile・entry・execution_classは受入行と同じ型、environment_ref: string、required: bool、expected_ref・artifact_ref: EvidenceRef |
+| ExpectedCase | requirement_id・contract・case_id・branch_id・architecture・profile・entry・execution_classは受入行と同じ型、environment_ref・verification_ref: string、required: bool、expected_ref・artifact_ref: EvidenceRef |
 | AcceptanceScope | schema_version: 1、scope_id: string、specification_commit・implementation_commit: Git完全ID、cases: ExpectedCase[]、artifacts: ExpectedArtifact[] |
 | ExpectedArtifact | name: 必須成果物名、architecture: 既存CPUまたは全体用null、producer_contract: ContractRef、required: bool |
 | ActualCase | 全キーは[集計の入力](#型とapiの詳細案)を参照。passは期待参照と実観測の対応が必要、not_runは実出力を捏造しない |
@@ -319,9 +319,12 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 | データ | 全キー・型の候補 |
 |---|---|
 | CaseLane | architecture・entry・environment_ref: string、profile: 構成値またはnull、execution_class: CaseExecutionClass、required: boolean、applicability_ref: ContractRef。値域は本書の対応表へ照合 |
-| CaseBinding | case_id: string、source: ContractRef、requirement_ids: 既存要件IDの空でない一意配列、contracts: 検証対象ContractRefの空でない一意配列、lanes: CaseLane[]、expected_ref: EvidenceRef |
+| CaseBranch | branch_id: ASCII識別子、input_refs・expectation_refs: SourceCellRefの非空配列。元の同じ受入行の一つの入力枝と対応する全期待条件を特定 |
+| SourceCellRef | column: input/expectation、start_byte・end_byte: 非負integer。担当行の当該セルの元UTF-8 byte列に対する半開区間。0 <= start < end <= セル実長 |
+| CaseTarget | branch_id: 同じBindingのCaseBranch識別子、requirement_id: 既存要件ID、contract: 検証対象ContractRef、lane: CaseLane、expectation_refs: SourceCellRefの非空配列、expected_ref: EvidenceRef、verification_ref: string。枝内で当該laneが実際に検証する条件を明示 |
+| CaseBinding | case_id: string、source: ContractRef、branches: CaseBranchの非空一意配列、targets: CaseTargetの空でない一意配列。Binding直下に共通expected_refを置かない |
 | CaseCatalog | schema_version: 1、specification_commit: 完全Git ID、bindings: CaseBinding[] |
-| ExpectedCaseDraft | requirement_id・case_id: string、contract: ContractRef、lane: CaseLane、expected_ref: EvidenceRef |
+| ExpectedCaseDraft | requirement_id・case_id・branch_id・verification_ref: string、contract: ContractRef、lane: CaseLane、expected_ref: EvidenceRef |
 | VerifiedEnvironment | environment_id・architecture・entry: string、profiles: 構成値またはnullの配列、execution_classes: CaseExecutionClass[]、evidence: EvidenceRef、verification_ref: string |
 | ScopeIdentity | scope_id・specification_commit・implementation_commit: string。commitは完全Git ID |
 
@@ -331,19 +334,33 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 | expand_expected_cases | 照合済みCaseCatalogを受け、ExpectedCaseDraftの集合または固定診断を返す |
 | bind_acceptance_scope | ExpectedCaseDraft集合、照合済み成果物のVerifiedEvidence集合、VerifiedEnvironment集合、ScopeIdentityを受け、AcceptanceScopeまたは固定診断を返す |
 
-上表はシェルのデータ・入出力契約案であり、Rustの型・関数を検証用に実装する宣言ではない。検証/展開/束縛は検証済み参照と入力値だけを扱い、ファイル取得・時計取得・実試験を開始しない。sourceは担当受入行を含む節の固定参照、expected_refは期待内容の資料であり実結果ではない。lanesは空不可、同じ七値の重複を拒否し、同じ結合キーで根拠/requiredだけ違う行も競合とする。意味を未確認のままケース名の単語からclass/laneを自動認定しない。シェル手続の呼出し・受渡し・解析・終了区分と有界実行の成立根拠はD11-01の未達に残す。
+上表はシェルのデータ・入出力契約案であり、Rustの型・関数を検証用に実装する宣言ではない。検証/展開/束縛は検証済み参照と入力値だけを扱い、ファイル取得・時計取得・実試験を開始しない。sourceは担当受入行を含む節の固定参照、expected_refは当該Targetの条件に対応する期待資料であり実結果ではない。targetsは空不可。同じbranch_id/requirement_id/契約ID/CPU/構成/入口/実行区分/環境の組を重複させず、残る契約情報・期待条件・根拠・requiredだけ違う行も競合とする。同じ組の複数条件は一Targetへ結合する。意味を未確認のままケース名の単語からclass/laneを自動認定しない。シェル手続の呼出し・受渡し・解析・終了区分と有界実行の成立根拠はD11-01の未達に残す。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
-| `A11-32` | 同一laneのrequiredだけ相違、空lanes、実結果から作ったexpected_ref | ACCEPT_SCOPE/ACCEPT_EVIDENCE。重複の後勝ち・空直積の完了化・期待と実結果の循環なし |
+| `A11-32` | 同一対象組のrequiredだけ相違、空targets、実結果から作ったexpected_ref | ACCEPT_SCOPE/ACCEPT_EVIDENCE。重複の後勝ち・空集合の完了化・期待と実結果の循環なし |
+| `A11-38` | 一ケースのb1をREQ-004/P06-APP/media、b2をREQ-003/P09-REMOTE/ssh_existingへ対応し各期待条件/検証方法を指定、旧三配列形式も別入力 | 新形式は二行だけを生成、旧形式は拒否。関係のない四通り/別laneを直積で追加せず、必須二組の欠損も拒否 |
 
-検証順序は、担当本文に現存する全ケースID集合との完全一致→ID一意性→source/expectation/要件/契約の参照閉包→execution_classと環境の適合→全lane→ExpectedCase展開→結合キー重複と必要経路の不足、とする。展開は各Bindingのrequirement_ids×contracts×lanesだけを使い、全製品の無条件直積を作らない。ケースが複数の要件/契約を扱う場合も省略せず別行へ対応付ける。構文/純粋fixtureの実行成功を同じケースのVM/実機成功へ転写しない。
+検証順序は、担当本文に現存する全ケースID集合との完全一致→ID一意性→source/枝/要件/契約の参照閉包→枝ごとの入力/期待条件の網羅と意味審査→execution_classと環境の適合→全CaseTarget→ExpectedCaseDraftの生成→結合キー重複と必要経路の不足、とする。各CaseTargetをそのbranch_idの一行へ対応付け、別々の要件/契約/lane配列から直積を生成しない。構文/純粋fixtureの実行成功を同じケースのVM/実機成功へ転写しない。
 
-一Bindingのrequirement_idsとcontractsは全組合せの要求/契約がそのケースの期待セルに対応すると確認した集合だけを許す候補。単なる関連リンクをcontractsへ足して直積の試験範囲を広げない。一組でも対応根拠が欠ければACCEPT_SCOPEとし、対応しない組だけを実行時に黙って除外しない。全組合せを表せない複合ケースはカタログ形式の別採用判断を必要とし、現形式のまま充足済みにしない。A11-26/30/36で二要件二契約のうち一組だけ期待根拠がない入力を照合する。
+一CaseTargetのbranch_id/requirement_id/contract/laneがその枝の期待条件へ対応すると確認した組だけを許す候補。単なる関連リンクから試験範囲を広げず、一組でも根拠が欠ければACCEPT_SCOPEとする。実行時に不都合な組だけを黙って除外しない。入力の旧requirement_ids/contracts/lanes、枝を持たない旧CaseTarget/Bindingは未知または欠損として拒否し、生成器が新形式へ推測変換しない。A11-26/30/36で期待根拠のない組、旧形式、必須組の欠損を照合する。
 
-仕様にケースを追加したときは、case_idをカタログへ追加してlane/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、展開後ExpectedCase 100,000行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
+branch_idは当該case内で`b`と先頭zeroのない1以上の十進番号、出現順にb1から連続とする候補。一行の正常/異常、境界の内/外、異なる障害注入は独立枝に分け、同じ枝の共通前提や保護条件は複数SourceCellRefで参照できる。区間はUTF-8境界へ一致、input_refsはinputセルだけ、expectation_refsはexpectationセルだけを指す。source.commit/元セルhashが変われば全区間を失効させ、位置だけを再利用しない。枝の定義文を別文書へ複製せず元セルから照合する。
 
-専用入力はシェルの検証処理が一回だけ解析し、次に選択済みのCatalog/Scope照合へ対応付ける。製品Rustの受入専用解析APIを呼び出さず、通常JSONの構文・深さ・文字列・位置・checked演算と計数規則の意味だけを[P02-PARSE](PHASE_02.md#解析の入力と上限)へ照合する。専用上限の候補は入力16 MiB、ノード2,000,000、同じM式による論理512 MiB、成功直前の経過15秒未満とする。rootの自己申告で一般設定の用途を切り替えない。構文解析後の展開も同じ15秒の外側予算へ含め、行生成前のchecked乗算/加算で100,000行と論理512 MiBを検査する。入力byte/ノード/展開行の全上限を独立に満たす必要があり、100,000行が常に16 MiBへ収まるという保証ではない。超過時は部分scopeを返さない。構造解析・計数・計測・割当失敗時の保全をシェルで実現する方式はD11-01の未達とし、論理予算をRSSや強制返却期限の保証にしない。
+セルの元byte列は、固定commitのMarkdown構文木で解決した当該case行の列境界の内側とする候補。列の区切りpipeと行末LF/CRLFだけを除き、先頭/末尾space、backtick、escapeと日本語の元UTF-8は保持する。offsetはこの保存byte列の0起点、表示後/escape復号後/trim後の位置ではない。[GFMの表・Example 200](https://github.github.com/gfm/#example-200)に従い、セル内容のpipeはcode span内でもescapeを必要とする。escapeしたpipeと列境界を区別し、backtickだけで未escapeのpipeを保護したと解釈しない。同case_idの複数行・未閉鎖構文・列数不一致はACCEPT_SCOPE。元セルのhashは審査資料のEvidenceRefへ結合し、SourceCellRefへ未宣言のキーを後付けしない。A11-40へ表示文字は同じでも空白/escapeだけ変わる入力と、code span内のescape有無を加えて照合する。構文木を得るシェル方式はD01-02/D11-01の未達を維持する。
+
+各枝は一つ以上のTargetを持ち、各Targetは同じBindingの一枝へだけ対応する。期待する必須profileの和集合は後述のケース割当へ一致させるが、全枝を全profileへ複製しない。Target.expectation_refsは当該枝の期待条件だけへ参照し、ExpectedCaseDraftのexpected_ref/verification_refはそのTargetの値を保持してExpectedCase/AcceptanceRowまで渡す。pureが入力拒否を、VMが実変更/非変更を扱う場合は、各Targetへその条件と観測方法を明示する。自分の全担当条件を検証した行だけpassであり、pureのpassをVMの副作用検証へ転用しない。枝の必須Targetの和集合は枝の全期待条件を、全枝の和集合は元セルの全入力/期待条件を意味上網羅する必要がある。必要条件の欠落をbyte被覆率や件数だけで成功にしない。
+
+例えばA05-29の媒体継続・SSH受理・OS導入の三枝は、それぞれV/R/Sの該当Targetへ対応させる。媒体VMにSSH受理を、Cloud VMにUSB取外しを要求しない。同じcase_idでもbranch_idが違えば別行であり、三枝のうち二枝だけの成功はケース全体の成功ではない。全ケースの枝/対応審査はD11-01の残作業で、本例やケースIDの件数一致だけで全件具体化済みとしない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A11-39` | 一行の三枝をV/R/Sへ別々に対応、b2だけ欠損、b1の結果をb2へ転用 | 正常は三枝の対応を保持。欠損/転用はACCEPT_SCOPE/EVIDENCE、全枝全laneの直積・一部成功による全体完了なし |
+| `A11-40` | セル改定後の旧byte区間、共通保護条件の参照漏れ、未知branch_id | source/網羅/参照検証で拒否。位置一致・byte被覆率・同じcase_idだけの意味充足なし |
+
+仕様にケースを追加したときは、case_idをカタログへ追加して全対象組/期待参照を固定するまでscopeは不成立。改定時は旧新の集合差・影響する契約/資材/環境と証拠失効範囲を照合し、既存のpassを名前だけで再利用しない。上限候補はCaseBinding 4,096件、全branches/全targetsのchecked合計と生成後ExpectedCaseDraftのそれぞれ100,000件/行、入力全体16 MiBとし、P02の通常1 MiB解析と別に予算を宣言する専用の有界収集入力とする。超過時は停止し、自動間引きやページ分割によるscope縮小をしない。
+
+専用入力はシェルの検証処理が一回だけ解析し、次に選択済みのCatalog/Scope照合へ対応付ける。製品Rustの受入専用解析APIを呼び出さず、通常JSONの構文・深さ・文字列・位置・checked演算と計数規則の意味だけを[P02-PARSE](PHASE_02.md#解析の入力と上限)へ照合する。専用上限の候補は入力16 MiB、ノード2,000,000、同じM式による論理512 MiB、成功直前の経過15秒未満とする。rootの自己申告で一般設定の用途を切り替えない。構文解析後の行生成も同じ15秒の外側予算へ含め、生成前のchecked加算で全targetsと100,000行/論理512 MiBを検査する。入力byte/ノード/行数の全上限を独立に満たす必要があり、100,000行が常に16 MiBへ収まるという保証ではない。超過時は部分scopeを返さない。構造解析・計数・計測・割当失敗時の保全をシェルで実現する方式はD11-01の未達とし、論理予算をRSSや強制返却期限の保証にしない。
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -361,7 +378,7 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 
 下表を全受入ケースの実行区分/laneの設計上の固定集合とする候補。NNは担当ファイルPHASE_NN.md、番号はA NNの末尾（実IDはA01-01等）、a..bは両端を含む整数列、commaは和集合、+は必要な全profileの和。入力語の推測分類ではなく、各行を明示列挙した集合を使う。同じケースを二行へ重複登録しない。
 
-期待結果は担当ファイル内の同じcase_idの前提/入力/期待結果の全セルが唯一の正本。提出commitでその一行と所属節/担当契約・要件を束縛し、期待資料の元byte列/hashを外側の確認資料で固定する。本表へ期待文を複製せず、テスト実出力から期待値を生成しない。行の一部だけの一致はpassにせず、正常/異常/境界の各入力を全て照合する。
+期待結果は担当ファイル内の同じcase_idの前提/入力/期待結果の全セルが唯一の正本。提出commitでその一行と所属節/担当契約・要件を束縛し、期待資料の元byte列/hashを外側の確認資料で固定する。本表へ期待文を複製せず、テスト実出力から期待値を生成しない。各行は[枝単位の対応](#受入カタログの閉包と更新)へ分解し、枝内の一部条件だけではpassにしない。全枝の必須Targetを集約してからケース全体を判定する。
 
 | profile | 実行区分・展開するlaneと環境の設計 |
 |---|---|
@@ -381,33 +398,39 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 |---|---|---|
 | 01 | 01..08,14..16,18,21..23,26,30,32 | P+A |
 | 01 | 09..13,17,19..20,24..25,27..29,31,33..36 | D+P |
+| 01 | 37 | D+P+A |
 | 02 | 01..06,10,41..79,81..84,86..103,105..110,113..116,118..122 | P+A |
-| 02 | 07..09,80,85,104,111..112,117,123..124 | P+A+U |
+| 02 | 07..09,80,85,104,111..112,117,123..126 | P+A+U |
 | 02 | 11..40 | P |
-| 03 | 01..03,05..10,12..17,19..20,22..23,25..31,33..37 | P+A |
-| 03 | 04,11,18,21,24,32 | P+A+U |
-| 04 | 01..04,07..10,12,14..15,17..18,20,25,29..30,33..34,42..44,46 | P+A+U |
-| 04 | 05..06,11,13,16,19,21..24,26..28,31..32,35..41,45,47..49 | P+A |
-| 05 | 01..02,15,20..21,25,34,37..38 | P+A |
-| 05 | 03..08,10..14,16..19,22..23,26..27,29..33,35..36,39..41 | P+V |
+| 03 | 01..03,05..10,12..17,19..20,22..23,25..31,33..37,40..41 | P+A |
+| 03 | 04,11,18,21,24,32,38..39 | P+A+U |
+| 04 | 01..04,07..10,12,14..15,17..18,20,25,29..30,33..34,42..44,46,51..55 | P+A+U |
+| 04 | 05..06,11,13,16,19,21..24,26..28,31..32,35..41,45,47..50 | P+A |
+| 05 | 01..02,15,20..21,25,34,37..38,42 | P+A |
+| 05 | 03..08,10..14,16..19,22..23,26..27,30..33,35..36,39..41 | P+V |
+| 05 | 29 | P+V+R+S |
 | 05 | 09 | P+V+H |
 | 05 | 24,28 | P+H |
-| 06 | 01..02,04,06,09..12,14..17,20..23,27..30,32..33,35 | P+A |
+| 06 | 01..02,04,06,09..12,14..17,20..23,27..30,32..33,35..37 | P+A |
 | 06 | 03,05,07..08,13,18..19,24..26,31,34 | P+A+V+R |
 | 07 | 01..03,05,07,23..24,35,40 | P+A+H |
 | 07 | 04,06,08,12..14,18,22,26..34,36..39,41 | P+A+U |
 | 07 | 09..11,15..17,19..21,25 | P |
+| 07 | 42 | P+A |
+| 07 | 43 | P+A+V+R+S |
+| 07 | 44 | P+A+V+R+S+H |
 | 08 | 01..02,07,21,31 | P+A+V+H |
 | 08 | 05,08,16,22,25,32,35 | P+A+V+R+S |
-| 08 | 12..13,18,26,28 | P+A+V |
+| 08 | 12..13,18,26,28,37..38 | P+A+V |
 | 08 | 03..04,06,09..11,14..15,17,19..20,23..24,27,29..30,33..34 | P+A |
-| 09 | 03,16,26..27 | P+A+R+S |
-| 09 | 01..02,04..15,17..25,28..39 | P+A+R |
-| 10 | 11,17,21,28,35 | P+A+S+V |
-| 10 | 01..10,12..16,18..20,22..27,29..34 | P+A+S |
+| 08 | 36 | P+A+U |
+| 09 | 03,16,26..27,41 | P+A+R+S |
+| 09 | 01..02,04..15,17..25,28..40,42 | P+A+R |
+| 10 | 11,17,21,28,35..36 | P+A+S+V |
+| 10 | 01..10,12..16,18..20,22..27,29..34,37 | P+A+S |
 | 11 | 04..05,11..12,23 | D+P+A+V |
 | 11 | 07,15,18,21,27,29 | D+P+A+L |
-| 11 | 01..03,06,08..10,13..14,16..17,19..20,22,24..26,28,30..37 | D+P+A |
+| 11 | 01..03,06,08..10,13..14,16..17,19..20,22,24..26,28,30..40 | D+P+A |
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
@@ -417,7 +440,7 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
-| `A11-37` | 全担当IDを展開した設計割当、H/L環境未選定、後から新ケース追加 | 全件の過不足を照合し未選定は未束縛。新ケースの割当までScope不成立。設計509件を試験509件成功へ転用しない |
+| `A11-37` | 全担当IDを展開した設計割当、H/L環境未選定、後から新ケース追加 | 全件の過不足を照合し未選定は未束縛。新ケースの割当までScope不成立。設計件数を同数の試験成功へ転用しない |
 
 ### 設計行から実行Scopeへの束縛
 
@@ -430,8 +453,10 @@ ExpectedCaseDraftの生成入力候補を下表のCaseBindingの固定集合と�
 | 担当ケース・profile | 成功対象として束縛できる範囲 |
 |---|---|
 | Phase 5のV/H | mediaの対応集合。Hは機種/版/操作を個別指定した物理対象だけ |
+| Phase 5・A05-29のR/S | SSH受理/OS導入の枝だけ。P09/P10の該当する遠隔対応集合へ束縛し、媒体継続の枝はVに残す |
 | Phase 6のV | mediaのserverとmaster。arm64はserverのみ |
 | Phase 6のR | ssh_existingのserverのみ。マスター上のserver機能の試験をCloud master導入にしない |
+| Phase 7・A07-43/44のV/R/S | Vはamd64のmedia/mining/master、R/Sはamd64の各遠隔入口/mining。初回計画と導入後同定の担当枝だけを結合し、GPU交換の実機証拠はHへ残す |
 | Phase 7のH | amd64のminingと物理master。arm64の採掘成功を生成しない |
 | Phase 8のV/H | amd64の物理master自身。管理先の構成をマスター自身の構成へ混同しない |
 | Phase 8のR/S | 表で指定した遠隔照合ケースだけ。制御元は物理master、laneは操作先のserver/miningの対応集合 |

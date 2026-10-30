@@ -2,7 +2,7 @@
 
 [文書一覧](../DOCUMENT_INDEX.md) | [担当工程](../ROADMAP.md#phase-5-外部媒体isoと物理pcの導入保守基盤)
 
-状態は採用未承認の`B12`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
+状態は採用未承認の`B14`。[案の適用範囲](PHASE_01.md#案の適用範囲)を参照する。担当要件は`REQ-002`・`REQ-003`・`REQ-005`・`REQ-006`・`REQ-007`・`REQ-008`・`REQ-009`・`REQ-010`・`REQ-011`・`REQ-012`。既存の[外部媒体手順](../BASIC_SPEC.md#外部媒体による導入と保守)と[起動確認](../BASIC_SPEC.md#内蔵osの起動確認)は変更しない。
 
 ## 契約と参照
 
@@ -13,7 +13,7 @@
 | `P05-HANDOFF` | Live環境と対象OSの引継ぎ・中断・取り外し |
 | `P05-FIRMWARE` | 機種別操作の選定と結果検証 |
 
-共通参照（全フェーズB12）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
+共通参照（全フェーズB14）は、`P02-MODEL`・[識別](PHASE_02.md#p02-model)、`P02-STORE`・[記録](PHASE_02.md#p02-store)、`P02-EXEC`・[外部実行](PHASE_02.md#p02-exec)、`P03-FS`・[パス](PHASE_03.md#p03-fs)、`P04-SELF`・[本体管理](PHASE_04.md#p04-self)、`P04-BACKUP`・[保全](PHASE_04.md#p04-backup)、`P04-APPLY`・[適用](PHASE_04.md#p04-apply)。構成機能の完成はPhase 6〜8と全体受入へ接続する。
 
 ## P05-ISO
 
@@ -365,7 +365,7 @@ StorageInput.erase_confirmed_for_planはこの候補では消去対象を親計�
 | user-data | 空objectだけの比較候補。identityによる秘密password/hashの埋込みを使わず、対象ユーザーの準備を固定の対象側処理へ分離。cloud-initを利用者の別の開始経路にしない |
 | early-commands | 空配列。選択/消去確認前に対象を変更するscriptを置かない |
 | late-commands | 検証済み同一本体の固定内部入口に、同期済みhandoffを照合させる一つのargv配列。動的入力は記録を読ませ、shell文字列へ連結しない |
-| shutdown | installerによる自動再起動・電源断の抑止を必須とする比較条件。poweroffを無条件生成しない。採用版でServerSeedへ制御を戻す設定/起動契約を固定できなければD05-01/02未達とし、実行しない |
+| shutdown | [下記の終了制御の成立条件](#installer終了制御の成立条件)を先に確認する。未定義のnone等を生成せず、未成立ならD05-01/02の未達として実行しない |
 
 storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_bootはformat/mountなし。disk選択の自由なmatch/最大容量指定を使わない。採用storage版がoffsetを保証しない場合、共通の厳密start_bytes契約と両立する証拠を必要とする。[Curtin storage](https://curtin.readthedocs.io/en/latest/topics/storage.html)の版1と版2でoffsetの意味が異なるため、version=1へoffsetを書いただけで厳密配置を保証しない。採用版/生成schema/寸法fixtureが一致しない場合は実行前保留する。
 
@@ -374,6 +374,20 @@ storageのformat/mountはESP=fat32と/boot/efi、root=ext4と/だけ、bios_boot
 | ケースID | 固定入力 | 期待結果 |
 |---|---|---|
 | `A05-34` | adoptへ生成要求、storage v1でoffsetだけ指定、source ID未固定、late-commandへ文字列 | 生成/適用前拒否。既存OS消去・無視される寸法の保証・shell評価・既定source選択なし |
+
+### installer終了制御の成立条件
+
+[Subiquity公式資料](https://canonical-subiquity.readthedocs-hosted.com/en/latest/reference/autoinstall-reference.html#shutdown)に記載されたshutdownはreboot/poweroffであり、未再起動のまま終了する値は確認できていない。late-commandsはinstaller側の環境で動くため、対象内の入口を直接指定するだけでは対象OS内実行にならない。固定した実行側入口と対象rootへの束縛を必要とする。
+
+本案はshutdownキーだけによる制御返却を実現済みとしない。ServerSeedが取り外し前の検証/同期/参照解除を行える監督・停止方式を固定版で特定するまで生成・導入を保留する。late処理の無限待機、installerを意図的に失敗させる方式、未確認のservice停止を成功経路へ追加しない。制御返却を必要としない別方式へ変える場合も、媒体なし起動と既存の引渡し要求への対応を別途審査する。
+
+late-commandsの制御主体はRAM上のinstaller側に置く候補とし、対象内の準備処理と分離する。外側入口は対象disk/root/Planと検証済み本体の同一性、残予算と排他を検査する。対象内の処理が必要な場合は、固定版の`curtin in-target --target=/target -- <固定入口と固定argv>`の成立根拠へ束縛し、引数をshell文字列へ連結しない。対象内の処理完了はユーザー/設定/本体の配置検証までで、稼働中サービスの検査や媒体参照解除を代行しない。外側は終了/記録を照合してから別段階で解除へ進み、対象内の成功をinstaller全体の終了確認にしない。この分離も正常な制御返却方式そのものを解決する案ではなく、D05-01/02/03の残条件とする。
+
+公式設定には導入後の更新既定値もあるため、refresh-installer.update=falseだけで全資材が固定されたとは扱わない。installerの実取得・package更新・driver/OEM/kernelの選定をrecipeの全変更集合へ対応付け、浮動する取得や未固定の生成結果が残ればD05-02の未達とする。新しい更新無効化キーを創作しない。
+
+| ケースID | 固定入力 | 期待結果 |
+|---|---|---|
+| `A05-42` | shutdownへnone、late入口は対象内にしかない、installer更新だけ無効で対象packageは浮動 | 生成/外部契約不成立で導入開始0件。存在しない制御返却・Live側の対象処理・固定資材の捏造なし |
 
 ### 内蔵OS継続unitと二回の起動証拠
 
@@ -426,7 +440,7 @@ RAM起動の候補測定入力は固定ISO hash/recipe hash、CPU、仮想firmwa
 | 判断ID | 必要な具体化・採用判断 | 影響 |
 |---|---|---|
 | `D05-01` | [RAM測定](#ram実行と媒体解除の測定契約)に算定/参照解除案あり。固定ベースISOとboot設定、全参照の観測方法・測定条件/根拠が残る | ISO生成・媒体取外し |
-| `D05-02` | [Subiquity生成対応](#subiquity入力生成の対応表)に案あり。固定版でのstorage v2/ユーザーhelper、cloud-init用途制限との両立を確認して採用判断 | 物理OS導入 |
+| `D05-02` | [Subiquity生成対応](#subiquity入力生成の対応表)に案あり。[終了制御](#installer終了制御の成立条件)はshutdownだけでは不成立。固定版での制御/資材更新、storage v2/ユーザーhelper、cloud-init用途制限との両立を具体化して採用判断 | 物理OS導入 |
 | `D05-03` | [内蔵継続unit](#内蔵os継続unitと二回の起動証拠)に保存/再開/二回起動の案あり。実起動主体・同期/引渡し・権限の成立根拠と採用判断が残る | 媒体導入・保守 |
 | `D05-04` | FirmwareContractに案あり。実機の対応行/公式操作/値域とセキュリティの試験境界は未確定。VM専用規定を実機許可へ変更しない | firmware・復電受入 |
 
